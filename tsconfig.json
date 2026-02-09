@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    // Strictness
+    "strict": true,
+    "exactOptionalPropertyTypes": false,
+
+    // Module / Resolution
+    "module": "preserve",
+    "moduleDetection": "force",
+    "moduleResolution": "bundler",
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
+    // Types
+    "target": "esnext",
+    "lib": ["esnext", "dom", "dom.iterable", "dom.asynciterable"],
+    "types": [],
+    "typeRoots": [
+      "./node_modules",
+      "./node_modules/@types"
+    ],
+
+    // Others
+    "allowJs": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "incremental": true,
+    "composite": true
+  },
+
+  "include": [
+    "src/**/*.ts",
+    "eslint.config.js"
+  ]
+}
