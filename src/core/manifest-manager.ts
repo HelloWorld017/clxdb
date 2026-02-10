@@ -1,10 +1,9 @@
-import { PROTOCOL_VERSION } from '../constants';
-import type { StorageBackend, Manifest, ShardFileInfo } from '../types';
+import { PROTOCOL_VERSION } from '@/constants';
+import { delayWithBackoff } from '@/utils/backoff';
+import type { StorageBackend, Manifest, ShardFileInfo } from '@/types';
 
 const MANIFEST_PATH = 'manifest.json';
 const MAX_RETRIES = 10;
-const BASE_RETRY_DELAY_MS = 100;
-const RETRY_JITTER_FACTOR = 0.25;
 
 export class ManifestManager {
   private backend: StorageBackend;
@@ -95,7 +94,7 @@ export class ManifestManager {
       }
 
       if (attempt < MAX_RETRIES - 1) {
-        await this.delayWithBackoff(attempt);
+        await delayWithBackoff(attempt);
       }
     }
 
@@ -112,12 +111,5 @@ export class ManifestManager {
 
   private parseManifest(content: Uint8Array): Manifest {
     return JSON.parse(new TextDecoder().decode(content)) as Manifest;
-  }
-
-  private delayWithBackoff(attempt: number): Promise<void> {
-    const baseDelay = BASE_RETRY_DELAY_MS * Math.pow(2, attempt);
-    const jitter = baseDelay * RETRY_JITTER_FACTOR * (Math.random() * 2 - 1);
-    const delay = baseDelay + jitter;
-    return new Promise(resolve => setTimeout(resolve, Math.max(0, delay)));
   }
 }

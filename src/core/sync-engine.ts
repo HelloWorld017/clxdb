@@ -3,17 +3,20 @@ import {
   DEFAULT_COMPACTION_THRESHOLD,
   DEFAULT_DESIRED_SHARD_SIZE,
   DEFAULT_VACUUM_THRESHOLD,
+  DEFAULT_CACHE_STORAGE_KEY,
 } from '../constants';
+import { createPromisePool } from '../utils/promise-pool';
 import { CompactionEngine } from './compaction-engine';
 import { GarbageCollector } from './garbage-collector';
 import { ManifestManager } from './manifest-manager';
-import { ShardHeaderManager } from './shard-header-manager';
+import { ShardManager } from './shard-manager';
 import { encodeShard, calculateHash } from './shard-utils';
 import type {
   StorageBackend,
   DocOperation,
   ShardFileInfo,
   ShardDocument,
+  ShardDocInfo,
   ClxDBOptions,
   SyncState,
   ClxDBEvents,
@@ -21,6 +24,7 @@ import type {
 
 const SHARDS_DIR = 'shards';
 const MANIFEST_PATH = 'manifest.json';
+const LAST_SEQUENCE_KEY = 'lastSequence';
 
 interface RequiredOptions {
   syncInterval: number;
@@ -28,6 +32,7 @@ interface RequiredOptions {
   desiredShardSize: number;
   gcOnStart: boolean;
   vacuumThreshold: number;
+  cacheStorageKey: string | null;
 }
 
 type Listeners = Partial<Record<keyof ClxDBEvents, Array<(...args: never[]) => void>>>;
@@ -38,7 +43,7 @@ export class SyncEngine {
   private manifestManager: ManifestManager;
   private compactionEngine: CompactionEngine;
   private garbageCollector: GarbageCollector;
-  private shardHeaderManager: ShardHeaderManager;
+  private shardManager: ShardManager;
 
   private syncIntervalId: number | null = null;
   private state: SyncState = 'idle';
@@ -51,12 +56,12 @@ export class SyncEngine {
     this.backend = backend;
     this.options = this.normalizeOptions(options);
     this.manifestManager = new ManifestManager(backend);
-    this.compactionEngine = new CompactionEngine(backend, {
+    this.shardManager = new ShardManager(backend, options);
+    this.compactionEngine = new CompactionEngine(backend, this.shardManager, {
       desiredShardSize: this.options.desiredShardSize,
       compactionThreshold: this.options.compactionThreshold,
     });
     this.garbageCollector = new GarbageCollector(backend);
-    this.shardHeaderManager = new ShardHeaderManager(backend, options);
   }
 
   private normalizeOptions(options: ClxDBOptions): RequiredOptions {
@@ -66,17 +71,26 @@ export class SyncEngine {
       desiredShardSize: options.desiredShardSize ?? DEFAULT_DESIRED_SHARD_SIZE,
       gcOnStart: options.gcOnStart ?? true,
       vacuumThreshold: options.vacuumThreshold ?? DEFAULT_VACUUM_THRESHOLD,
+      cacheStorageKey: options.cacheStorageKey ?? DEFAULT_CACHE_STORAGE_KEY,
     };
   }
 
   async init(): Promise<void> {
-    const manifest = await this.manifestManager.initialize();
-    this.shardHeaderManager.initialize();
+    this.shardManager.initialize();
+    await this.manifestManager.initialize();
 
-    // FIXME get lastSequence from localStorage
-    //   get knownShards from shardHeaderManager
-    //
-    // FIXME rename shardHeaderManager as shardManager, and move relevant logics there
+    // Load lastSequence from localStorage
+    const storageKey = this.options.cacheStorageKey ?? DEFAULT_CACHE_STORAGE_KEY;
+    const lastSequenceStr = localStorage.getItem(`${storageKey}/${LAST_SEQUENCE_KEY}`);
+    if (lastSequenceStr) {
+      this.localSequence = parseInt(lastSequenceStr, 10);
+    }
+
+    // Load knownShards from shardManager
+    const headers = this.shardManager.getAllHeaders();
+    for (const filename of headers.keys()) {
+      this.knownShards.add(filename);
+    }
 
     if (this.options.gcOnStart) {
       void this.garbageCollector.run();
@@ -209,8 +223,9 @@ export class SyncEngine {
     try {
       await this.backend.write(shardPath, shard);
     } catch (error) {
-      // FIXME do not use error message for logic.
-      if ((error as Error).message?.includes('already exists')) {
+      // Check if file already exists using stat
+      const existingStat = await this.backend.stat(shardPath).catch(() => null);
+      if (existingStat) {
         this.pendingChanges = [];
         return;
       }
@@ -229,7 +244,8 @@ export class SyncEngine {
     await this.manifestManager.addShard(shardInfo);
     this.pendingChanges = [];
     this.knownShards.add(filename);
-    // FIXME update localSequence
+    this.localSequence = Math.max(this.localSequence, seqMax);
+    this.saveLocalSequence();
   }
 
   private async pull(): Promise<void> {
@@ -249,12 +265,25 @@ export class SyncEngine {
     };
 
     const newShards = manifest.shardFiles.filter(s => !this.knownShards.has(s.filename));
-    await this.shardHeaderManager.fetchMissingHeaders(newShards);
+    await this.shardManager.fetchMissingHeaders(newShards);
 
-    // FIXME Run this in pooled manner. use src/utils/promise-pool.ts
-    for (const shardInfo of newShards) {
-      await this.fetchAndApplyShard(shardInfo);
-      this.knownShards.add(shardInfo.filename);
+    // Fetch and apply shards using promise pool for concurrency
+    const shardGenerator = (function* (syncEngine: SyncEngine, shards: ShardFileInfo[]) {
+      for (const shardInfo of shards) {
+        yield syncEngine.fetchAndApplyShard(shardInfo);
+      }
+    })(this, newShards);
+
+    const results = await createPromisePool(shardGenerator, 5);
+
+    // Track successfully processed shards
+    for (let i = 0; i < newShards.length; i++) {
+      const result = results[i];
+      if (result.status === 'fulfilled') {
+        this.knownShards.add(newShards[i].filename);
+      } else {
+        console.warn(`Failed to fetch and apply shard ${newShards[i].filename}:`, result.reason);
+      }
     }
 
     this.localSequence = manifest.lastSequence;
@@ -266,10 +295,47 @@ export class SyncEngine {
   }
 
   private async fetchAndApplyShard(shardInfo: ShardFileInfo): Promise<void> {
-    const header = await this.shardHeaderManager.fetchHeader(shardInfo);
-    // FIXME add pull logic
-    // 1. find documents where seq >= this.localSequence
-    // 2. fetch their data in pooled manner.
-    // 3. bulkUpsert and bulkDelete to DB
+    const header = await this.shardManager.fetchHeader(shardInfo);
+
+    // Find documents where seq > this.localSequence
+    const docsToFetch = header.docs.filter(doc => doc.seq > this.localSequence);
+
+    if (docsToFetch.length === 0) {
+      return;
+    }
+
+    // Fetch document data using promise pool for concurrency
+    const docGenerator = (function* (
+      shardManager: ShardManager,
+      shardInfo: ShardFileInfo,
+      docs: ShardDocInfo[]
+    ) {
+      for (const doc of docs) {
+        yield shardManager.fetchDocument(shardInfo, doc);
+      }
+    })(this.shardManager, shardInfo, docsToFetch);
+
+    const results = await createPromisePool(docGenerator, 5);
+
+    // Process results and emit document changes
+    const changes: ShardDocument[] = [];
+    for (let i = 0; i < docsToFetch.length; i++) {
+      const result = results[i];
+      if (result.status === 'fulfilled') {
+        changes.push(result.value);
+      } else {
+        console.warn(`Failed to fetch document ${docsToFetch[i].id}:`, result.reason);
+      }
+    }
+
+    // Emit changes for application to the database
+    if (changes.length > 0) {
+      this.emit('documentsChanged', changes);
+    }
+  }
+
+  private saveLocalSequence(): void {
+    const storageKey = this.options.cacheStorageKey ?? DEFAULT_CACHE_STORAGE_KEY;
+    localStorage.setItem(`${storageKey}/${LAST_SEQUENCE_KEY}`, this.localSequence.toString());
   }
 }

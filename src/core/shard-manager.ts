@@ -1,10 +1,11 @@
 import { DEFAULT_CACHE_STORAGE_KEY, SHARDS_DIR } from '@/constants';
-import { getHeaderLength, parseShardHeader } from './shard-utils';
+import { getHeaderLength, parseShardHeader, extractBodyOffset } from './shard-utils';
 import type {
   StorageBackend,
   ShardFileInfo,
   ShardHeader,
   ShardDocInfo,
+  ShardDocument,
   ClxDBOptions,
 } from '../types';
 
@@ -21,7 +22,7 @@ interface ShardHeaderCache {
 
 const CACHE_VERSION = 1;
 
-export class ShardHeaderManager {
+export class ShardManager {
   private backend: StorageBackend;
   private headers: Map<string, ShardHeader> = new Map();
   private options: ClxDBOptions;
@@ -56,7 +57,7 @@ export class ShardHeaderManager {
       return cached;
     }
 
-    const header = await this.fetchShardHeaderFromRemote(shardInfo);
+    const header = await this.fetchHeaderFromRemote(shardInfo);
     this.headers.set(shardInfo.filename, header);
     this.saveToCache();
     return header;
@@ -121,7 +122,28 @@ export class ShardHeaderManager {
     return header?.docs ?? [];
   }
 
-  private async fetchShardHeaderFromRemote(shardInfo: ShardFileInfo): Promise<ShardHeader> {
+  async fetchDocument(shardInfo: ShardFileInfo, docInfo: ShardDocInfo): Promise<ShardDocument> {
+    const path = `${SHARDS_DIR}/${shardInfo.filename}`;
+    const headerLenBytes = await this.backend.read(path, { start: 0, end: 3 });
+    const headerLen = getHeaderLength(headerLenBytes);
+    const bodyOffset = extractBodyOffset(headerLen);
+
+    const docBytes = await this.backend.read(path, {
+      start: bodyOffset + docInfo.offset,
+      end: bodyOffset + docInfo.offset + docInfo.len - 1,
+    });
+
+    const docJson = JSON.parse(new TextDecoder().decode(docBytes)) as Record<string, unknown>;
+    return {
+      id: docInfo.id,
+      rev: docInfo.rev,
+      seq: docInfo.seq,
+      del: docInfo.del,
+      data: docInfo.del ? undefined : docJson,
+    };
+  }
+
+  private async fetchHeaderFromRemote(shardInfo: ShardFileInfo): Promise<ShardHeader> {
     const path = `${SHARDS_DIR}/${shardInfo.filename}`;
 
     try {

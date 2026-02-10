@@ -1,5 +1,5 @@
-import { GC_COOLDOWN_HOURS } from '../constants';
-import type { StorageBackend, Manifest } from '../types';
+import { GC_COOLDOWN_HOURS } from '@/constants';
+import type { StorageBackend, Manifest } from '@/types';
 
 const SHARDS_DIR = 'shards';
 const SHARD_EXTENSION = '.clx';

@@ -1,10 +1,5 @@
-import {
-  encodeShardFromDocInfos,
-  calculateHash,
-  parseShardHeader,
-  getHeaderLength,
-  extractBodyOffset,
-} from './shard-utils';
+import { encodeShardFromDocInfos, calculateHash } from './shard-utils';
+import type { ShardManager } from './shard-manager';
 import type { StorageBackend, ShardFileInfo, ShardDocInfo } from '../types';
 
 const SHARDS_DIR = 'shards';
@@ -19,17 +14,20 @@ export interface CompactionResult {
 
 export class CompactionEngine {
   private backend: StorageBackend;
+  private shardManager: ShardManager;
   private desiredShardSize: number;
   private compactionThreshold: number;
 
   constructor(
     backend: StorageBackend,
+    shardManager: ShardManager,
     options: {
       desiredShardSize: number;
       compactionThreshold: number;
     }
   ) {
     this.backend = backend;
+    this.shardManager = shardManager;
     this.desiredShardSize = options.desiredShardSize;
     this.compactionThreshold = options.compactionThreshold;
   }
@@ -79,7 +77,7 @@ export class CompactionEngine {
 
     for (const shardInfo of shards) {
       try {
-        const header = await this.fetchShardHeader(shardInfo);
+        const header = await this.shardManager.fetchHeader(shardInfo);
         for (const doc of header.docs) {
           const existing = allDocs.get(doc.id);
           if (!existing || doc.seq > existing.seq) {
@@ -98,33 +96,5 @@ export class CompactionEngine {
     const mergedDocs = Array.from(allDocs.values());
     mergedDocs.sort((a, b) => a.seq - b.seq);
     return mergedDocs;
-  }
-
-  private async fetchShardHeader(shardInfo: ShardFileInfo): Promise<{
-    docs: ShardDocInfo[];
-  }> {
-    const path = `${SHARDS_DIR}/${shardInfo.filename}`;
-    const headerLenBytes = await this.backend.read(path, { start: 0, end: 3 });
-    const headerLen = getHeaderLength(headerLenBytes);
-    const headerBytes = await this.backend.read(path, {
-      start: 4,
-      end: 4 + headerLen - 1,
-    });
-    return parseShardHeader(headerBytes);
-  }
-
-  async fetchDocumentBody(shardInfo: ShardFileInfo, docInfo: ShardDocInfo): Promise<unknown> {
-    const path = `${SHARDS_DIR}/${shardInfo.filename}`;
-    const headerLenBytes = await this.backend.read(path, { start: 0, end: 3 });
-    const headerLen = getHeaderLength(headerLenBytes);
-    const bodyOffset = extractBodyOffset(headerLen);
-
-    const docBytes = await this.backend.read(path, {
-      start: bodyOffset + docInfo.offset,
-      end: bodyOffset + docInfo.offset + docInfo.len - 1,
-    });
-
-    const docJson = new TextDecoder().decode(docBytes);
-    return JSON.parse(docJson);
   }
 }

@@ -1,14 +1,8 @@
-import { StorageConfig } from '../types';
-import { createStorageBackend } from './storage-factory';
 import { SyncEngine } from './sync-engine';
 import type { StorageBackend, ClxDBOptions, SyncState, ClxDBEvents } from '../types';
 
 export { SyncEngine } from './sync-engine';
-export { ShardHeaderManager } from './shard-header-manager';
-
-export function createSyncEngine(backend: StorageBackend, options?: ClxDBOptions): SyncEngine {
-  return new SyncEngine(backend, options);
-}
+export { ShardManager } from './shard-manager';
 
 export function createClxDB(params: { storage: StorageBackend; options?: ClxDBOptions }): {
   syncEngine: SyncEngine;
@@ -20,7 +14,7 @@ export function createClxDB(params: { storage: StorageBackend; options?: ClxDBOp
   getSyncState: () => SyncState;
   on: <K extends keyof ClxDBEvents>(event: K, listener: ClxDBEvents[K]) => () => void;
 } {
-  const syncEngine = createSyncEngine(params.storage, params.options);
+  const syncEngine = new SyncEngine(params.storage, params.options);
 
   return {
     syncEngine,

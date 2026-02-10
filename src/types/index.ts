@@ -85,6 +85,7 @@ export interface ClxDBEvents {
   syncError: (error: Error) => void;
   compactionStart: () => void;
   compactionComplete: () => void;
+  documentsChanged: (documents: ShardDocument[]) => void;
 }
 
 export interface ClxUIOptions {
