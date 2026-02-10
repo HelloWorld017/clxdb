@@ -73,6 +73,7 @@ export interface ClxDBOptions {
   desiredShardSize?: number;
   gcOnStart?: boolean;
   vacuumThreshold?: number;
+  cacheStorageKey?: string | null;
 }
 
 export type SyncState = 'idle' | 'pending' | 'syncing' | 'offline';

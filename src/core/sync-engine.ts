@@ -4,6 +4,11 @@ import {
   DEFAULT_DESIRED_SHARD_SIZE,
   DEFAULT_VACUUM_THRESHOLD,
 } from '../constants';
+import { CompactionEngine } from './compaction-engine';
+import { GarbageCollector } from './garbage-collector';
+import { ManifestManager } from './manifest-manager';
+import { ShardHeaderManager } from './shard-header-manager';
+import { encodeShard, calculateHash } from './shard-utils';
 import type {
   StorageBackend,
   DocOperation,
@@ -13,15 +18,6 @@ import type {
   SyncState,
   ClxDBEvents,
 } from '../types';
-import { ManifestManager } from './manifest-manager';
-import { CompactionEngine } from './compaction-engine';
-import { GarbageCollector } from './garbage-collector';
-import {
-  encodeShard,
-  calculateHash,
-  parseShardHeader,
-  getHeaderLength,
-} from './shard-utils';
 
 const SHARDS_DIR = 'shards';
 const MANIFEST_PATH = 'manifest.json';
@@ -34,9 +30,7 @@ interface RequiredOptions {
   vacuumThreshold: number;
 }
 
-type Listeners = Partial<
-  Record<keyof ClxDBEvents, Array<(...args: any[]) => void>>
->;
+type Listeners = Partial<Record<keyof ClxDBEvents, Array<(...args: any[]) => void>>>;
 
 export class SyncEngine {
   private backend: StorageBackend;
@@ -44,6 +38,7 @@ export class SyncEngine {
   private manifestManager: ManifestManager;
   private compactionEngine: CompactionEngine;
   private garbageCollector: GarbageCollector;
+  private shardHeaderManager: ShardHeaderManager;
 
   private syncIntervalId: number | null = null;
   private state: SyncState = 'idle';
@@ -61,13 +56,13 @@ export class SyncEngine {
       compactionThreshold: this.options.compactionThreshold,
     });
     this.garbageCollector = new GarbageCollector(backend);
+    this.shardHeaderManager = new ShardHeaderManager(backend);
   }
 
   private normalizeOptions(options: ClxDBOptions): RequiredOptions {
     return {
       syncInterval: options.syncInterval ?? DEFAULT_SYNC_INTERVAL,
-      compactionThreshold:
-        options.compactionThreshold ?? DEFAULT_COMPACTION_THRESHOLD,
+      compactionThreshold: options.compactionThreshold ?? DEFAULT_COMPACTION_THRESHOLD,
       desiredShardSize: options.desiredShardSize ?? DEFAULT_DESIRED_SHARD_SIZE,
       gcOnStart: options.gcOnStart ?? true,
       vacuumThreshold: options.vacuumThreshold ?? DEFAULT_VACUUM_THRESHOLD,
@@ -76,6 +71,7 @@ export class SyncEngine {
 
   async init(): Promise<void> {
     const manifest = await this.manifestManager.initialize();
+    this.shardHeaderManager.initialize();
     this.localSequence = manifest.lastSequence;
     this.knownShards = new Set(manifest.shardFiles.map(s => s.filename));
 
@@ -127,10 +123,7 @@ export class SyncEngine {
     }
   }
 
-  on<K extends keyof ClxDBEvents>(
-    event: K,
-    listener: ClxDBEvents[K]
-  ): () => void {
+  on<K extends keyof ClxDBEvents>(event: K, listener: ClxDBEvents[K]): () => void {
     if (!this.listeners[event]) {
       this.listeners[event] = [];
     }
@@ -179,11 +172,10 @@ export class SyncEngine {
     this.emit('stateChange', newState);
   }
 
-  private emit<K extends keyof ClxDBEvents>(
-    event: K,
-    ...args: Parameters<ClxDBEvents[K]>
-  ): void {
-    this.listeners[event]?.forEach(listener => listener(...args));
+  private emit<K extends keyof ClxDBEvents>(event: K, ...args: Parameters<ClxDBEvents[K]>): void {
+    this.listeners[event]?.forEach(listener => {
+      listener(...args);
+    });
   }
 
   private async push(): Promise<void> {
@@ -241,9 +233,10 @@ export class SyncEngine {
       shardFiles: ShardFileInfo[];
     };
 
-    const newShards = manifest.shardFiles.filter(
-      s => !this.knownShards.has(s.filename)
-    );
+    const newShards = manifest.shardFiles.filter(s => !this.knownShards.has(s.filename));
+
+    // Fetch missing shard headers first
+    await this.shardHeaderManager.fetchMissingHeaders(newShards);
 
     for (const shardInfo of newShards) {
       await this.fetchAndApplyShard(shardInfo);
@@ -254,10 +247,12 @@ export class SyncEngine {
     this.manifestManager.updateLastEtag(stat.etag);
   }
 
-  private async fetchAndApplyShard(
-    shardInfo: ShardFileInfo
-  ): Promise<ShardDocument[]> {
-    const header = await this.fetchShardHeader(shardInfo);
+  getPendingChanges(): DocOperation[] {
+    return [...this.pendingChanges];
+  }
+
+  private async fetchAndApplyShard(shardInfo: ShardFileInfo): Promise<ShardDocument[]> {
+    const header = await this.shardHeaderManager.fetchHeader(shardInfo);
 
     return header.docs.map(docInfo => ({
       id: docInfo.id,
@@ -266,39 +261,5 @@ export class SyncEngine {
       del: docInfo.del,
       data: undefined,
     }));
-  }
-
-  private async fetchShardHeader(shardInfo: ShardFileInfo): Promise<{
-    docs: Array<{
-      id: string;
-      rev: string;
-      seq: number;
-      del: boolean;
-      offset: number;
-      len: number;
-    }>;
-  }> {
-    const path = `${SHARDS_DIR}/${shardInfo.filename}`;
-
-    try {
-      const headerLenBytes = await this.backend.read(path, { start: 0, end: 3 });
-      const headerLen = getHeaderLength(headerLenBytes);
-
-      const headerBytes = await this.backend.read(path, {
-        start: 4,
-        end: 4 + headerLen - 1,
-      });
-
-      return parseShardHeader(headerBytes);
-    } catch (error) {
-      if ((error as Error).message?.includes('not found')) {
-        throw new Error('SHARD_MISSING');
-      }
-      throw error;
-    }
-  }
-
-  getPendingChanges(): DocOperation[] {
-    return [...this.pendingChanges];
   }
 }

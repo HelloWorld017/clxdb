@@ -4,7 +4,7 @@ import { SyncEngine } from './sync-engine';
 import type { StorageBackend, ClxDBOptions, SyncState, ClxDBEvents } from '../types';
 
 export { SyncEngine } from './sync-engine';
-export { createStorageBackend } from './storage-factory';
+export { ShardHeaderManager } from './shard-header-manager';
 
 export function createSyncEngine(backend: StorageBackend, options?: ClxDBOptions): SyncEngine {
   return new SyncEngine(backend, options);
