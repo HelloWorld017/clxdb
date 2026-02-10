@@ -34,12 +34,12 @@ export class CompactionEngine {
     this.compactionThreshold = options.compactionThreshold;
   }
 
-  async shouldCompact(level0Shards: ShardFileInfo[]): Promise<boolean> {
+  shouldCompact(level0Shards: ShardFileInfo[]): boolean {
     return level0Shards.length >= this.compactionThreshold;
   }
 
   async compact(level0Shards: ShardFileInfo[]): Promise<CompactionResult | null> {
-    if (!(await this.shouldCompact(level0Shards))) {
+    if (!this.shouldCompact(level0Shards)) {
       return null;
     }
 

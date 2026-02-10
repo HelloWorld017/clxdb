@@ -30,7 +30,7 @@ interface RequiredOptions {
   vacuumThreshold: number;
 }
 
-type Listeners = Partial<Record<keyof ClxDBEvents, Array<(...args: any[]) => void>>>;
+type Listeners = Partial<Record<keyof ClxDBEvents, Array<(...args: never[]) => void>>>;
 
 export class SyncEngine {
   private backend: StorageBackend;
@@ -56,7 +56,7 @@ export class SyncEngine {
       compactionThreshold: this.options.compactionThreshold,
     });
     this.garbageCollector = new GarbageCollector(backend);
-    this.shardHeaderManager = new ShardHeaderManager(backend);
+    this.shardHeaderManager = new ShardHeaderManager(backend, options);
   }
 
   private normalizeOptions(options: ClxDBOptions): RequiredOptions {
@@ -72,8 +72,11 @@ export class SyncEngine {
   async init(): Promise<void> {
     const manifest = await this.manifestManager.initialize();
     this.shardHeaderManager.initialize();
-    this.localSequence = manifest.lastSequence;
-    this.knownShards = new Set(manifest.shardFiles.map(s => s.filename));
+
+    // FIXME get lastSequence from localStorage
+    //   get knownShards from shardHeaderManager
+    //
+    // FIXME rename shardHeaderManager as shardManager, and move relevant logics there
 
     if (this.options.gcOnStart) {
       void this.garbageCollector.run();
@@ -81,7 +84,9 @@ export class SyncEngine {
   }
 
   start(): void {
-    if (this.syncIntervalId !== null) return;
+    if (this.syncIntervalId !== null) {
+      return;
+    }
 
     this.syncIntervalId = window.setInterval(() => {
       void this.triggerSync();
@@ -89,7 +94,9 @@ export class SyncEngine {
   }
 
   stop(): void {
-    if (this.syncIntervalId === null) return;
+    if (this.syncIntervalId === null) {
+      return;
+    }
 
     clearInterval(this.syncIntervalId);
     this.syncIntervalId = null;
@@ -100,7 +107,9 @@ export class SyncEngine {
   }
 
   async triggerSync(): Promise<void> {
-    if (this.state === 'syncing') return;
+    if (this.state === 'syncing') {
+      return;
+    }
 
     this.setState('syncing');
     this.emit('syncStart');
@@ -166,7 +175,9 @@ export class SyncEngine {
 
   private setState(newState: SyncState): void {
     const oldState = this.state;
-    if (oldState === newState) return;
+    if (oldState === newState) {
+      return;
+    }
 
     this.state = newState;
     this.emit('stateChange', newState);
@@ -174,12 +185,14 @@ export class SyncEngine {
 
   private emit<K extends keyof ClxDBEvents>(event: K, ...args: Parameters<ClxDBEvents[K]>): void {
     this.listeners[event]?.forEach(listener => {
-      listener(...args);
+      listener(...(args as never[]));
     });
   }
 
   private async push(): Promise<void> {
-    if (this.pendingChanges.length === 0) return;
+    if (this.pendingChanges.length === 0) {
+      return;
+    }
 
     const operations = [...this.pendingChanges];
     const { data: shard } = encodeShard(operations);
@@ -196,6 +209,7 @@ export class SyncEngine {
     try {
       await this.backend.write(shardPath, shard);
     } catch (error) {
+      // FIXME do not use error message for logic.
       if ((error as Error).message?.includes('already exists')) {
         this.pendingChanges = [];
         return;
@@ -215,6 +229,7 @@ export class SyncEngine {
     await this.manifestManager.addShard(shardInfo);
     this.pendingChanges = [];
     this.knownShards.add(filename);
+    // FIXME update localSequence
   }
 
   private async pull(): Promise<void> {
@@ -234,10 +249,9 @@ export class SyncEngine {
     };
 
     const newShards = manifest.shardFiles.filter(s => !this.knownShards.has(s.filename));
-
-    // Fetch missing shard headers first
     await this.shardHeaderManager.fetchMissingHeaders(newShards);
 
+    // FIXME Run this in pooled manner. use src/utils/promise-pool.ts
     for (const shardInfo of newShards) {
       await this.fetchAndApplyShard(shardInfo);
       this.knownShards.add(shardInfo.filename);
@@ -251,15 +265,11 @@ export class SyncEngine {
     return [...this.pendingChanges];
   }
 
-  private async fetchAndApplyShard(shardInfo: ShardFileInfo): Promise<ShardDocument[]> {
+  private async fetchAndApplyShard(shardInfo: ShardFileInfo): Promise<void> {
     const header = await this.shardHeaderManager.fetchHeader(shardInfo);
-
-    return header.docs.map(docInfo => ({
-      id: docInfo.id,
-      rev: docInfo.rev,
-      seq: docInfo.seq,
-      del: docInfo.del,
-      data: undefined,
-    }));
+    // FIXME add pull logic
+    // 1. find documents where seq >= this.localSequence
+    // 2. fetch their data in pooled manner.
+    // 3. bulkUpsert and bulkDelete to DB
   }
 }
