@@ -1,3 +1,4 @@
+import { StorageError } from '@/utils/storage-error';
 import type { StorageBackend } from '../types';
 
 export class FileSystemBackend implements StorageBackend {
@@ -30,7 +31,7 @@ export class FileSystemBackend implements StorageBackend {
   async read(path: string, range?: { start: number; end: number }): Promise<Uint8Array> {
     const handle = await this.getFileHandle(path);
     if (!handle) {
-      throw new Error(`File not found: ${path}`);
+      throw new StorageError('ENOENT', `File not found: ${path}`);
     }
 
     const file = await handle.getFile();
@@ -48,12 +49,12 @@ export class FileSystemBackend implements StorageBackend {
     // Check if file exists
     const existing = await this.getFileHandle(path);
     if (existing) {
-      throw new Error(`File already exists: ${path}`);
+      throw new StorageError('EEXIST', `File already exists: ${path}`);
     }
 
     const handle = await this.getFileHandle(path, true);
     if (!handle) {
-      throw new Error(`Failed to create file: ${path}`);
+      throw new StorageError('UNKNOWN', `Failed to create file: ${path}`);
     }
 
     const writable = await handle.createWritable();

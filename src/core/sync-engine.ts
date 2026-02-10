@@ -18,21 +18,21 @@ import type {
   DocOperation,
   ShardFileInfo,
   ShardDocument,
-  ShardDocInfo,
   ClxDBOptions,
   SyncState,
   ClxDBEvents,
   ClxDBClientOptions,
+  DatabaseBackend,
 } from '../types';
 
 const SHARDS_DIR = 'shards';
-const MANIFEST_PATH = 'manifest.json';
 const LAST_SEQUENCE_KEY = 'lastSequence';
 
 type Listeners = Partial<Record<keyof ClxDBEvents, Array<(...args: never[]) => void>>>;
 
 export class SyncEngine {
-  private backend: StorageBackend;
+  private database: DatabaseBackend;
+  private storage: StorageBackend;
   private options: ClxDBOptions;
   private manifestManager: ManifestManager;
   private compactionEngine: CompactionEngine;
@@ -44,22 +44,23 @@ export class SyncEngine {
   private localSequence: number = 0;
   private pendingChanges: DocOperation[] = [];
   private listeners: Listeners = {};
-  private knownShards: Set<string> = new Set();
 
-  constructor(backend: StorageBackend, options: ClxDBClientOptions = {}) {
-    this.backend = backend;
+  constructor(options: ClxDBClientOptions) {
+    this.database = options.database;
+    this.storage = options.storage;
     this.options = this.normalizeOptions(options);
-    this.manifestManager = new ManifestManager(backend);
-    this.shardManager = new ShardManager(backend, this.options);
-    this.compactionEngine = new CompactionEngine(backend, this.shardManager, {
+    this.manifestManager = new ManifestManager(this.storage);
+    this.shardManager = new ShardManager(this.storage, this.options);
+    this.compactionEngine = new CompactionEngine(this.storage, this.shardManager, {
       desiredShardSize: this.options.desiredShardSize,
       compactionThreshold: this.options.compactionThreshold,
     });
-    this.garbageCollector = new GarbageCollector(backend);
+    this.garbageCollector = new GarbageCollector(this.storage);
   }
 
   private normalizeOptions(options: ClxDBClientOptions): ClxDBOptions {
     return {
+      ...options,
       syncInterval: options.syncInterval ?? DEFAULT_SYNC_INTERVAL,
       compactionThreshold: options.compactionThreshold ?? DEFAULT_COMPACTION_THRESHOLD,
       desiredShardSize: options.desiredShardSize ?? DEFAULT_DESIRED_SHARD_SIZE,
@@ -83,12 +84,6 @@ export class SyncEngine {
 
     if (lastSequence !== null) {
       this.localSequence = lastSequence;
-    }
-
-    // Load knownShards from shardManager
-    const headers = this.shardManager.getAllHeaders();
-    for (const filename of headers.keys()) {
-      this.knownShards.add(filename);
     }
 
     if (this.options.gcOnStart) {
@@ -159,6 +154,12 @@ export class SyncEngine {
   async forceCompaction(): Promise<void> {
     this.emit('compactionStart');
 
+    // FIXME rethink of compaction logic.
+    //   * the entire compaction should be re-tried when CAS has been failed.
+    //   * 10 or more 0-level shard -> compaction
+    //   * 20 or more 1-level shard -> compaction
+    //   * compaction result is 1-level shard + 0 or more 2-level shard
+    //   * the data should be fetched from RxDB
     try {
       const manifestResult = await this.manifestManager.read();
       if (!manifestResult) {
@@ -170,10 +171,9 @@ export class SyncEngine {
       const level0Shards = manifest.shardFiles.filter(s => s.level === 0);
 
       const compactionResult = await this.compactionEngine.compact(level0Shards);
-
       if (compactionResult) {
         await this.manifestManager.updateManifest(
-          [compactionResult.newShard],
+          compactionResult.newShards,
           compactionResult.removedShards,
           () => this.pull()
         );
@@ -214,17 +214,10 @@ export class SyncEngine {
     const filename = `shard_${hash}.clx`;
     const shardPath = `${SHARDS_DIR}/${filename}`;
 
-    const existingStat = await this.backend.stat(shardPath).catch(() => null);
-    if (existingStat) {
-      this.pendingChanges = [];
-      return;
-    }
-
     try {
-      await this.backend.write(shardPath, shard);
+      await this.storage.write(shardPath, shard);
     } catch (error) {
-      // Check if file already exists using stat
-      const existingStat = await this.backend.stat(shardPath).catch(() => null);
+      const existingStat = await this.storage.stat(shardPath).catch(() => null);
       if (existingStat) {
         this.pendingChanges = [];
         return;
@@ -243,50 +236,29 @@ export class SyncEngine {
 
     await this.manifestManager.updateManifest([shardInfo], [], () => this.pull());
     this.pendingChanges = [];
-    this.knownShards.add(filename);
     this.updateLocalSequence();
   }
 
   private async pull(): Promise<void> {
-    const stat = await this.backend.stat(MANIFEST_PATH);
-    if (!stat) {
-      throw new Error('Manifest not found during pull');
-    }
+    const { manifest } = (await this.manifestManager.read())!;
+    const newShards = manifest.shardFiles.filter(s => !this.shardManager.has(s.filename));
+    await this.shardManager.fetchHeaders(newShards);
 
-    if (stat.etag === this.manifestManager.getLastEtag()) {
-      return;
-    }
+    // Fetch and apply shards
+    const results = await createPromisePool(
+      (function* (syncEngine: SyncEngine) {
+        for (const shardInfo of newShards) {
+          yield syncEngine.fetchAndApplyShard(shardInfo);
+        }
+      })(this)
+    );
 
-    const content = await this.backend.read(MANIFEST_PATH);
-    const manifest = JSON.parse(new TextDecoder().decode(content)) as {
-      lastSequence: number;
-      shardFiles: ShardFileInfo[];
-    };
-
-    const newShards = manifest.shardFiles.filter(s => !this.knownShards.has(s.filename));
-    await this.shardManager.fetchMissingHeaders(newShards);
-
-    // Fetch and apply shards using promise pool for concurrency
-    const shardGenerator = (function* (syncEngine: SyncEngine, shards: ShardFileInfo[]) {
-      for (const shardInfo of shards) {
-        yield syncEngine.fetchAndApplyShard(shardInfo);
-      }
-    })(this, newShards);
-
-    const results = await createPromisePool(shardGenerator, 5);
-
-    // Track successfully processed shards
-    for (let i = 0; i < newShards.length; i++) {
-      const result = results[i];
-      if (result.status === 'fulfilled') {
-        this.knownShards.add(newShards[i].filename);
-      } else {
-        console.warn(`Failed to fetch and apply shard ${newShards[i].filename}:`, result.reason);
-      }
+    const error = results.find(result => result.status === 'rejected');
+    if (error) {
+      throw error.reason;
     }
 
     this.localSequence = manifest.lastSequence;
-    this.manifestManager.updateLastEtag(stat.etag);
   }
 
   getPendingChanges(): DocOperation[] {
@@ -295,41 +267,35 @@ export class SyncEngine {
 
   private async fetchAndApplyShard(shardInfo: ShardFileInfo): Promise<void> {
     const header = await this.shardManager.fetchHeader(shardInfo);
-
-    // Find documents where seq > this.localSequence
     const docsToFetch = header.docs.filter(doc => doc.seq > this.localSequence);
-
     if (docsToFetch.length === 0) {
       return;
     }
 
-    // Fetch document data using promise pool for concurrency
-    const docGenerator = (function* (
-      shardManager: ShardManager,
-      shardInfo: ShardFileInfo,
-      docs: ShardDocInfo[]
-    ) {
-      for (const doc of docs) {
-        yield shardManager.fetchDocument(shardInfo, doc);
-      }
-    })(this.shardManager, shardInfo, docsToFetch);
+    const shardManager = this.shardManager;
+    const results = await createPromisePool(
+      (function* () {
+        for (const doc of docsToFetch) {
+          yield shardManager.fetchDocument(shardInfo, doc);
+        }
+      })()
+    );
 
-    const results = await createPromisePool(docGenerator, 5);
+    const changes: ShardDocument[] = results
+      .filter(result => result.status === 'fulfilled')
+      .map(result => result.value);
 
-    // Process results and emit document changes
-    const changes: ShardDocument[] = [];
-    for (let i = 0; i < docsToFetch.length; i++) {
-      const result = results[i];
-      if (result.status === 'fulfilled') {
-        changes.push(result.value);
-      } else {
-        console.warn(`Failed to fetch document ${docsToFetch[i].id}:`, result.reason);
-      }
-    }
-
-    // Emit changes for application to the database
     if (changes.length > 0) {
       this.emit('documentsChanged', changes);
+      await Promise.all([
+        this.database.upsert(changes.filter(change => !change.del)),
+        this.database.delete(changes.filter(change => change.del)),
+      ]);
+    }
+
+    const error = results.find(result => result.status === 'rejected');
+    if (error) {
+      throw error.reason;
     }
   }
 

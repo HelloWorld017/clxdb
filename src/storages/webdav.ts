@@ -1,3 +1,4 @@
+import { StorageError } from '@/utils/storage-error';
 import type { StorageBackend } from '../types';
 
 export class WebDAVBackend implements StorageBackend {
@@ -28,9 +29,13 @@ export class WebDAVBackend implements StorageBackend {
 
     if (!response.ok) {
       if (response.status === 404) {
-        throw new Error(`File not found: ${path}`);
+        throw new StorageError('ENOENT', `File not found: ${path}`);
       }
-      throw new Error(`WebDAV read failed: ${response.status} ${response.statusText}`);
+
+      throw new StorageError(
+        'UNKNOWN',
+        `WebDAV read failed: ${response.status} ${response.statusText}`
+      );
     }
 
     const buffer = await response.arrayBuffer();
@@ -44,7 +49,7 @@ export class WebDAVBackend implements StorageBackend {
     try {
       const stat = await this.stat(path);
       if (stat) {
-        throw new Error(`File already exists: ${path}`);
+        throw new StorageError('EEXIST', `File already exists: ${path}`);
       }
     } catch {
       // File doesn't exist, continue
@@ -57,7 +62,10 @@ export class WebDAVBackend implements StorageBackend {
     });
 
     if (!response.ok) {
-      throw new Error(`WebDAV write failed: ${response.status} ${response.statusText}`);
+      throw new StorageError(
+        'UNKNOWN',
+        `WebDAV write failed: ${response.status} ${response.statusText}`
+      );
     }
   }
 
@@ -69,7 +77,10 @@ export class WebDAVBackend implements StorageBackend {
     });
 
     if (!response.ok && response.status !== 404) {
-      throw new Error(`WebDAV delete failed: ${response.status} ${response.statusText}`);
+      throw new StorageError(
+        'UNKNOWN',
+        `WebDAV delete failed: ${response.status} ${response.statusText}`
+      );
     }
   }
 
@@ -85,7 +96,10 @@ export class WebDAVBackend implements StorageBackend {
     }
 
     if (!response.ok) {
-      throw new Error(`WebDAV stat failed: ${response.status} ${response.statusText}`);
+      throw new StorageError(
+        'UNKNOWN',
+        `WebDAV stat failed: ${response.status} ${response.statusText}`
+      );
     }
 
     const etag = response.headers.get('ETag') || response.headers.get('etag') || '';
@@ -124,7 +138,10 @@ export class WebDAVBackend implements StorageBackend {
     }
 
     if (!response.ok) {
-      throw new Error(`WebDAV atomic update failed: ${response.status} ${response.statusText}`);
+      throw new StorageError(
+        'UNKNOWN',
+        `WebDAV atomic update failed: ${response.status} ${response.statusText}`
+      );
     }
 
     const newEtag = response.headers.get('ETag') || response.headers.get('etag') || '';
@@ -145,7 +162,10 @@ export class WebDAVBackend implements StorageBackend {
       if (response.status === 404) {
         return [];
       }
-      throw new Error(`WebDAV list failed: ${response.status} ${response.statusText}`);
+      throw new StorageError(
+        'UNKNOWN',
+        `WebDAV list failed: ${response.status} ${response.statusText}`
+      );
     }
 
     const text = await response.text();

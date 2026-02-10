@@ -7,26 +7,26 @@ const LEVEL_1 = 1 as const;
 const LEVEL_2 = 2 as const;
 
 export interface CompactionResult {
-  newShard: ShardFileInfo;
+  newShards: ShardFileInfo[];
   mergedDocs: ShardDocInfo[];
   removedShards: ShardFileInfo[];
 }
 
 export class CompactionEngine {
-  private backend: StorageBackend;
+  private storage: StorageBackend;
   private shardManager: ShardManager;
   private desiredShardSize: number;
   private compactionThreshold: number;
 
   constructor(
-    backend: StorageBackend,
+    storage: StorageBackend,
     shardManager: ShardManager,
     options: {
       desiredShardSize: number;
       compactionThreshold: number;
     }
   ) {
-    this.backend = backend;
+    this.storage = storage;
     this.shardManager = shardManager;
     this.desiredShardSize = options.desiredShardSize;
     this.compactionThreshold = options.compactionThreshold;
@@ -43,19 +43,20 @@ export class CompactionEngine {
 
     const allDocs = await this.collectAllDocs(level0Shards);
     const mergedDocs = this.mergeAndDeduplicateDocs(allDocs);
-
     if (mergedDocs.length === 0) {
-      return null;
+      return {
+        newShards: [],
+        mergedDocs,
+        removedShards: level0Shards,
+      };
     }
 
     const { data: shardData } = encodeShardFromDocInfos(mergedDocs);
     const hash = await calculateHash(shardData);
     const filename = `shard_${hash}.clx`;
-
-    await this.backend.write(`${SHARDS_DIR}/${filename}`, shardData);
+    await this.storage.write(`${SHARDS_DIR}/${filename}`, shardData);
 
     const level = shardData.length >= this.desiredShardSize ? LEVEL_2 : LEVEL_1;
-
     const newShard: ShardFileInfo = {
       filename,
       level,
@@ -66,7 +67,7 @@ export class CompactionEngine {
     };
 
     return {
-      newShard,
+      newShards: [newShard],
       mergedDocs,
       removedShards: level0Shards,
     };

@@ -42,7 +42,16 @@ export type DocOperation =
   | { type: 'UPDATE'; id: string; rev: string; seq: number; data: DocData }
   | { type: 'DELETE'; id: string; rev: string; seq: number };
 
+export interface DatabaseBackend {
+  read(id: string[]): Promise<(DocData | null)[]>;
+  upsert(data: ShardDocument[]): Promise<void>;
+  delete(data: ShardDocument[]): Promise<void>;
+  replicate(onUpdate: (ops: DocOperation) => void): () => void;
+}
+
 export interface ClxDBClientOptions {
+  database: DatabaseBackend;
+  storage: StorageBackend;
   syncInterval?: number;
   compactionThreshold?: number;
   desiredShardSize?: number;

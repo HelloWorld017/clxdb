@@ -6,17 +6,17 @@ const SHARDS_DIR = 'shards';
 const SHARD_EXTENSION = '.clx';
 
 export class GarbageCollector {
-  private backend: StorageBackend;
+  private storage: StorageBackend;
 
-  constructor(backend: StorageBackend) {
-    this.backend = backend;
+  constructor(storage: StorageBackend) {
+    this.storage = storage;
   }
 
   async run(): Promise<void> {
     try {
       // FIXME migrate this to manifest-manager
       const [allFiles, manifest] = await Promise.all([
-        this.backend.list(SHARDS_DIR),
+        this.storage.list(SHARDS_DIR),
         this.fetchManifest(),
       ]);
 
@@ -36,10 +36,10 @@ export class GarbageCollector {
   // FIXME remove this, in favor of manifest-manager
   private async fetchManifest(): Promise<Manifest | null> {
     try {
-      const content = await this.backend.read('manifest.json');
+      const content = await this.storage.read('manifest.json');
       const parsed = JSON.parse(new TextDecoder().decode(content)) as unknown;
       const result = manifestSchema.safeParse(parsed);
-      return result.success ? (result.data as Manifest) : null;
+      return result.success ? result.data : null;
     } catch {
       return null;
     }
@@ -54,9 +54,9 @@ export class GarbageCollector {
 
     const deletePromises = orphans.map(async orphan => {
       try {
-        const stat = await this.backend.stat(`${SHARDS_DIR}/${orphan}`);
+        const stat = await this.storage.stat(`${SHARDS_DIR}/${orphan}`);
         if (stat?.lastModified && stat.lastModified.getTime() < oneHourAgo) {
-          await this.backend.delete(`${SHARDS_DIR}/${orphan}`);
+          await this.storage.delete(`${SHARDS_DIR}/${orphan}`);
         }
       } catch {
         // Skip if stat or delete fails

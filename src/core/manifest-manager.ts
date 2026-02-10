@@ -7,38 +7,38 @@ const MANIFEST_PATH = 'manifest.json';
 const MAX_RETRIES = 10;
 
 export class ManifestManager {
-  private backend: StorageBackend;
+  private storage: StorageBackend;
   private lastEtag: string = '';
   private lastManifest: Manifest | null = null;
 
-  constructor(backend: StorageBackend) {
-    this.backend = backend;
+  constructor(storage: StorageBackend) {
+    this.storage = storage;
   }
 
   async initialize(): Promise<void> {
-    const stat = await this.backend.stat(MANIFEST_PATH);
+    const stat = await this.storage.stat(MANIFEST_PATH);
 
     if (stat) {
       this.lastEtag = stat.etag;
-      const content = await this.backend.read(MANIFEST_PATH);
+      const content = await this.storage.read(MANIFEST_PATH);
       const manifest = this.parseManifest(content);
       this.lastManifest = manifest;
       return;
     }
 
     const manifest = this.createInitialManifest();
-    await this.backend.write(
+    await this.storage.write(
       MANIFEST_PATH,
       new TextEncoder().encode(JSON.stringify(manifest, null, 2))
     );
 
     this.lastManifest = manifest;
-    const newStat = await this.backend.stat(MANIFEST_PATH);
+    const newStat = await this.storage.stat(MANIFEST_PATH);
     this.lastEtag = newStat!.etag;
   }
 
   async read(): Promise<{ manifest: Manifest; etag: string } | null> {
-    const stat = await this.backend.stat(MANIFEST_PATH);
+    const stat = await this.storage.stat(MANIFEST_PATH);
     if (!stat) {
       return null;
     }
@@ -47,7 +47,7 @@ export class ManifestManager {
       return { manifest: this.lastManifest!, etag: this.lastEtag };
     }
 
-    const content = await this.backend.read(MANIFEST_PATH);
+    const content = await this.storage.read(MANIFEST_PATH);
     return {
       manifest: this.parseManifest(content),
       etag: stat.etag,
@@ -74,7 +74,7 @@ export class ManifestManager {
     const removedFiles = new Set(removedShards.map(shard => shard.filename));
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-      const stat = await this.backend.stat(MANIFEST_PATH);
+      const stat = await this.storage.stat(MANIFEST_PATH);
       if (!stat) {
         throw new Error('Manifest not found');
       }
@@ -98,7 +98,7 @@ export class ManifestManager {
 
       const newContent = new TextEncoder().encode(JSON.stringify(newManifest, null, 2));
 
-      const result = await this.backend.atomicUpdate(MANIFEST_PATH, newContent, stat.etag);
+      const result = await this.storage.atomicUpdate(MANIFEST_PATH, newContent, stat.etag);
       if (result.success) {
         this.lastEtag = result.newEtag || stat.etag;
         return this.lastEtag;

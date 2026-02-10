@@ -1,6 +1,7 @@
 import { SHARDS_DIR } from '@/constants';
 import { shardHeaderCacheSchema } from '@/schemas';
 import { readLocalStorage, writeLocalStorage } from '@/utils/local-storage';
+import { createPromisePool } from '@/utils/promise-pool';
 import { getHeaderLength, parseShardHeader, extractBodyOffset } from './shard-utils';
 import type {
   StorageBackend,
@@ -15,13 +16,13 @@ import type {
 const CACHE_VERSION = 1;
 
 export class ShardManager {
-  private backend: StorageBackend;
+  private storage: StorageBackend;
   private headers: Map<string, ShardHeader> = new Map();
   private options: ClxDBOptions;
   private cacheLoaded: boolean = false;
 
-  constructor(backend: StorageBackend, options: ClxDBOptions) {
-    this.backend = backend;
+  constructor(storage: StorageBackend, options: ClxDBOptions) {
+    this.storage = storage;
     this.options = options;
   }
 
@@ -31,7 +32,7 @@ export class ShardManager {
     }
   }
 
-  hasHeader(filename: string): boolean {
+  has(filename: string): boolean {
     return this.headers.has(filename);
   }
 
@@ -55,27 +56,23 @@ export class ShardManager {
     return header;
   }
 
-  async fetchMissingHeaders(shardFiles: ShardFileInfo[]): Promise<ShardFileInfo[]> {
-    const missing: ShardFileInfo[] = [];
-
-    for (const shardInfo of shardFiles) {
-      if (!this.hasHeader(shardInfo.filename)) {
-        missing.push(shardInfo);
-      }
-    }
-
-    for (const shardInfo of missing) {
-      try {
-        await this.fetchHeader(shardInfo);
-      } catch (error) {
-        if ((error as Error).message === 'SHARD_MISSING') {
-          throw error;
+  async fetchHeaders(shardsInfo: ShardFileInfo[]): Promise<ShardHeader[]> {
+    const fetchHeader = (shardInfo: ShardFileInfo) => this.fetchHeader(shardInfo);
+    const results = await createPromisePool(
+      (function* () {
+        for (const shardInfo of shardsInfo) {
+          yield fetchHeader(shardInfo);
         }
-        console.warn(`Failed to fetch header for ${shardInfo.filename}:`, error);
-      }
-    }
+      })()
+    );
 
-    return missing;
+    return results.map(result => {
+      if (result.status !== 'fulfilled') {
+        throw result.reason;
+      }
+
+      return result.value;
+    });
   }
 
   removeHeader(filename: string): boolean {
@@ -116,11 +113,11 @@ export class ShardManager {
 
   async fetchDocument(shardInfo: ShardFileInfo, docInfo: ShardDocInfo): Promise<ShardDocument> {
     const path = `${SHARDS_DIR}/${shardInfo.filename}`;
-    const headerLenBytes = await this.backend.read(path, { start: 0, end: 3 });
+    const headerLenBytes = await this.storage.read(path, { start: 0, end: 3 });
     const headerLen = getHeaderLength(headerLenBytes);
     const bodyOffset = extractBodyOffset(headerLen);
 
-    const docBytes = await this.backend.read(path, {
+    const docBytes = await this.storage.read(path, {
       start: bodyOffset + docInfo.offset,
       end: bodyOffset + docInfo.offset + docInfo.len - 1,
     });
@@ -137,26 +134,15 @@ export class ShardManager {
 
   private async fetchHeaderFromRemote(shardInfo: ShardFileInfo): Promise<ShardHeader> {
     const path = `${SHARDS_DIR}/${shardInfo.filename}`;
+    const headerLenBytes = await this.storage.read(path, { start: 0, end: 3 });
+    const headerLen = getHeaderLength(headerLenBytes);
 
-    try {
-      const headerLenBytes = await this.backend.read(path, { start: 0, end: 3 });
-      const headerLen = getHeaderLength(headerLenBytes);
+    const headerBytes = await this.storage.read(path, {
+      start: 4,
+      end: 4 + headerLen - 1,
+    });
 
-      const headerBytes = await this.backend.read(path, {
-        start: 4,
-        end: 4 + headerLen - 1,
-      });
-
-      return parseShardHeader(headerBytes);
-    } catch (error) {
-      if (
-        (error as Error).message?.includes('not found') ||
-        (error as Error).message?.includes('404')
-      ) {
-        throw new Error('SHARD_MISSING');
-      }
-      throw error;
-    }
+    return parseShardHeader(headerBytes);
   }
 
   private loadFromCache(): void {
