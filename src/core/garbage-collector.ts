@@ -1,4 +1,5 @@
 import { GC_COOLDOWN_HOURS } from '@/constants';
+import { manifestSchema } from '@/schemas';
 import type { StorageBackend, Manifest } from '@/types';
 
 const SHARDS_DIR = 'shards';
@@ -13,6 +14,7 @@ export class GarbageCollector {
 
   async run(): Promise<void> {
     try {
+      // FIXME migrate this to manifest-manager
       const [allFiles, manifest] = await Promise.all([
         this.backend.list(SHARDS_DIR),
         this.fetchManifest(),
@@ -31,10 +33,13 @@ export class GarbageCollector {
     }
   }
 
+  // FIXME remove this, in favor of manifest-manager
   private async fetchManifest(): Promise<Manifest | null> {
     try {
       const content = await this.backend.read('manifest.json');
-      return JSON.parse(new TextDecoder().decode(content)) as Manifest;
+      const parsed = JSON.parse(new TextDecoder().decode(content)) as unknown;
+      const result = manifestSchema.safeParse(parsed);
+      return result.success ? (result.data as Manifest) : null;
     } catch {
       return null;
     }

@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
     devDependencies:
       '@eslint/js':
         specifier: ^9.39.2
@@ -1124,6 +1128,9 @@ packages:
     engines: {node: '>=16.0.0'}
     hasBin: true
 
+  zod@4.3.6:
+    resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
+
 snapshots:
 
   '@babel/runtime@7.28.6': {}
@@ -2219,3 +2226,5 @@ snapshots:
       validator: 13.15.26
     optionalDependencies:
       commander: 11.1.0
+
+  zod@4.3.6: {}

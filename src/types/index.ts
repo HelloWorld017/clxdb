@@ -27,32 +27,7 @@ export type StorageConfig =
   | { type: 'webdav'; url: string; auth: { user: string; pass: string } }
   | { type: 'filesystem-access'; handle: FileSystemDirectoryHandle };
 
-export interface Manifest {
-  version: number;
-  lastSequence: number;
-  shardFiles: ShardFileInfo[];
-}
-
 export type DocData = Record<string, unknown>;
-
-export interface ShardFileInfo {
-  filename: string;
-  level: 0 | 1 | 2;
-  range: { min: number; max: number };
-}
-
-export interface ShardHeader {
-  docs: ShardDocInfo[];
-}
-
-export interface ShardDocInfo {
-  id: string;
-  rev: string;
-  seq: number;
-  del: boolean;
-  offset: number;
-  len: number;
-}
 
 export interface ShardDocument {
   id: string;
@@ -67,14 +42,16 @@ export type DocOperation =
   | { type: 'UPDATE'; id: string; rev: string; seq: number; data: DocData }
   | { type: 'DELETE'; id: string; rev: string; seq: number };
 
-export interface ClxDBOptions {
+export interface ClxDBClientOptions {
   syncInterval?: number;
   compactionThreshold?: number;
   desiredShardSize?: number;
   gcOnStart?: boolean;
   vacuumThreshold?: number;
-  cacheStorageKey?: string | null;
+  cacheStorageKey?: string;
 }
+
+export type ClxDBOptions = Required<ClxDBClientOptions>;
 
 export type SyncState = 'idle' | 'pending' | 'syncing' | 'offline';
 
@@ -100,3 +77,5 @@ export interface ClxUIOptions {
     cancel: string;
   };
 }
+
+export type * from '@/schemas';

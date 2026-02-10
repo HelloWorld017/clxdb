@@ -1,4 +1,6 @@
-import { DEFAULT_CACHE_STORAGE_KEY, SHARDS_DIR } from '@/constants';
+import { SHARDS_DIR } from '@/constants';
+import { shardHeaderCacheSchema } from '@/schemas';
+import { readLocalStorage, writeLocalStorage } from '@/utils/local-storage';
 import { getHeaderLength, parseShardHeader, extractBodyOffset } from './shard-utils';
 import type {
   StorageBackend,
@@ -7,18 +9,8 @@ import type {
   ShardDocInfo,
   ShardDocument,
   ClxDBOptions,
+  ShardHeaderCache,
 } from '../types';
-
-interface CachedShardHeader {
-  filename: string;
-  header: ShardHeader;
-  cachedAt: number;
-}
-
-interface ShardHeaderCache {
-  version: number;
-  headers: Record<string, CachedShardHeader>;
-}
 
 const CACHE_VERSION = 1;
 
@@ -167,58 +159,31 @@ export class ShardManager {
     }
   }
 
-  private getHeaderStorageKey(): string {
-    return `${this.options.cacheStorageKey ?? DEFAULT_CACHE_STORAGE_KEY}/headers`;
-  }
-
   private loadFromCache(): void {
-    try {
-      const cached =
-        this.options.cacheStorageKey !== null && localStorage.getItem(this.getHeaderStorageKey());
-
-      if (cached) {
-        const cache = JSON.parse(cached) as unknown;
-        if (
-          typeof cache === 'object' &&
-          cache !== null &&
-          'version' in cache &&
-          (cache as { version: unknown }).version === CACHE_VERSION &&
-          'headers' in cache
-        ) {
-          const typedCache = cache as ShardHeaderCache;
-          for (const [filename, cachedHeader] of Object.entries(typedCache.headers)) {
-            this.headers.set(filename, cachedHeader.header);
-          }
-        }
+    const cache = readLocalStorage('headers', this.options, shardHeaderCacheSchema);
+    if (cache && cache.version === CACHE_VERSION) {
+      for (const [filename, cachedHeader] of Object.entries(cache.headers)) {
+        this.headers.set(filename, cachedHeader.header);
       }
-    } catch (error) {
-      console.warn('Failed to load shard headers from cache:', error);
     }
+
     this.cacheLoaded = true;
   }
 
   private saveToCache(): void {
-    try {
-      if (this.options.cacheStorageKey === null) {
-        return;
-      }
+    const cache: ShardHeaderCache = {
+      version: CACHE_VERSION,
+      headers: {},
+    };
 
-      const cache: ShardHeaderCache = {
-        version: CACHE_VERSION,
-        headers: {},
+    for (const [filename, header] of this.headers) {
+      cache.headers[filename] = {
+        filename,
+        header,
+        cachedAt: Date.now(),
       };
-
-      for (const [filename, header] of this.headers) {
-        cache.headers[filename] = {
-          filename,
-          header,
-          cachedAt: Date.now(),
-        };
-      }
-
-      localStorage.setItem(this.getHeaderStorageKey(), JSON.stringify(cache));
-    } catch (error) {
-      console.warn('Failed to save shard headers to cache:', error);
     }
+
+    writeLocalStorage('headers', this.options, cache);
   }
 }

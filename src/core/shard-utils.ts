@@ -1,3 +1,4 @@
+import { shardHeaderSchema } from '@/schemas';
 import type { ShardHeader, ShardDocInfo, DocOperation } from '../types';
 
 const HEADER_LENGTH_BYTES = 4;
@@ -102,7 +103,14 @@ export function parseShardHeader(data: Uint8Array): ShardHeader {
   const headerLen = new DataView(data.buffer).getUint32(0, LITTLE_ENDIAN);
   const headerBytes = data.slice(HEADER_LENGTH_BYTES, HEADER_LENGTH_BYTES + headerLen);
   const headerJson = new TextDecoder().decode(headerBytes);
-  return JSON.parse(headerJson) as ShardHeader;
+  const parsed = JSON.parse(headerJson) as unknown;
+  const result = shardHeaderSchema.safeParse(parsed);
+
+  if (result.success) {
+    return result.data;
+  } else {
+    throw new Error(`Invalid shard header format: ${result.error.message}`);
+  }
 }
 
 export function getHeaderLength(data: Uint8Array): number {

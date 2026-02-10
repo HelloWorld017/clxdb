@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import {
   DEFAULT_SYNC_INTERVAL,
   DEFAULT_COMPACTION_THRESHOLD,
@@ -5,6 +6,7 @@ import {
   DEFAULT_VACUUM_THRESHOLD,
   DEFAULT_CACHE_STORAGE_KEY,
 } from '../constants';
+import { readLocalStorage, writeLocalStorage } from '../utils/local-storage';
 import { createPromisePool } from '../utils/promise-pool';
 import { CompactionEngine } from './compaction-engine';
 import { GarbageCollector } from './garbage-collector';
@@ -20,26 +22,18 @@ import type {
   ClxDBOptions,
   SyncState,
   ClxDBEvents,
+  ClxDBClientOptions,
 } from '../types';
 
 const SHARDS_DIR = 'shards';
 const MANIFEST_PATH = 'manifest.json';
 const LAST_SEQUENCE_KEY = 'lastSequence';
 
-interface RequiredOptions {
-  syncInterval: number;
-  compactionThreshold: number;
-  desiredShardSize: number;
-  gcOnStart: boolean;
-  vacuumThreshold: number;
-  cacheStorageKey: string | null;
-}
-
 type Listeners = Partial<Record<keyof ClxDBEvents, Array<(...args: never[]) => void>>>;
 
 export class SyncEngine {
   private backend: StorageBackend;
-  private options: RequiredOptions;
+  private options: ClxDBOptions;
   private manifestManager: ManifestManager;
   private compactionEngine: CompactionEngine;
   private garbageCollector: GarbageCollector;
@@ -52,11 +46,11 @@ export class SyncEngine {
   private listeners: Listeners = {};
   private knownShards: Set<string> = new Set();
 
-  constructor(backend: StorageBackend, options: ClxDBOptions = {}) {
+  constructor(backend: StorageBackend, options: ClxDBClientOptions = {}) {
     this.backend = backend;
     this.options = this.normalizeOptions(options);
     this.manifestManager = new ManifestManager(backend);
-    this.shardManager = new ShardManager(backend, options);
+    this.shardManager = new ShardManager(backend, this.options);
     this.compactionEngine = new CompactionEngine(backend, this.shardManager, {
       desiredShardSize: this.options.desiredShardSize,
       compactionThreshold: this.options.compactionThreshold,
@@ -64,7 +58,7 @@ export class SyncEngine {
     this.garbageCollector = new GarbageCollector(backend);
   }
 
-  private normalizeOptions(options: ClxDBOptions): RequiredOptions {
+  private normalizeOptions(options: ClxDBClientOptions): ClxDBOptions {
     return {
       syncInterval: options.syncInterval ?? DEFAULT_SYNC_INTERVAL,
       compactionThreshold: options.compactionThreshold ?? DEFAULT_COMPACTION_THRESHOLD,
@@ -80,10 +74,15 @@ export class SyncEngine {
     await this.manifestManager.initialize();
 
     // Load lastSequence from localStorage
-    const storageKey = this.options.cacheStorageKey ?? DEFAULT_CACHE_STORAGE_KEY;
-    const lastSequenceStr = localStorage.getItem(`${storageKey}/${LAST_SEQUENCE_KEY}`);
-    if (lastSequenceStr) {
-      this.localSequence = parseInt(lastSequenceStr, 10);
+    const lastSequenceSchema = z.number();
+    const lastSequence = readLocalStorage<number>(
+      LAST_SEQUENCE_KEY,
+      this.options,
+      lastSequenceSchema
+    );
+
+    if (lastSequence !== null) {
+      this.localSequence = lastSequence;
     }
 
     // Load knownShards from shardManager
@@ -129,8 +128,8 @@ export class SyncEngine {
     this.emit('syncStart');
 
     try {
-      await this.push();
       await this.pull();
+      await this.push();
       this.setState('idle');
       this.emit('syncComplete');
     } catch (error) {
@@ -173,9 +172,10 @@ export class SyncEngine {
       const compactionResult = await this.compactionEngine.compact(level0Shards);
 
       if (compactionResult) {
-        await this.manifestManager.addShard(
-          compactionResult.newShard,
-          compactionResult.removedShards
+        await this.manifestManager.updateManifest(
+          [compactionResult.newShard],
+          compactionResult.removedShards,
+          () => this.pull()
         );
         void this.garbageCollector.run();
       }
@@ -241,11 +241,10 @@ export class SyncEngine {
       range: { min: seqMin, max: seqMax },
     };
 
-    await this.manifestManager.addShard(shardInfo);
+    await this.manifestManager.updateManifest([shardInfo], [], () => this.pull());
     this.pendingChanges = [];
     this.knownShards.add(filename);
-    this.localSequence = Math.max(this.localSequence, seqMax);
-    this.saveLocalSequence();
+    this.updateLocalSequence();
   }
 
   private async pull(): Promise<void> {
@@ -334,8 +333,12 @@ export class SyncEngine {
     }
   }
 
-  private saveLocalSequence(): void {
-    const storageKey = this.options.cacheStorageKey ?? DEFAULT_CACHE_STORAGE_KEY;
-    localStorage.setItem(`${storageKey}/${LAST_SEQUENCE_KEY}`, this.localSequence.toString());
+  private updateLocalSequence(): void {
+    this.localSequence = Math.max(
+      this.localSequence,
+      this.manifestManager.getLastManifest().lastSequence
+    );
+
+    writeLocalStorage<number>(LAST_SEQUENCE_KEY, this.options, this.localSequence);
   }
 }
