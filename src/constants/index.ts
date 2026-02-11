@@ -1,8 +1,10 @@
 export const PROTOCOL_VERSION = 2;
 export const DEFAULT_SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
-export const DEFAULT_COMPACTION_THRESHOLD = 10;
+export const DEFAULT_COMPACTION_THRESHOLD = 4;
 export const DEFAULT_DESIRED_SHARD_SIZE = 5 * 1024 * 1024; // 5MB
+export const DEFAULT_MAX_SHARD_LEVEL = 6;
 export const DEFAULT_VACUUM_THRESHOLD = 0.15; // 15%
+export const DEFAULT_VACUUM_COUNT = 3;
 export const DEFAULT_CACHE_STORAGE_KEY = 'clxdb_cache';
 export const GC_COOLDOWN_HOURS = 1;
 export const MAX_SYNC_AGE_DAYS = 365;

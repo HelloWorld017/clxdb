@@ -1,24 +1,13 @@
 export interface StorageBackend {
-  /** Read file content, optionally with range request */
   read(path: string, range?: { start: number; end: number }): Promise<Uint8Array>;
-
-  /** Write file content (immutable - should not overwrite existing files) */
   write(path: string, content: Uint8Array): Promise<void>;
-
-  /** Delete a file */
   delete(path: string): Promise<void>;
-
-  /** Get file metadata (etag and size) */
   stat(path: string): Promise<{ etag: string; size: number; lastModified?: Date } | null>;
-
-  /** Atomic update with CAS (Compare-And-Swap) - exclusively for manifest.json */
   atomicUpdate(
     path: string,
     content: Uint8Array,
     previousEtag: string
   ): Promise<{ success: boolean; newEtag?: string }>;
-
-  /** List files in a directory */
   list(path: string): Promise<string[]>;
 }
 
@@ -31,22 +20,23 @@ export type DocData = Record<string, unknown>;
 
 export interface ShardDocument {
   id: string;
-  rev: string;
   seq: number;
-  del: boolean;
+  del: number | null;
   data?: DocData;
 }
 
-export type DocOperation =
-  | { type: 'INSERT'; id: string; rev: string; seq: number; data: DocData }
-  | { type: 'UPDATE'; id: string; rev: string; seq: number; data: DocData }
-  | { type: 'DELETE'; id: string; rev: string; seq: number };
+export interface DatabaseDocument {
+  id: string;
+  seq: number | null;
+  data: DocData;
+}
 
 export interface DatabaseBackend {
-  read(id: string[]): Promise<(DocData | null)[]>;
+  read(id: string[]): Promise<(DatabaseDocument | null)[]>;
+  readPending?(): Promise<DatabaseDocument & { seq: null }[]>;
   upsert(data: ShardDocument[]): Promise<void>;
   delete(data: ShardDocument[]): Promise<void>;
-  replicate(onUpdate: (ops: DocOperation) => void): () => void;
+  replicate(onUpdate: (updatedId: string) => void): () => void;
 }
 
 export interface ClxDBClientOptions {
@@ -55,7 +45,10 @@ export interface ClxDBClientOptions {
   syncInterval?: number;
   compactionThreshold?: number;
   desiredShardSize?: number;
+  maxShardLevel?: number;
   gcOnStart?: boolean;
+  vacuumOnStart?: boolean;
+  vacuumCount?: number;
   vacuumThreshold?: number;
   cacheStorageKey?: string;
 }
@@ -71,6 +64,10 @@ export interface ClxDBEvents {
   syncError: (error: Error) => void;
   compactionStart: () => void;
   compactionComplete: () => void;
+  compactionError: (error: Error) => void;
+  vacuumStart: () => void;
+  vacuumComplete: () => void;
+  vacuumError: (error: Error) => void;
   documentsChanged: (documents: ShardDocument[]) => void;
 }
 
@@ -88,3 +85,4 @@ export interface ClxUIOptions {
 }
 
 export type * from '@/schemas';
+export type * from './utils';

@@ -1,12 +1,16 @@
 import { PROTOCOL_VERSION } from '@/constants';
 import { manifestSchema } from '@/schemas';
 import { delayWithBackoff } from '@/utils/backoff';
-import type { StorageBackend, Manifest, ShardFileInfo } from '@/types';
+import type { StorageBackend, Manifest, ShardFileInfo, PossiblyPromise } from '@/types';
 
 const MANIFEST_PATH = 'manifest.json';
 const MAX_RETRIES = 10;
 
-type PossiblyPromise<T> = T | Promise<T>;
+export interface ManifestUpdateDescriptor {
+  addedShardInfoList?: ShardFileInfo[];
+  removedShardFilenameList?: string[];
+  updatedFields?: Omit<Manifest, 'version' | 'lastSequence' | 'shardFiles'>;
+}
 
 export class ManifestManager {
   private storage: StorageBackend;
@@ -68,14 +72,10 @@ export class ManifestManager {
     return this.lastManifest!;
   }
 
-  async updateManifest(
-    onUpdate: (manifest: Manifest) => PossiblyPromise<{
-      addedShards?: ShardFileInfo[];
-      removedShards?: ShardFileInfo[];
-      updatedFields?: Omit<Manifest, 'version' | 'lastSequence' | 'shardFiles'>;
-    }>,
+  async updateManifest<T extends ManifestUpdateDescriptor>(
+    onUpdate: (manifest: Manifest) => PossiblyPromise<T>,
     onRetry: () => PossiblyPromise<void>
-  ): Promise<string> {
+  ): Promise<T> {
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       const stat = await this.storage.stat(MANIFEST_PATH);
       if (!stat) {
@@ -88,9 +88,14 @@ export class ManifestManager {
         continue;
       }
 
-      const { addedShards, removedShards, updatedFields } = await onUpdate(manifest);
-      const removedFiles = new Set(removedShards?.map(shard => shard.filename));
-      const newShards = [...manifest.shardFiles, ...(addedShards ?? [])]
+      const manifestUpdate = await onUpdate(manifest);
+      const { addedShardInfoList, removedShardFilenameList, updatedFields } = manifestUpdate;
+      if (!addedShardInfoList?.length && !removedShardFilenameList?.length && !updatedFields) {
+        return manifestUpdate;
+      }
+
+      const removedFiles = new Set(removedShardFilenameList);
+      const newShards = [...manifest.shardFiles, ...(addedShardInfoList ?? [])]
         .filter(shard => !removedFiles.has(shard.filename))
         .sort((a, b) => a.range.min - b.range.min);
 
@@ -114,7 +119,8 @@ export class ManifestManager {
       const result = await this.storage.atomicUpdate(MANIFEST_PATH, newContent, stat.etag);
       if (result.success) {
         this.lastEtag = result.newEtag || stat.etag;
-        return this.lastEtag;
+        this.lastManifest = newManifest;
+        return manifestUpdate;
       }
 
       if (attempt < MAX_RETRIES - 1) {

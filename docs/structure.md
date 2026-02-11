@@ -30,7 +30,7 @@ All binary data utilizes **Little Endian** byte ordering.
 /
 ├── manifest.json                # [Mutable] Global State, Target for CAS
 ├── shards/                      # [Immutable] Document Logs (Includes C/U/D)
-│   └── shard_{hash}.clx         # Level 0: Real-time, Level 1: Merged, Level 2: 5MB Optimized
+│   └── shard_{hash}.clx         # Level 0: Real-time, Level 1: Merged, Level 2: Stale
 └── blobs/{hash:2}               # [Mutable] Binary Resource Packs
     ├── {hash}_{filename}.{ext}  # [Mutable] Uses sanitized filenames
     └── ...
@@ -62,12 +62,12 @@ interface Manifest {
 ```typescript
 interface ShardHeader {
   docs: Array<{
-    id: string;       // Document ID
-    rev: string;      // RxDB Revision
-    seq: number;      // Sequence number
-    del: boolean;     // Deletion flag (Tombstone)
-    offset: number;   // Starting byte position in Body
-    len: number;      // Data length
+    id: string;         // Document ID
+    rev: string;        // RxDB Revision
+    seq: number;        // Sequence number
+    del: number | null; // Deleted At (Tombstone)
+    offset: number;     // Starting byte position in Body
+    len: number;        // Data length
   }>;
 }
 
@@ -79,11 +79,21 @@ interface ShardHeader {
 
 To reduce WebDAV HTTP request overhead, clxdb adopts an **LSM-Tree** inspired approach.
 
+* Initial Shards (Level 0)
+  * Created when user creates/updates/deletes documents. (after debounce)
+  * Real-time changes. Small file size (few KB). Count increases rapidly.
+
+* Merged Shards (Level 1)
+  * When there are >= 10 shards, which are level 0 or 1, they are packed into one or more shards
+
+* Stale Shards (Level 2)
+  * If the yields shards whose size is larger than 5MB, it becomes a stale shard and not targeted for the compaction.
+
 | Level | Creation Trigger | Description |
 | --- | --- | --- |
-| **Level 0** | User Write (after Debounce) | Real-time changes. Small file size (few KB). Count increases rapidly. |
-| **Level 1** | When Level 0 files ≥ 10 | Intermediate files created by merging deltas (tens to hundreds of KB). |
-| **Level 2** | When Level 1 files total ~5MB | Final optimized 5MB files. Deleted data is purged. |
+| **Level 0** | User Write (after Debounce) |  |
+| **Level 1** | When ≥ 10 shards | Intermediate files created by merging deltas (tens to hundreds of KB). |
+| **Level 2** | When Level 1 files total ~5MB | Final optimized 5MB files |
 
 ---
 

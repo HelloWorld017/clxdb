@@ -2,9 +2,8 @@ import { z } from 'zod';
 
 export const shardDocInfoSchema = z.object({
   id: z.string(),
-  rev: z.string(),
   seq: z.number(),
-  del: z.boolean(),
+  del: z.number().nullable(),
   offset: z.number(),
   len: z.number(),
 });
@@ -15,7 +14,7 @@ export const shardHeaderSchema = z.object({
 
 export const shardFileInfoSchema = z.object({
   filename: z.string(),
-  level: z.literal(0).or(z.literal(1)).or(z.literal(2)),
+  level: z.number(),
   range: z.object({
     min: z.number(),
     max: z.number(),
@@ -37,6 +36,11 @@ export const cachedShardHeaderSchema = z.object({
 export const shardHeaderCacheSchema = z.object({
   version: z.number(),
   headers: z.record(z.string(), cachedShardHeaderSchema),
+});
+
+export const pendingChangesSchema = z.object({
+  version: z.number(),
+  pendingIds: z.array(z.string()),
 });
 
 export type ShardDocInfo = z.infer<typeof shardDocInfoSchema>;

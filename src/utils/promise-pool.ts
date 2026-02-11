@@ -4,9 +4,14 @@ const wrapPromise = <T>(promise: Promise<T>): Promise<PromiseSettledResult<T>> =
     reason => ({ status: 'rejected', reason: reason as unknown })
   );
 
+interface PromisePoolOptions {
+  concurrency?: number;
+  onError?: (error: unknown) => void;
+}
+
 export const createPromisePool = async <T>(
-  generator: Generator<Promise<T>, void>,
-  concurrency = 5
+  generator: Iterable<Promise<T>, void>,
+  { concurrency = 5, onError }: PromisePoolOptions = {}
 ) => {
   const output: PromiseSettledResult<T>[] = [];
   const worker = async () => {
@@ -16,5 +21,14 @@ export const createPromisePool = async <T>(
   };
 
   await Promise.all(Array.from({ length: concurrency }).map(worker));
-  return output;
+  const error = output.find(result => result.status === 'rejected');
+  if (error) {
+    if (onError) {
+      onError(error.reason);
+    } else {
+      throw error.reason;
+    }
+  }
+
+  return output.map(result => (result as PromiseFulfilledResult<T>).value);
 };

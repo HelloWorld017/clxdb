@@ -1,5 +1,5 @@
 import { shardHeaderSchema } from '@/schemas';
-import type { ShardHeader, ShardDocInfo, DocOperation } from '@/types';
+import type { ShardHeader, ShardDocument } from '@/types';
 
 const HEADER_LENGTH_BYTES = 4;
 const LITTLE_ENDIAN = true;
@@ -9,59 +9,20 @@ export interface EncodedShard {
   header: ShardHeader;
 }
 
-export function encodeShard(operations: DocOperation[]): EncodedShard {
+export function encodeShard(documents: ShardDocument[]): EncodedShard {
   const header: ShardHeader = { docs: [] };
   const bodyParts: Uint8Array[] = [];
   let currentOffset = 0;
 
-  for (const op of operations) {
-    const docData =
-      op.type === 'DELETE'
-        ? { id: op.id, _rev: op.rev, _seq: op.seq, _deleted: true }
-        : { id: op.id, _rev: op.rev, _seq: op.seq, ...op.data };
-    const bodyJson = JSON.stringify(docData);
-    const bodyBytes = new TextEncoder().encode(bodyJson);
-    //TODO add bodyBytes crypto
-
-    header.docs.push({
-      id: op.id,
-      rev: op.rev,
-      seq: op.seq,
-      del: op.type === 'DELETE',
-      offset: currentOffset,
-      len: bodyBytes.length,
-    });
-
-    bodyParts.push(bodyBytes);
-    currentOffset += bodyBytes.length;
-  }
-
-  return {
-    data: serializeShard(header, bodyParts),
-    header,
-  };
-}
-
-export function encodeShardFromDocInfos(docs: ShardDocInfo[]): EncodedShard {
-  const header: ShardHeader = { docs: [] };
-  const bodyParts: Uint8Array[] = [];
-  let currentOffset = 0;
-
-  for (const docInfo of docs) {
-    const docData = {
-      id: docInfo.id,
-      _rev: docInfo.rev,
-      _seq: docInfo.seq,
-      _deleted: docInfo.del,
-    };
+  for (const row of documents) {
+    const docData = row.del !== null ? null : row.data;
     const bodyJson = JSON.stringify(docData);
     const bodyBytes = new TextEncoder().encode(bodyJson);
 
     header.docs.push({
-      id: docInfo.id,
-      rev: docInfo.rev,
-      seq: docInfo.seq,
-      del: docInfo.del,
+      id: row.id,
+      seq: row.seq,
+      del: row.del,
       offset: currentOffset,
       len: bodyBytes.length,
     });
@@ -89,11 +50,12 @@ function serializeShard(header: ShardHeader, bodyParts: Uint8Array[]): Uint8Arra
   let pos = 0;
   result.set(headerLenBytes, pos);
   pos += HEADER_LENGTH_BYTES;
+  //TODO add header crypto
   result.set(headerBytes, pos);
   pos += headerBytes.length;
 
-  //TODO add header crypto
   for (const part of bodyParts) {
+    //TODO add bodyBytes crypto
     result.set(part, pos);
     pos += part.length;
   }
@@ -127,4 +89,21 @@ export async function calculateHash(data: Uint8Array): Promise<string> {
 
 export function extractBodyOffset(headerLength: number): number {
   return HEADER_LENGTH_BYTES + headerLength;
+}
+
+interface ShardLevelOptions {
+  desiredShardSize: number;
+  maxShardLevel: number;
+  compactionThreshold: number;
+}
+
+export function getShardLevel(
+  { desiredShardSize, maxShardLevel, compactionThreshold }: ShardLevelOptions,
+  size: number
+): number {
+  const initialShardSize = desiredShardSize / compactionThreshold ** maxShardLevel;
+  return Math.min(
+    Math.max(0, Math.log(size / initialShardSize) / Math.log(compactionThreshold)),
+    maxShardLevel
+  );
 }

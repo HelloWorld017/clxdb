@@ -1,8 +1,15 @@
-import { SHARDS_DIR } from '@/constants';
+import { SHARD_EXTENSION, SHARDS_DIR } from '@/constants';
 import { shardHeaderCacheSchema } from '@/schemas';
 import { readLocalStorage, writeLocalStorage } from '@/utils/local-storage';
 import { createPromisePool } from '@/utils/promise-pool';
-import { getHeaderLength, parseShardHeader, extractBodyOffset } from '../utils/shard-utils';
+import {
+  getHeaderLength,
+  parseShardHeader,
+  extractBodyOffset,
+  encodeShard,
+  calculateHash,
+  getShardLevel,
+} from '../utils/shard-utils';
 import type {
   StorageBackend,
   ShardFileInfo,
@@ -14,6 +21,7 @@ import type {
 } from '@/types';
 
 const CACHE_VERSION = 1;
+const HEADERS_KEY = 'headers';
 
 export class ShardManager {
   private storage: StorageBackend;
@@ -56,31 +64,22 @@ export class ShardManager {
     return header;
   }
 
-  async fetchHeaders(shardsInfo: ShardFileInfo[]): Promise<ShardHeader[]> {
+  async fetchHeaders(shardInfoList: ShardFileInfo[]): Promise<ShardHeader[]> {
     const fetchHeader = (shardInfo: ShardFileInfo) => this.fetchHeader(shardInfo);
-    const results = await createPromisePool(
-      (function* () {
-        for (const shardInfo of shardsInfo) {
-          yield fetchHeader(shardInfo);
-        }
-      })()
-    );
-
-    return results.map(result => {
-      if (result.status !== 'fulfilled') {
-        throw result.reason;
-      }
-
-      return result.value;
-    });
+    return await createPromisePool(shardInfoList.values().map(shardInfo => fetchHeader(shardInfo)));
   }
 
-  removeHeader(filename: string): boolean {
-    const removed = this.headers.delete(filename);
-    if (removed) {
+  addHeader(filename: string, header: ShardHeader) {
+    if (!this.headers.has(filename)) {
+      this.headers.set(filename, header);
       this.saveToCache();
     }
-    return removed;
+  }
+
+  removeHeader(filename: string) {
+    if (this.headers.delete(filename)) {
+      this.saveToCache();
+    }
   }
 
   clear(): void {
@@ -125,10 +124,9 @@ export class ShardManager {
     const docJson = JSON.parse(new TextDecoder().decode(docBytes)) as Record<string, unknown>;
     return {
       id: docInfo.id,
-      rev: docInfo.rev,
       seq: docInfo.seq,
       del: docInfo.del,
-      data: docInfo.del ? undefined : docJson,
+      data: docInfo.del !== null ? undefined : docJson,
     };
   }
 
@@ -143,6 +141,35 @@ export class ShardManager {
     });
 
     return parseShardHeader(headerBytes);
+  }
+
+  async writeShard(docs: ShardDocument[]): Promise<{ info: ShardFileInfo; header: ShardHeader }> {
+    const { data, header } = encodeShard(docs);
+    const hash = await calculateHash(data);
+    const filename = `shard_${hash}${SHARD_EXTENSION}`;
+    const shardPath = `${SHARDS_DIR}/${filename}`;
+
+    try {
+      await this.storage.write(shardPath, data);
+    } catch (error) {
+      const existingStat = await this.storage.stat(shardPath).catch(() => null);
+      if (!existingStat) {
+        throw error;
+      }
+    }
+
+    const seqMax = Math.max(...header.docs.map(d => d.seq));
+    const seqMin = Math.min(...header.docs.map(d => d.seq));
+    const level = getShardLevel(this.options, data.length);
+
+    return {
+      header,
+      info: {
+        filename,
+        level,
+        range: { min: seqMin, max: seqMax },
+      },
+    };
   }
 
   private loadFromCache(): void {
@@ -170,6 +197,6 @@ export class ShardManager {
       };
     }
 
-    writeLocalStorage('headers', this.options, cache);
+    writeLocalStorage(HEADERS_KEY, this.options, cache);
   }
 }

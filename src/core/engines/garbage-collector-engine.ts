@@ -12,7 +12,7 @@ export class GarbageCollectorEngine {
     this.manifestManager = manifestManager;
   }
 
-  async run(): Promise<void> {
+  async garbageCollect(): Promise<void> {
     try {
       const [allFiles, manifest] = await Promise.all([
         this.storage.list(SHARDS_DIR),
