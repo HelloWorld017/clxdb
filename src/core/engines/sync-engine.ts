@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { SHARDS_DIR } from '@/constants';
+import { SHARD_EXTENSION, SHARDS_DIR } from '@/constants';
 import { EventEmitter } from '@/utils/event-emitter';
 import { readLocalStorage, writeLocalStorage } from '@/utils/local-storage';
 import { createPromisePool } from '@/utils/promise-pool';
@@ -92,19 +92,16 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
     const operations = [...this.pendingChanges];
     const { data: shard } = encodeShard(operations);
     const hash = await calculateHash(shard);
-    const filename = `shard_${hash}.clx`;
+    const filename = `shard_${hash}${SHARD_EXTENSION}`;
     const shardPath = `${SHARDS_DIR}/${filename}`;
 
     try {
       await this.storage.write(shardPath, shard);
     } catch (error) {
       const existingStat = await this.storage.stat(shardPath).catch(() => null);
-      if (existingStat) {
-        this.pendingChanges = [];
-        return;
+      if (!existingStat) {
+        throw error;
       }
-
-      throw error;
     }
 
     const seqMax = Math.max(...operations.map(op => op.seq));
@@ -116,7 +113,11 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
       range: { min: seqMin, max: seqMax },
     };
 
-    await this.manifestManager.updateManifest([shardInfo], [], () => this.pull());
+    await this.manifestManager.updateManifest(
+      () => ({ addedShards: [shardInfo] }),
+      () => this.pull()
+    );
+
     this.pendingChanges = [];
     this.updateLocalSequence();
   }

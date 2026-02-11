@@ -1,48 +1,33 @@
-import { GC_COOLDOWN_HOURS } from '@/constants';
-import { manifestSchema } from '@/schemas';
+import { GC_COOLDOWN_HOURS, SHARDS_DIR, SHARD_EXTENSION } from '@/constants';
+import type { ManifestManager } from '../managers/manifest-manager';
 import type { EngineContext } from '../types';
-import type { StorageBackend, Manifest } from '@/types';
-
-const SHARDS_DIR = 'shards';
-const SHARD_EXTENSION = '.clx';
+import type { StorageBackend } from '@/types';
 
 export class GarbageCollectorEngine {
   private storage: StorageBackend;
+  private manifestManager: ManifestManager;
 
-  constructor({ storage }: EngineContext) {
+  constructor({ storage, manifestManager }: EngineContext) {
     this.storage = storage;
+    this.manifestManager = manifestManager;
   }
 
   async run(): Promise<void> {
     try {
-      // FIXME migrate this to manifest-manager
       const [allFiles, manifest] = await Promise.all([
         this.storage.list(SHARDS_DIR),
-        this.fetchManifest(),
+        this.manifestManager.read(),
       ]);
 
       if (!manifest) {
         return;
       }
 
-      const activeFiles = new Set(manifest.shardFiles.map(s => s.filename));
+      const activeFiles = new Set(manifest.manifest.shardFiles.map(s => s.filename));
       const orphans = this.identifyOrphans(allFiles, activeFiles);
-
       await this.deleteOldOrphans(orphans);
     } catch (error) {
       console.warn('Garbage collection failed:', error);
-    }
-  }
-
-  // FIXME remove this, in favor of manifest-manager
-  private async fetchManifest(): Promise<Manifest | null> {
-    try {
-      const content = await this.storage.read('manifest.json');
-      const parsed = JSON.parse(new TextDecoder().decode(content)) as unknown;
-      const result = manifestSchema.safeParse(parsed);
-      return result.success ? result.data : null;
-    } catch {
-      return null;
     }
   }
 

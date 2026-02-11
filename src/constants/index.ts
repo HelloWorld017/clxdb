@@ -7,3 +7,4 @@ export const DEFAULT_CACHE_STORAGE_KEY = 'clxdb_cache';
 export const GC_COOLDOWN_HOURS = 1;
 export const MAX_SYNC_AGE_DAYS = 365;
 export const SHARDS_DIR = 'shards';
+export const SHARD_EXTENSION = '.clx';

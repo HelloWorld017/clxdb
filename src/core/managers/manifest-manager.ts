@@ -6,6 +6,8 @@ import type { StorageBackend, Manifest, ShardFileInfo } from '@/types';
 const MANIFEST_PATH = 'manifest.json';
 const MAX_RETRIES = 10;
 
+type PossiblyPromise<T> = T | Promise<T>;
+
 export class ManifestManager {
   private storage: StorageBackend;
   private lastEtag: string = '';
@@ -67,12 +69,13 @@ export class ManifestManager {
   }
 
   async updateManifest(
-    addedShards: ShardFileInfo[],
-    removedShards: ShardFileInfo[],
-    onPull: () => Promise<void>
+    onUpdate: (manifest: Manifest) => PossiblyPromise<{
+      addedShards?: ShardFileInfo[];
+      removedShards?: ShardFileInfo[];
+      updatedFields?: Omit<Manifest, 'version' | 'lastSequence' | 'shardFiles'>;
+    }>,
+    onRetry: () => PossiblyPromise<void>
   ): Promise<string> {
-    const removedFiles = new Set(removedShards.map(shard => shard.filename));
-
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       const stat = await this.storage.stat(MANIFEST_PATH);
       if (!stat) {
@@ -81,19 +84,29 @@ export class ManifestManager {
 
       const manifest = this.lastManifest;
       if (!manifest) {
-        await onPull();
+        await onRetry();
         continue;
       }
 
-      const newShards = [...manifest.shardFiles, ...addedShards]
+      const { addedShards, removedShards, updatedFields } = await onUpdate(manifest);
+      const removedFiles = new Set(removedShards?.map(shard => shard.filename));
+      const newShards = [...manifest.shardFiles, ...(addedShards ?? [])]
         .filter(shard => !removedFiles.has(shard.filename))
         .sort((a, b) => a.range.min - b.range.min);
 
+      const newUniqueShards = new Map(newShards.map(shard => [shard.filename, shard]))
+        .values()
+        .toArray();
+
       const newManifest = {
         ...manifest,
+        ...updatedFields,
         version: PROTOCOL_VERSION,
-        lastSequence: Math.max(manifest.lastSequence, ...newShards.map(shard => shard.range.max)),
-        shardFiles: newShards,
+        lastSequence: Math.max(
+          manifest.lastSequence,
+          ...newUniqueShards.map(shard => shard.range.max)
+        ),
+        shardFiles: newUniqueShards,
       };
 
       const newContent = new TextEncoder().encode(JSON.stringify(newManifest, null, 2));
@@ -105,7 +118,7 @@ export class ManifestManager {
       }
 
       if (attempt < MAX_RETRIES - 1) {
-        await onPull();
+        await onRetry();
         await delayWithBackoff(attempt);
       }
     }
