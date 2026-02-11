@@ -62,7 +62,7 @@ export interface ClxDBClientOptions {
 
 export type ClxDBOptions = Required<ClxDBClientOptions>;
 
-export type SyncState = 'idle' | 'pending' | 'syncing' | 'offline';
+export type SyncState = 'idle' | 'pending' | 'syncing';
 
 export interface ClxDBEvents {
   stateChange: (state: SyncState) => void;

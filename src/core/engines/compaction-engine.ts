@@ -1,6 +1,7 @@
-import { encodeShardFromDocInfos, calculateHash } from './shard-utils';
-import type { ShardManager } from './shard-manager';
-import type { StorageBackend, ShardFileInfo, ShardDocInfo } from '../types';
+import { encodeShardFromDocInfos, calculateHash } from '../utils/shard-utils';
+import type { ShardManager } from '../managers/shard-manager';
+import type { EngineContext } from '../types';
+import type { StorageBackend, ShardFileInfo, ShardDocInfo } from '@/types';
 
 const SHARDS_DIR = 'shards';
 const LEVEL_1 = 1 as const;
@@ -18,14 +19,7 @@ export class CompactionEngine {
   private desiredShardSize: number;
   private compactionThreshold: number;
 
-  constructor(
-    storage: StorageBackend,
-    shardManager: ShardManager,
-    options: {
-      desiredShardSize: number;
-      compactionThreshold: number;
-    }
-  ) {
+  constructor({ storage, shardManager, options }: EngineContext) {
     this.storage = storage;
     this.shardManager = shardManager;
     this.desiredShardSize = options.desiredShardSize;

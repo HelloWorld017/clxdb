@@ -1,5 +1,5 @@
 import { shardHeaderSchema } from '@/schemas';
-import type { ShardHeader, ShardDocInfo, DocOperation } from '../types';
+import type { ShardHeader, ShardDocInfo, DocOperation } from '@/types';
 
 const HEADER_LENGTH_BYTES = 4;
 const LITTLE_ENDIAN = true;
@@ -21,6 +21,7 @@ export function encodeShard(operations: DocOperation[]): EncodedShard {
         : { id: op.id, _rev: op.rev, _seq: op.seq, ...op.data };
     const bodyJson = JSON.stringify(docData);
     const bodyBytes = new TextEncoder().encode(bodyJson);
+    //TODO add bodyBytes crypto
 
     header.docs.push({
       id: op.id,
@@ -91,6 +92,7 @@ function serializeShard(header: ShardHeader, bodyParts: Uint8Array[]): Uint8Arra
   result.set(headerBytes, pos);
   pos += headerBytes.length;
 
+  //TODO add header crypto
   for (const part of bodyParts) {
     result.set(part, pos);
     pos += part.length;

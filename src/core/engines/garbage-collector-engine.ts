@@ -1,14 +1,15 @@
 import { GC_COOLDOWN_HOURS } from '@/constants';
 import { manifestSchema } from '@/schemas';
+import type { EngineContext } from '../types';
 import type { StorageBackend, Manifest } from '@/types';
 
 const SHARDS_DIR = 'shards';
 const SHARD_EXTENSION = '.clx';
 
-export class GarbageCollector {
+export class GarbageCollectorEngine {
   private storage: StorageBackend;
 
-  constructor(storage: StorageBackend) {
+  constructor({ storage }: EngineContext) {
     this.storage = storage;
   }
 

@@ -2,7 +2,7 @@ import { SHARDS_DIR } from '@/constants';
 import { shardHeaderCacheSchema } from '@/schemas';
 import { readLocalStorage, writeLocalStorage } from '@/utils/local-storage';
 import { createPromisePool } from '@/utils/promise-pool';
-import { getHeaderLength, parseShardHeader, extractBodyOffset } from './shard-utils';
+import { getHeaderLength, parseShardHeader, extractBodyOffset } from '../utils/shard-utils';
 import type {
   StorageBackend,
   ShardFileInfo,
@@ -11,7 +11,7 @@ import type {
   ShardDocument,
   ClxDBOptions,
   ShardHeaderCache,
-} from '../types';
+} from '@/types';
 
 const CACHE_VERSION = 1;
 
