@@ -124,9 +124,10 @@ export class ShardManager {
     const docJson = JSON.parse(new TextDecoder().decode(docBytes)) as Record<string, unknown>;
     return {
       id: docInfo.id,
+      at: docInfo.at,
       seq: docInfo.seq,
       del: docInfo.del,
-      data: docInfo.del !== null ? undefined : docJson,
+      data: docInfo.del ? undefined : docJson,
     };
   }
 

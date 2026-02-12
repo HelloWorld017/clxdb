@@ -2,8 +2,9 @@ import { z } from 'zod';
 
 export const shardDocInfoSchema = z.object({
   id: z.string(),
+  at: z.number(),
   seq: z.number(),
-  del: z.number().nullable(),
+  del: z.boolean(),
   offset: z.number(),
   len: z.number(),
 });

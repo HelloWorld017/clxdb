@@ -15,12 +15,13 @@ export function encodeShard(documents: ShardDocument[]): EncodedShard {
   let currentOffset = 0;
 
   for (const row of documents) {
-    const docData = row.del !== null ? null : row.data;
+    const docData = row.del ? null : row.data;
     const bodyJson = JSON.stringify(docData);
     const bodyBytes = new TextEncoder().encode(bodyJson);
 
     header.docs.push({
       id: row.id,
+      at: row.at,
       seq: row.seq,
       del: row.del,
       offset: currentOffset,

@@ -48,16 +48,17 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
     await this.pull(pendingIds);
     const docData = await this.database.read(pendingIds);
     const docDataById = new Map(
-      docData.map(data => data && ([data.id, data.data] as const)).filter(x => !!x)
+      docData.map(data => data && ([data.id, data] as const)).filter(x => !!x)
     );
 
     const { addedShardList } = await this.update(manifest => ({
       addedShardList: [
         pendingIds.map(id => ({
           id,
+          at: docDataById.get(id)?.at ?? Date.now(),
           seq: Math.max(manifest.lastSequence, this.localSequence) + 1,
-          del: docDataById.has(id) ? Date.now() : null,
-          data: docDataById.get(id),
+          del: docDataById.has(id),
+          data: docDataById.get(id)?.data,
         })),
       ],
     }));
@@ -71,9 +72,9 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
     const newShards = manifest.shardFiles.filter(s => !this.shardManager.has(s.filename));
     await this.shardManager.fetchHeaders(newShards);
 
-    const ignoredDocIds = new Set(pendingIds);
+    const pendingIdsSet = new Set(pendingIds);
     await createPromisePool(
-      newShards.values().map(shardInfo => this.fetchAndApplyShard(shardInfo, ignoredDocIds))
+      newShards.values().map(shardInfo => this.fetchAndApplyShard(shardInfo, pendingIdsSet))
     );
 
     this.updateLocalSequence();
@@ -81,7 +82,7 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
 
   private async fetchAndApplyShard(
     shardInfo: ShardFileInfo,
-    ignoredDocIds: Set<string>
+    pendingIdsSet: Set<string>
   ): Promise<void> {
     const header = await this.shardManager.fetchHeader(shardInfo);
     const docsToFetch = header.docs.filter(doc => doc.seq > this.localSequence);
@@ -96,12 +97,22 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
       { onError: error => (lastError = { error }) }
     );
 
-    const changes: ShardDocument[] = results.filter(change => !ignoredDocIds.has(change.id));
+    const timestampByPendingId = new Map(
+      (await this.database.read(Array.from(pendingIdsSet)))
+        .filter(x => !!x)
+        .map(doc => [doc.id, doc.at])
+    );
+
+    const changes: ShardDocument[] = results.filter(change => {
+      const localTimestamp = timestampByPendingId.get(change.id);
+      return !localTimestamp || localTimestamp < change.at;
+    });
+
     if (changes.length > 0) {
       this.emit('documentsChanged', changes);
       await Promise.all([
-        this.database.upsert(changes.filter(change => change.del === null)),
-        this.database.delete(changes.filter(change => change.del !== null)),
+        this.database.upsert(changes.filter(change => !change.del)),
+        this.database.delete(changes.filter(change => change.del)),
       ]);
     }
 

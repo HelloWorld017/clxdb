@@ -20,13 +20,15 @@ export type DocData = Record<string, unknown>;
 
 export interface ShardDocument {
   id: string;
+  at: number;
   seq: number;
-  del: number | null;
+  del: boolean;
   data?: DocData;
 }
 
 export interface DatabaseDocument {
   id: string;
+  at: number;
   seq: number | null;
   data: DocData;
 }

@@ -32,8 +32,8 @@ export async function mergeAliveShardDocuments(
     const header = docsHeaderLatest.get(id)!;
     const doc = docs.get(id)!;
 
-    if (header.del !== null) {
-      const tombstoneAge = Date.now() - header.del;
+    if (header.del) {
+      const tombstoneAge = Date.now() - header.at;
       if (tombstoneAge > MAX_SYNC_AGE_DAYS * 24 * 60 * 60 * 1000) {
         return null;
       }

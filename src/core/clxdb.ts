@@ -7,8 +7,9 @@ import {
   DEFAULT_MAX_SHARD_LEVEL,
   DEFAULT_VACUUM_COUNT,
 } from '@/constants';
+import { pendingChangesSchema } from '@/schemas';
 import { EventEmitter } from '@/utils/event-emitter';
-import { writeLocalStorage } from '@/utils/local-storage';
+import { readLocalStorage, writeLocalStorage } from '@/utils/local-storage';
 import { createPromisePool } from '@/utils/promise-pool';
 import { CompactionEngine } from './engines/compaction-engine';
 import { GarbageCollectorEngine } from './engines/garbage-collector-engine';
@@ -91,11 +92,14 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
   }
 
   async init(): Promise<void> {
+    this.pendingIds =
+      readLocalStorage(PENDING_CHANGES_KEY, this.options, pendingChangesSchema)?.pendingIds ?? [];
+
     this.shardManager.initialize();
     await this.manifestManager.initialize();
 
     this.syncEngine.initialize();
-    void this.sync();
+    await this.sync().catch(() => {});
 
     if (this.options.gcOnStart) {
       void this.garbageCollectorEngine.garbageCollect();
@@ -106,6 +110,9 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
     }
 
     this.cleanup = this.database.replicate(changedId => this.queueChange(changedId));
+    if (this.options.syncInterval > 0) {
+      this.start();
+    }
   }
 
   destroy() {
@@ -121,7 +128,7 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
     this.pendingIds.push(changedId);
     writeLocalStorage(PENDING_CHANGES_KEY, this.options, {
       version: CACHE_VERSION,
-      changes: this.pendingIds,
+      pendingIds: this.pendingIds,
     });
   }
 
