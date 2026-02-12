@@ -1,7 +1,7 @@
 import type { ZodType } from 'zod';
 
 export interface LocalStorageOptions {
-  cacheStorageKey: string;
+  cacheStorageKey: string | null;
 }
 
 export function readLocalStorage<T>(

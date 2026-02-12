@@ -26,17 +26,20 @@ import type {
   DatabaseBackend,
   Manifest,
   PossiblyPromise,
+  ClxDBCrypto,
 } from '@/types';
 
 interface ClxDBParams {
   database: DatabaseBackend;
   storage: StorageBackend;
+  crypto: ClxDBCrypto;
   options: ClxDBClientOptions;
 }
 
 export class ClxDB extends EventEmitter<ClxDBEvents> {
   private database: DatabaseBackend;
   private storage: StorageBackend;
+  private crypto: ClxDBCrypto;
   private options: ClxDBOptions;
 
   private manifestManager: ManifestManager;
@@ -51,10 +54,11 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
   private syncPromise: Promise<void> | null = null;
   private cleanup: (() => void) | null = null;
 
-  constructor({ database, storage, options }: ClxDBParams) {
+  constructor({ database, storage, crypto, options }: ClxDBParams) {
     super();
     this.database = database;
     this.storage = storage;
+    this.crypto = crypto;
     this.options = this.normalizeOptions(options);
     this.manifestManager = new ManifestManager(this.storage);
     this.shardManager = new ShardManager(this.storage, this.options);

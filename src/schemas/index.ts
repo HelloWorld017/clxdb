@@ -26,6 +26,15 @@ export const manifestSchema = z.object({
   version: z.number(),
   lastSequence: z.number(),
   shardFiles: z.array(shardFileInfoSchema),
+  crypto: z
+    .object({
+      nonce: z.string(),
+      timestamp: z.number(),
+      masterKey: z.string(),
+      deviceKey: z.record(z.string(), z.string()),
+      signature: z.string(),
+    })
+    .optional(),
 });
 
 export const cachedShardHeaderSchema = z.object({

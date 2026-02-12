@@ -74,6 +74,11 @@ export interface ClxDBClientOptions {
 
 export type ClxDBOptions = Required<ClxDBClientOptions>;
 
+export type ClxDBCrypto =
+  | { kind: 'master'; password: string }
+  | { kind: 'quick-unlock'; password: string }
+  | { kind: 'none' };
+
 export type SyncState = 'idle' | 'pending' | 'syncing';
 
 export interface ClxDBEvents {

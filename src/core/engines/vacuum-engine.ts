@@ -4,7 +4,7 @@ import { mergeAliveShardDocuments } from '../utils/engine-utils';
 import type { ManifestManager } from '../managers/manifest-manager';
 import type { ShardManager } from '../managers/shard-manager';
 import type { EngineContext } from '../types';
-import type { ClxDBEvents, ClxDBOptions, DatabaseBackend, Manifest, ShardFileInfo } from '@/types';
+import type { ClxDBEvents, ClxDBOptions, DatabaseBackend, ShardFileInfo } from '@/types';
 
 export class VacuumEngine extends EventEmitter<ClxDBEvents> {
   private database: DatabaseBackend;
