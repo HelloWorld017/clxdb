@@ -6,10 +6,9 @@ import {
   DEFAULT_CACHE_STORAGE_KEY,
   DEFAULT_MAX_SHARD_LEVEL,
   DEFAULT_VACUUM_COUNT,
+  DEFAULT_GC_GRACE_PERIOD,
 } from '@/constants';
-import { pendingChangesSchema } from '@/schemas';
 import { EventEmitter } from '@/utils/event-emitter';
-import { readLocalStorage, writeLocalStorage } from '@/utils/local-storage';
 import { createPromisePool } from '@/utils/promise-pool';
 import { CompactionEngine } from './engines/compaction-engine';
 import { GarbageCollectorEngine } from './engines/garbage-collector-engine';
@@ -29,8 +28,11 @@ import type {
   PossiblyPromise,
 } from '@/types';
 
-const CACHE_VERSION = 1;
-const PENDING_CHANGES_KEY = 'pending_changes';
+interface ClxDBParams {
+  database: DatabaseBackend;
+  storage: StorageBackend;
+  options: ClxDBClientOptions;
+}
 
 export class ClxDB extends EventEmitter<ClxDBEvents> {
   private database: DatabaseBackend;
@@ -44,16 +46,15 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
   private vacuumEngine: VacuumEngine;
   private syncEngine: SyncEngine;
 
-  private pendingIds: string[] = [];
   private state: SyncState = 'idle';
   private syncIntervalId: ReturnType<typeof setInterval> | null = null;
   private syncPromise: Promise<void> | null = null;
   private cleanup: (() => void) | null = null;
 
-  constructor(options: ClxDBClientOptions) {
+  constructor({ database, storage, options }: ClxDBParams) {
     super();
-    this.database = options.database;
-    this.storage = options.storage;
+    this.database = database;
+    this.storage = storage;
     this.options = this.normalizeOptions(options);
     this.manifestManager = new ManifestManager(this.storage);
     this.shardManager = new ShardManager(this.storage, this.options);
@@ -78,23 +79,21 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
 
   private normalizeOptions(options: ClxDBClientOptions): ClxDBOptions {
     return {
-      ...options,
       syncInterval: options.syncInterval ?? DEFAULT_SYNC_INTERVAL,
       compactionThreshold: options.compactionThreshold ?? DEFAULT_COMPACTION_THRESHOLD,
       desiredShardSize: options.desiredShardSize ?? DEFAULT_DESIRED_SHARD_SIZE,
       maxShardLevel: options.maxShardLevel ?? DEFAULT_MAX_SHARD_LEVEL,
       gcOnStart: options.gcOnStart ?? true,
+      gcGracePeriod: options.gcGracePeriod ?? DEFAULT_GC_GRACE_PERIOD,
       vacuumOnStart: options.vacuumOnStart ?? true,
       vacuumThreshold: options.vacuumThreshold ?? DEFAULT_VACUUM_THRESHOLD,
       vacuumCount: options.vacuumCount ?? DEFAULT_VACUUM_COUNT,
-      cacheStorageKey: options.cacheStorageKey ?? DEFAULT_CACHE_STORAGE_KEY,
+      cacheStorageKey:
+        options.cacheStorageKey !== undefined ? options.cacheStorageKey : DEFAULT_CACHE_STORAGE_KEY,
     };
   }
 
   async init(): Promise<void> {
-    this.pendingIds =
-      readLocalStorage(PENDING_CHANGES_KEY, this.options, pendingChangesSchema)?.pendingIds ?? [];
-
     this.shardManager.initialize();
     await this.manifestManager.initialize();
 
@@ -109,7 +108,7 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
       void this.vacuumEngine.vacuum();
     }
 
-    this.cleanup = this.database.replicate(changedId => this.queueChange(changedId));
+    this.cleanup = this.database.replicate(() => this.markAsPending());
     if (this.options.syncInterval > 0) {
       this.start();
     }
@@ -120,26 +119,24 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
     this.cleanup?.();
   }
 
-  queueChange(changedId: string) {
+  private markAsPending() {
     if (this.state === 'idle') {
       this.setState('pending');
     }
-
-    this.pendingIds.push(changedId);
-    writeLocalStorage(PENDING_CHANGES_KEY, this.options, {
-      version: CACHE_VERSION,
-      pendingIds: this.pendingIds,
-    });
   }
 
   async sync() {
     if (!this.syncPromise) {
       this.syncPromise = (async () => {
+        if (this.state === 'syncing') {
+          return;
+        }
+
         this.setState('syncing');
-        this.emit('syncStart');
+        this.emit('syncStart', this.state === 'pending');
 
         try {
-          await this.syncEngine.sync(this.pendingIds);
+          await this.syncEngine.sync();
           await this.compactionEngine.compact();
           this.emit('syncComplete');
         } catch (error) {
@@ -172,7 +169,7 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
           ...descriptor,
         };
       },
-      () => this.syncEngine.pull(this.pendingIds)
+      () => this.syncEngine.pull()
     );
 
     update.addedShardMetadataList.forEach(shard => {
@@ -188,7 +185,7 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
 
   start(): void {
     if (this.syncIntervalId === null) {
-      this.syncIntervalId = window.setInterval(() => {
+      this.syncIntervalId = setInterval(() => {
         void this.sync();
       }, this.options.syncInterval);
     }

@@ -28,19 +28,29 @@ export async function mergeAliveShardDocuments(
       .filter(doc => !!doc)
   );
 
-  const aliveDocs = docsIds.map(id => {
-    const header = docsHeaderLatest.get(id)!;
-    const doc = docs.get(id)!;
+  const aliveDocs = docsIds
+    .map(id => {
+      const header = docsHeaderLatest.get(id)!;
+      const doc = docs.get(id);
 
-    if (header.del) {
-      const tombstoneAge = Date.now() - header.at;
-      if (tombstoneAge > MAX_SYNC_AGE_DAYS * 24 * 60 * 60 * 1000) {
-        return null;
+      if (header.del) {
+        const tombstoneAge = Date.now() - header.at;
+        if (tombstoneAge > MAX_SYNC_AGE_DAYS * 24 * 60 * 60 * 1000) {
+          return null;
+        }
       }
-    }
 
-    return !doc.seq || doc.seq <= header.seq ? { ...doc, ...header } : null;
-  });
+      if (!doc) {
+        return header.del ? header : null;
+      }
+
+      if (!doc.seq || doc.seq < header.seq) {
+        throw new Error('There is pending changes in database');
+      }
+
+      return doc.seq === header.seq ? { ...doc, ...header } : null;
+    })
+    .filter(x => !!x);
 
   return aliveDocs.filter(x => !!x);
 }

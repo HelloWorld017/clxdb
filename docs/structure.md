@@ -47,7 +47,7 @@ interface Manifest {
   // Active shard list (Must be sorted from Oldest -> Newest)
   shardFiles: Array<{
     filename: string;           // Filename (includes hash)
-    level: 0 | 1 | 2;           // Packing level
+    level: number;           // Packing level
     range: { min: number, max: number }; // Sequence range
   }>;
 }
@@ -63,9 +63,9 @@ interface Manifest {
 interface ShardHeader {
   docs: Array<{
     id: string;         // Document ID
-    rev: string;        // RxDB Revision
+    at: number;         // Timestamp
     seq: number;        // Sequence number
-    del: number | null; // Deleted At (Tombstone)
+    del: boolean;       // Deleted (Tombstone)
     offset: number;     // Starting byte position in Body
     len: number;        // Data length
   }>;
@@ -78,16 +78,17 @@ interface ShardHeader {
 ## 3. Tiered Compaction Strategy
 
 To reduce WebDAV HTTP request overhead, clxdb adopts an **LSM-Tree** inspired approach.
+Following is an example of 3-level sharding. The user can change the level of sharding.
 
 * Initial Shards (Level 0)
   * Created when user creates/updates/deletes documents. (after debounce)
   * Real-time changes. Small file size (few KB). Count increases rapidly.
 
 * Merged Shards (Level 1)
-  * When there are >= 10 shards, which are level 0 or 1, they are packed into one or more shards
+  * When there are >= 10 level 0 shards, they are packed into a shard
 
 * Stale Shards (Level 2)
-  * If the yields shards whose size is larger than 5MB, it becomes a stale shard and not targeted for the compaction.
+  * For the yielded shards whose size is larger than 5MB, it becomes a stale shard and not targeted for the compaction.
 
 | Level | Creation Trigger | Description |
 | --- | --- | --- |
@@ -101,10 +102,10 @@ To reduce WebDAV HTTP request overhead, clxdb adopts an **LSM-Tree** inspired ap
 
 ### 4.1 WRITE (Push Process) - Idempotency & Completion Guarantee
 
-The process of safely recording RxDB changes to the server.
+The process of safely recording Database changes to the server.
 
 1. **Buffer & Pack (Local):**
-* Buffer RxDB change logs (C/U/D) in memory.
+* Buffer database change logs (C/U/D) in memory.
 * Serialize buffer into a Level 0 Shard and generate a filename via hash (`{hash}.clx`).
 
 
@@ -120,9 +121,9 @@ The process of safely recording RxDB changes to the server.
 * On failure (412 Error), re-read the Manifest and retry.
 
 
-4. **Ack to RxDB:**
-* **Only after the Manifest update succeeds (200 OK)**, send the "Sync Complete" signal to RxDB.
-* If previous steps fail, RxDB treats it as "Failed" and retries in the next cycle (Exponential Backoff).
+4. **Ack to Database Backend:**
+* **Only after the Manifest update succeeds (200 OK)**, send the "Sync Complete" signal to database backend.
+* If previous steps fail, database backend treats it as "Failed" and retries in the next cycle (Exponential Backoff).
 
 
 
@@ -135,7 +136,7 @@ The process of safely recording RxDB changes to the server.
 * Compare Document IDs and Revisions in the header with the local DB.
 
 
-4. **Apply:** Download only the Bodies of documents newer than the local state and apply them to RxDB (`bulkUpsert`).
+4. **Apply:** Download only the Bodies of documents newer than the local state and apply them to database backend (`bulkUpsert`).
 
 > [!IMPORTANT]
 > Pulling is prohibited for devices outdated by more than 1 year to prevent "Zombie" data issues.
@@ -214,7 +215,6 @@ const clxdb = createClxDB({
 
 // 3. Execution
 await clxdb.init();
-clxdb.start(); // Start background sync
 
 // 4. Blob Lazy Loading
 const clxblobs = createClxBlobs({ storage });
@@ -271,12 +271,12 @@ export interface StorageBackend {
 
 
 2. **Offline:**
-* Queue tasks locally (handled by RxDB); resume `Push` process when connection is restored.
+* Queue tasks locally; resume `Push` process when connection is restored.
 
 
 3. **Shutdown while Sync:**
-* **File uploaded, Manifest update failed:** RxDB treats as failure -> Next run checks file existence (Skips upload) -> Retries Manifest update.
-* **File not uploaded:** RxDB keeps pending changes -> Next run retries upload and Manifest update.
+* **File uploaded, Manifest update failed:** Database backends treats as failure -> Next run checks file existence (Skips upload) -> Retries Manifest update.
+* **File not uploaded:** Database backends keeps pending changes -> Next run retries upload and Manifest update.
 
 
 
@@ -303,7 +303,7 @@ export type SyncState =
 export class ClxDB implements EventEmitter {
   constructor(
     private backend: StorageBackend,
-    private localDb: RxDatabase,
+    private database: DatabaseBackend,
     private options: ClxDBOptions
   );
 
@@ -317,7 +317,7 @@ export class ClxDB implements EventEmitter {
 
 export function createClxDB(params: {
   storage: StorageBackend;
-  database: RxDatabase;
+  database: DatabaseBackend;
   options?: ClxDBOptions;
 }): ClxDB;
 
@@ -355,10 +355,10 @@ export function createClxBlobs(params: {
   storage: StorageBackend;
 }): Promise<ClxBlobs>;
 
-// Migrating existing RxDB to a different storage
+// Migrating existing database to a different storage
 export function migrateDB(params: {
   storage: StorageBackend;
-  database: RxDatabase;
+  database: DatabaseBackend;
   options?: ClxDBOptions;
 }): Promise<ClxDB>;
 

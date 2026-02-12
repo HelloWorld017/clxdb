@@ -40,26 +40,36 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
     }
   }
 
-  async sync(pendingIds: string[]): Promise<void> {
+  async sync(): Promise<void> {
+    await this.pull();
+
+    const pendingIds = Array.from(new Set(await this.database.readPendingIds()));
     if (pendingIds.length === 0) {
       return;
     }
 
-    await this.pull(pendingIds);
     const docData = await this.database.read(pendingIds);
     const docDataById = new Map(
       docData.map(data => data && ([data.id, data] as const)).filter(x => !!x)
     );
 
+    const idsToSync = pendingIds.filter(id => {
+      const data = docDataById.get(id);
+      return data && data.seq === null;
+    });
+
     const { addedShardList } = await this.update(manifest => ({
       addedShardList: [
-        pendingIds.map(id => ({
-          id,
-          at: docDataById.get(id)?.at ?? Date.now(),
-          seq: Math.max(manifest.lastSequence, this.localSequence) + 1,
-          del: docDataById.has(id),
-          data: docDataById.get(id)?.data,
-        })),
+        idsToSync.map(id => {
+          const docData = docDataById.get(id);
+          return {
+            id,
+            at: docData?.at ?? Date.now(),
+            seq: Math.max(manifest.lastSequence, this.localSequence) + 1,
+            del: docData?.del ?? true,
+            data: docData?.data,
+          };
+        }),
       ],
     }));
 
@@ -67,12 +77,12 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
     this.updateLocalSequence();
   }
 
-  async pull(pendingIds: string[]): Promise<void> {
+  async pull(): Promise<void> {
     const { manifest } = (await this.manifestManager.read())!;
     const newShards = manifest.shardFiles.filter(s => !this.shardManager.has(s.filename));
     await this.shardManager.fetchHeaders(newShards);
 
-    const pendingIdsSet = new Set(pendingIds);
+    const pendingIdsSet = new Set(await this.database.readPendingIds());
     await createPromisePool(
       newShards.values().map(shardInfo => this.fetchAndApplyShard(shardInfo, pendingIdsSet))
     );

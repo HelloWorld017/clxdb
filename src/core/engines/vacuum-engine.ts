@@ -46,11 +46,14 @@ export class VacuumEngine extends EventEmitter<ClxDBEvents> {
       return;
     }
 
+    if ((await this.database.readPendingIds()).length) {
+      return;
+    }
+
     this.emit('vacuumStart');
 
     try {
-      const { manifest } = (await this.manifestManager.read())!;
-      await this.performVacuum(manifest);
+      await this.performVacuum();
       this.emit('vacuumComplete');
     } catch (error) {
       this.emit('vacuumError', error as Error);
@@ -58,7 +61,8 @@ export class VacuumEngine extends EventEmitter<ClxDBEvents> {
     }
   }
 
-  private async performVacuum(manifest: Manifest): Promise<void> {
+  private async performVacuum(): Promise<void> {
+    const { manifest } = (await this.manifestManager.read())!;
     const shardsToVacuum = this.selectShardsForVacuum(manifest.shardFiles);
     if (shardsToVacuum.length === 0) {
       return;

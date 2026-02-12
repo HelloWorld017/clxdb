@@ -17,13 +17,11 @@
     // Types
     "target": "esnext",
     "lib": ["esnext", "dom", "dom.iterable", "dom.asynciterable"],
-    "types": [],
-    "typeRoots": [
-      "./node_modules",
-      "./node_modules/@types"
-    ],
+    "types": ["node", "react", "react-dom"],
+    "typeRoots": ["./node_modules", "./node_modules/@types"],
 
     // Others
+    "jsx": "react",
     "allowJs": true,
     "skipLibCheck": true,
     "noEmit": true,
@@ -33,6 +31,9 @@
 
   "include": [
     "src/**/*.ts",
-    "eslint.config.js"
+    "examples/**/*.ts",
+    "examples/**/*.tsx",
+    "eslint.config.js",
+    "vite.config.ts"
   ]
 }

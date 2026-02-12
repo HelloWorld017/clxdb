@@ -49,10 +49,14 @@ export class CompactionEngine extends EventEmitter<ClxDBEvents> {
       return;
     }
 
+    if ((await this.database.readPendingIds()).length) {
+      return;
+    }
+
     this.emit('compactionStart');
 
     try {
-      await this.update((manifest: Manifest) => this.performCompaction(manifest));
+      await this.performCompaction();
       this.emit('compactionComplete');
     } catch (error) {
       this.emit('compactionError', error as Error);
@@ -60,28 +64,35 @@ export class CompactionEngine extends EventEmitter<ClxDBEvents> {
     }
   }
 
-  private async performCompaction(manifest: Manifest): Promise<UpdateDescriptor> {
+  private async performCompaction(): Promise<void> {
+    const { manifest } = (await this.manifestManager.read())!;
     const shardsSetToCompact = this.selectShardsSetForCompaction(manifest.shardFiles);
     if (shardsSetToCompact.length === 0) {
-      return {};
+      return;
     }
 
     const mergedDocs = await createPromisePool(
-      shardsSetToCompact
-        .values()
-        .map(shardsSet =>
-          mergeAliveShardDocuments(
-            { database: this.database, shardManager: this.shardManager },
-            shardsSet
-          )
-        )
+      shardsSetToCompact.values().map(async shardsSet => ({
+        shards: shardsSet,
+        documents: await mergeAliveShardDocuments(
+          { database: this.database, shardManager: this.shardManager },
+          shardsSet
+        ),
+      }))
     );
 
-    return {
-      addedShardList: mergedDocs,
-      removedShardFilenameList: shardsSetToCompact.flatMap(shardSet =>
-        shardSet.map(shard => shard.filename)
-      ),
-    };
+    await this.update(manifest => {
+      const existingShardFilenames = new Set(manifest.shardFiles.map(shard => shard.filename));
+      const availableResult = mergedDocs.filter(({ shards }) =>
+        shards.every(shard => existingShardFilenames.has(shard.filename))
+      );
+
+      return {
+        addedShardList: availableResult.map(result => result.documents),
+        removedShardFilenameList: availableResult.flatMap(({ shards }) =>
+          shards.map(shard => shard.filename)
+        ),
+      };
+    });
   }
 }

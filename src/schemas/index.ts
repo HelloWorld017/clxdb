@@ -39,11 +39,6 @@ export const shardHeaderCacheSchema = z.object({
   headers: z.record(z.string(), cachedShardHeaderSchema),
 });
 
-export const pendingChangesSchema = z.object({
-  version: z.number(),
-  pendingIds: z.array(z.string()),
-});
-
 export type ShardDocInfo = z.infer<typeof shardDocInfoSchema>;
 export type ShardHeader = z.infer<typeof shardHeaderSchema>;
 export type ShardFileInfo = z.infer<typeof shardFileInfoSchema>;

@@ -1,15 +1,17 @@
-import { GC_COOLDOWN_HOURS, SHARDS_DIR, SHARD_EXTENSION } from '@/constants';
+import { SHARDS_DIR, SHARD_EXTENSION } from '@/constants';
 import type { ManifestManager } from '../managers/manifest-manager';
 import type { EngineContext } from '../types';
-import type { StorageBackend } from '@/types';
+import type { ClxDBOptions, StorageBackend } from '@/types';
 
 export class GarbageCollectorEngine {
   private storage: StorageBackend;
   private manifestManager: ManifestManager;
+  private options: ClxDBOptions;
 
-  constructor({ storage, manifestManager }: EngineContext) {
+  constructor({ storage, manifestManager, options }: EngineContext) {
     this.storage = storage;
     this.manifestManager = manifestManager;
+    this.options = options;
   }
 
   async garbageCollect(): Promise<void> {
@@ -36,7 +38,7 @@ export class GarbageCollectorEngine {
   }
 
   private async deleteOldOrphans(orphans: string[]): Promise<void> {
-    const oneHourAgo = Date.now() - GC_COOLDOWN_HOURS * 60 * 60 * 1000;
+    const oneHourAgo = Date.now() - this.options.gcGracePeriod;
 
     const deletePromises = orphans.map(async orphan => {
       try {

@@ -9,6 +9,10 @@ export function readLocalStorage<T>(
   options: LocalStorageOptions,
   schema: ZodType<T>
 ): T | null {
+  if (!options.cacheStorageKey) {
+    return null;
+  }
+
   const fullKey = `${options.cacheStorageKey}/${key}`;
 
   try {
@@ -32,6 +36,10 @@ export function readLocalStorage<T>(
 }
 
 export function writeLocalStorage<T>(key: string, options: LocalStorageOptions, value: T): void {
+  if (!options.cacheStorageKey) {
+    return;
+  }
+
   const fullKey = `${options.cacheStorageKey}/${key}`;
 
   try {
@@ -42,6 +50,10 @@ export function writeLocalStorage<T>(key: string, options: LocalStorageOptions, 
 }
 
 export function removeLocalStorage(key: string, options: LocalStorageOptions): void {
+  if (!options.cacheStorageKey) {
+    return;
+  }
+
   const fullKey = `${options.cacheStorageKey}/${key}`;
 
   try {

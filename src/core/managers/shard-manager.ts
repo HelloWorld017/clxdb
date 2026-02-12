@@ -65,8 +65,7 @@ export class ShardManager {
   }
 
   async fetchHeaders(shardInfoList: ShardFileInfo[]): Promise<ShardHeader[]> {
-    const fetchHeader = (shardInfo: ShardFileInfo) => this.fetchHeader(shardInfo);
-    return await createPromisePool(shardInfoList.values().map(shardInfo => fetchHeader(shardInfo)));
+    return createPromisePool(shardInfoList.values().map(shardInfo => this.fetchHeader(shardInfo)));
   }
 
   addHeader(filename: string, header: ShardHeader) {

@@ -30,29 +30,46 @@ export interface DatabaseDocument {
   id: string;
   at: number;
   seq: number | null;
-  data: DocData;
+  del: boolean;
+  data?: DocData;
 }
 
 export interface DatabaseBackend {
   read(id: string[]): Promise<(DatabaseDocument | null)[]>;
-  readPending?(): Promise<DatabaseDocument & { seq: null }[]>;
+  readPendingIds(): Promise<string[]>;
   upsert(data: ShardDocument[]): Promise<void>;
   delete(data: ShardDocument[]): Promise<void>;
-  replicate(onUpdate: (updatedId: string) => void): () => void;
+
+  /**
+   * Two-step update
+   *   * The update by user should be handled in two-step
+   *   * Insertion / Update
+   *     1. Mark as seq: null
+   *     2. After the ClxDB sync, the ClxDB calls `upsert()` and updates the seq.
+   *        This should not be replicated.
+   *   * Deletion
+   *     1. Mark as del: true, seq: null
+   *     2. After the ClxDB sync, it commits the real deletion.
+   *        This should not be replicated.
+   *
+   *  The rule:
+   *     1. User update is always seq: null
+   *     2. Only seq === null updates should be replicated.
+   */
+  replicate(onUpdate: () => void): () => void;
 }
 
 export interface ClxDBClientOptions {
-  database: DatabaseBackend;
-  storage: StorageBackend;
   syncInterval?: number;
   compactionThreshold?: number;
   desiredShardSize?: number;
   maxShardLevel?: number;
   gcOnStart?: boolean;
+  gcGracePeriod?: number;
   vacuumOnStart?: boolean;
   vacuumCount?: number;
   vacuumThreshold?: number;
-  cacheStorageKey?: string;
+  cacheStorageKey?: string | null;
 }
 
 export type ClxDBOptions = Required<ClxDBClientOptions>;
@@ -61,7 +78,7 @@ export type SyncState = 'idle' | 'pending' | 'syncing';
 
 export interface ClxDBEvents {
   stateChange: (state: SyncState) => void;
-  syncStart: () => void;
+  syncStart: (isPending: boolean) => void;
   syncComplete: () => void;
   syncError: (error: Error) => void;
   compactionStart: () => void;

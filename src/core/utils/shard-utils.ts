@@ -65,9 +65,7 @@ function serializeShard(header: ShardHeader, bodyParts: Uint8Array[]): Uint8Arra
 }
 
 export function parseShardHeader(data: Uint8Array): ShardHeader {
-  const headerLen = new DataView(data.buffer).getUint32(0, LITTLE_ENDIAN);
-  const headerBytes = data.slice(HEADER_LENGTH_BYTES, HEADER_LENGTH_BYTES + headerLen);
-  const headerJson = new TextDecoder().decode(headerBytes);
+  const headerJson = new TextDecoder().decode(data);
   const parsed = JSON.parse(headerJson) as unknown;
   const result = shardHeaderSchema.safeParse(parsed);
 
@@ -104,7 +102,7 @@ export function getShardLevel(
 ): number {
   const initialShardSize = desiredShardSize / compactionThreshold ** maxShardLevel;
   return Math.min(
-    Math.max(0, Math.log(size / initialShardSize) / Math.log(compactionThreshold)),
+    Math.max(0, Math.round(Math.log(size / initialShardSize) / Math.log(compactionThreshold))),
     maxShardLevel
   );
 }

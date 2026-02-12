@@ -14,6 +14,12 @@ export class EventEmitter<TEvents extends Record<keyof TEvents, (...args: never[
     };
   }
 
+  off<K extends keyof TEvents>(event: K, listener: TEvents[K]): void {
+    if (this.listeners[event]) {
+      this.listeners[event] = this.listeners[event].filter(l => l !== listener);
+    }
+  }
+
   protected emit<K extends keyof TEvents>(event: K, ...args: Parameters<TEvents[K]>): void {
     if (this.parentEmitter) {
       this.parentEmitter.emit(event, ...args);
