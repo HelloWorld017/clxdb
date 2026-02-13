@@ -9,6 +9,7 @@ import { CryptoManager } from './managers/crypto-manager';
 import { ManifestManager } from './managers/manifest-manager';
 import { ShardManager } from './managers/shard-manager';
 import { normalizeOptions } from './utils/options';
+import type { RegisteredDevice } from './managers/crypto-manager';
 import type { UpdateDescriptor } from './types';
 import type {
   StorageBackend,
@@ -222,6 +223,29 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
     });
 
     await commit();
+  }
+
+  async removeRegisteredDevice(deviceId: string): Promise<void> {
+    const updateCrypto = await this.cryptoManager.removeRegisteredDevice(deviceId);
+
+    const { commit } = await this.update(async manifest => {
+      const {
+        manifest: { crypto },
+        commit,
+      } = await updateCrypto(manifest);
+
+      return { updatedFields: { crypto }, commit };
+    });
+
+    await commit();
+  }
+
+  getRegisteredDevices(): RegisteredDevice[] {
+    return this.cryptoManager.getRegisteredDevices();
+  }
+
+  async getCurrentDeviceId(): Promise<string | null> {
+    return this.cryptoManager.getCurrentDeviceId();
   }
 
   private async touchCurrentDeviceKey(): Promise<void> {

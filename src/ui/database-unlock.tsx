@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { inspectClxDBStatus } from '@/core/utils/inspect';
+import { PIN_LENGTH, PinInput, createEmptyPin, isCompletePin, pinToString } from './pin-input';
 import type { ClxDBStatus } from '@/core/utils/inspect';
 import type { ClxDBClientOptions, StorageBackend } from '@/types';
-import type { ClipboardEvent, KeyboardEvent, SubmitEvent } from 'react';
+import type { SubmitEvent } from 'react';
 
 export type DatabaseUnlockSubmission =
   | {
@@ -40,22 +41,8 @@ type UnlockMode =
   | 'unsupported'
   | 'inspection-error';
 
-type PinInputProps = {
-  idPrefix: string;
-  label: string;
-  hint: string;
-  digits: string[];
-  disabled: boolean;
-  onChange: (next: string[]) => void;
-};
-
-const PIN_LENGTH = 6;
-const PIN_SLOT_KEYS = ['d1', 'd2', 'd3', 'd4', 'd5', 'd6'] as const;
-
 const classes = (...values: Array<string | null | undefined | false>) =>
   values.filter(Boolean).join(' ');
-
-const createEmptyPin = () => Array.from({ length: PIN_LENGTH }, () => '');
 
 const getInspectErrorMessage = (error: unknown) => {
   const fallback = 'Unable to inspect storage metadata. Check connectivity and try again.';
@@ -66,11 +53,6 @@ const getSubmitErrorMessage = (error: unknown) => {
   const fallback = 'Unlock request failed. Verify credentials and retry.';
   return error instanceof Error ? error.message : fallback;
 };
-
-const pinToString = (digits: string[]) => digits.join('');
-
-const isCompletePin = (digits: string[]) =>
-  digits.length === PIN_LENGTH && digits.every(digit => /^\d$/.test(digit));
 
 const resolveMode = (
   status: ClxDBStatus | null,
@@ -102,112 +84,6 @@ const resolveMode = (
   }
 
   return 'master-recovery';
-};
-
-const PinInput = ({ idPrefix, label, hint, digits, disabled, onChange }: PinInputProps) => {
-  const refs = useRef<Array<HTMLInputElement | null>>([]);
-
-  const focusIndex = (index: number) => {
-    const input = refs.current[index];
-    input?.focus();
-    input?.select();
-  };
-
-  const updateDigit = (index: number, value: string) => {
-    const next = [...digits];
-    next[index] = value;
-    onChange(next);
-  };
-
-  const handleChange = (index: number, rawValue: string) => {
-    const nextDigit = rawValue.replace(/\D/g, '').slice(-1);
-    updateDigit(index, nextDigit);
-
-    if (nextDigit && index < PIN_LENGTH - 1) {
-      focusIndex(index + 1);
-    }
-  };
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>, index: number) => {
-    if (event.key === 'ArrowLeft' && index > 0) {
-      event.preventDefault();
-      focusIndex(index - 1);
-      return;
-    }
-
-    if (event.key === 'ArrowRight' && index < PIN_LENGTH - 1) {
-      event.preventDefault();
-      focusIndex(index + 1);
-      return;
-    }
-
-    if (event.key === 'Backspace' && digits[index] === '' && index > 0) {
-      event.preventDefault();
-      updateDigit(index - 1, '');
-      focusIndex(index - 1);
-    }
-  };
-
-  const handlePaste = (event: ClipboardEvent<HTMLInputElement>, startIndex: number) => {
-    const pasted = event.clipboardData
-      .getData('text')
-      .replace(/\D/g, '')
-      .slice(0, PIN_LENGTH - startIndex);
-
-    if (!pasted) {
-      return;
-    }
-
-    event.preventDefault();
-
-    const next = [...digits];
-    pasted.split('').forEach((digit, offset) => {
-      next[startIndex + offset] = digit;
-    });
-    onChange(next);
-
-    const focusTarget = Math.min(startIndex + pasted.length, PIN_LENGTH - 1);
-    focusIndex(focusTarget);
-  };
-
-  return (
-    <div className="my-12 flex flex-col items-center space-y-2">
-      <div className="flex items-center justify-between">
-        <label className="text-md font-semibold text-zinc-800" htmlFor={`${idPrefix}-0`}>
-          {label}
-        </label>
-      </div>
-
-      <div className="mt-6 mb-4 flex items-center gap-2 sm:gap-3">
-        {PIN_SLOT_KEYS.map((slotKey, index) => (
-          <input
-            key={`${idPrefix}-${slotKey}`}
-            ref={element => {
-              refs.current[index] = element;
-            }}
-            id={`${idPrefix}-${index}`}
-            type="text"
-            value={digits[index]}
-            disabled={disabled}
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            pattern="[0-9]*"
-            maxLength={1}
-            aria-label={`${label} digit ${index + 1}`}
-            onChange={event => handleChange(index, event.target.value)}
-            onKeyDown={event => handleKeyDown(event, index)}
-            onPaste={event => handlePaste(event, index)}
-            className="h-12 w-11 rounded-xl border border-zinc-300 bg-zinc-50 text-center text-lg
-              font-semibold tracking-[0.08em] text-zinc-900 transition-colors duration-200
-              outline-none focus:border-zinc-500 focus:bg-white disabled:cursor-not-allowed
-              disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400"
-          />
-        ))}
-      </div>
-
-      <p className="max-w-[324px] text-center text-xs text-zinc-500">{hint}</p>
-    </div>
-  );
 };
 
 export function DatabaseUnlock({

@@ -1,5 +1,5 @@
 import { StorageError } from '@/utils/storage-error';
-import type { StorageBackend } from '../types';
+import type { StorageBackend, StorageBackendMetadata } from '../types';
 
 export class WebDAVBackend implements StorageBackend {
   private url: string;
@@ -8,6 +8,13 @@ export class WebDAVBackend implements StorageBackend {
   constructor(config: { url: string; auth: { user: string; pass: string } }) {
     this.url = config.url.replace(/\/$/, '');
     this.auth = config.auth;
+  }
+
+  getMetadata(): StorageBackendMetadata {
+    return {
+      kind: 'webdav',
+      endpoint: this.url,
+    };
   }
 
   private getHeaders(): Record<string, string> {

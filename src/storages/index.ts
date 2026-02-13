@@ -11,7 +11,10 @@ export function createStorageBackend(config: StorageConfig): StorageBackend {
       });
 
     case 'filesystem-access':
-      return new FileSystemBackend(config.handle);
+      return new FileSystemBackend(config.handle, 'filesystem-access');
+
+    case 'opfs':
+      return new FileSystemBackend(config.handle, 'opfs');
 
     default:
       throw new Error(`Unknown storage type: ${(config as StorageConfig).type}`);

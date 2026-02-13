@@ -12,6 +12,12 @@ const IV_SIZE = 12;
 const AUTH_TAG_SIZE = 16;
 const DEVICE_KEY_STORE_KEY = 'device_key';
 
+export interface RegisteredDevice {
+  deviceId: string;
+  deviceName: string;
+  lastUsedAt: number;
+}
+
 const encrypt = async (key: CryptoKey, plaintext: Uint8Array<ArrayBuffer>) => {
   const iv = crypto.getRandomValues(new Uint8Array(IV_SIZE));
   const ciphertext = await crypto.subtle.encrypt({ name: AES_ALGORITHM, iv }, key, plaintext);
@@ -180,6 +186,64 @@ export class CryptoManager {
     }
 
     return !!deviceKeyRegistry[deviceKeyStore.deviceId]?.key;
+  }
+
+  async getCurrentDeviceId(): Promise<string | null> {
+    const deviceKeyStore = await CryptoManager.getStoredDeviceKey(this.cacheManager);
+    return deviceKeyStore?.deviceId ?? null;
+  }
+
+  getRegisteredDevices(): RegisteredDevice[] {
+    const manifest = this.manifestManager.getLastManifest();
+    if (!manifest.crypto) {
+      return [];
+    }
+
+    return Object.entries(manifest.crypto.deviceKey)
+      .map(([deviceId, deviceKeyInfo]) => ({
+        deviceId,
+        deviceName: deviceKeyInfo.deviceName,
+        lastUsedAt: deviceKeyInfo.lastUsedAt,
+      }))
+      .sort((a, b) => b.lastUsedAt - a.lastUsedAt);
+  }
+
+  async removeRegisteredDevice(deviceId: string) {
+    const currentDeviceId = await this.getCurrentDeviceId();
+
+    return async (manifest: Manifest) => {
+      if (!manifest.crypto || !this.rootKey) {
+        throw new Error('Attempting to open unencrypted database');
+      }
+
+      if (!manifest.crypto.deviceKey[deviceId]) {
+        throw new Error('Device not found');
+      }
+
+      const nextDeviceKey = { ...manifest.crypto.deviceKey };
+      delete nextDeviceKey[deviceId];
+
+      const signingKey = await deriveSigningKey(this.rootKey);
+      const newManifest = await signManifest(signingKey, {
+        ...manifest,
+        crypto: {
+          ...manifest.crypto,
+          deviceKey: nextDeviceKey,
+          nonce: crypto.randomUUID(),
+          timestamp: Date.now(),
+          signature: '',
+        },
+      });
+
+      return {
+        manifest: newManifest,
+        commit: async () => {
+          if (currentDeviceId === deviceId) {
+            await this.cacheManager.removeIndexedDB(DEVICE_KEY_STORE_KEY);
+          }
+        },
+      };
+    };
   }
 
   async finalizeManifest(manifest: Manifest): Promise<Manifest> {

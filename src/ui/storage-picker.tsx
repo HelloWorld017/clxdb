@@ -8,6 +8,11 @@ export interface FileSystemAccessStorageSelection {
   handle: FileSystemDirectoryHandle;
 }
 
+export interface OpfsStorageSelection {
+  type: 'opfs';
+  handle: FileSystemDirectoryHandle;
+}
+
 export interface WebDAVStorageSelection {
   type: 'webdav';
   url: string;
@@ -17,7 +22,10 @@ export interface WebDAVStorageSelection {
   };
 }
 
-export type StoragePickerSelection = FileSystemAccessStorageSelection | WebDAVStorageSelection;
+export type StoragePickerSelection =
+  | FileSystemAccessStorageSelection
+  | OpfsStorageSelection
+  | WebDAVStorageSelection;
 
 export interface StoragePickerProps {
   onSelect: (selection: StoragePickerSelection) => Promise<void> | void;
@@ -267,7 +275,7 @@ export function StoragePicker({
         }
 
         const handle = await opfsStorage.getDirectory();
-        selection = { type: 'filesystem-access', handle };
+        selection = { type: 'opfs', handle };
       }
 
       if (selectedType === 'webdav') {

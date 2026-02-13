@@ -1,3 +1,14 @@
+export type StorageBackendMetadata =
+  | {
+      kind: 'webdav';
+      endpoint: string;
+    }
+  | {
+      kind: 'filesystem';
+      provider: 'filesystem-access' | 'opfs';
+      directoryName: string;
+    };
+
 export interface StorageBackend {
   read(path: string, range?: { start: number; end: number }): Promise<Uint8Array>;
   write(path: string, content: Uint8Array): Promise<void>;
@@ -9,11 +20,13 @@ export interface StorageBackend {
     previousEtag: string
   ): Promise<{ success: boolean; newEtag?: string }>;
   list(path: string): Promise<string[]>;
+  getMetadata?(): StorageBackendMetadata;
 }
 
 export type StorageConfig =
   | { type: 'webdav'; url: string; auth: { user: string; pass: string } }
-  | { type: 'filesystem-access'; handle: FileSystemDirectoryHandle };
+  | { type: 'filesystem-access'; handle: FileSystemDirectoryHandle }
+  | { type: 'opfs'; handle: FileSystemDirectoryHandle };
 
 export type DocData = Record<string, unknown>;
 

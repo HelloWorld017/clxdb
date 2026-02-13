@@ -5,7 +5,7 @@ export { generateNewClxDB } from '@/core/utils/generate';
 export { inspectClxDBStatus } from '@/core/utils/inspect';
 
 export { createStorageBackend } from '@/storages';
-export { DatabaseUnlock, StoragePicker } from '@/ui';
+export { DatabaseSettings, DatabaseUnlock, StoragePicker } from '@/ui';
 export type { ClxDBStatus } from '@/core/utils/inspect';
 export type {
   DatabaseBackend,
@@ -15,9 +15,12 @@ export type {
   ClxDBOptions,
 } from '@/types';
 export type {
+  DatabaseSettingsClient,
+  DatabaseSettingsProps,
   DatabaseUnlockProps,
   DatabaseUnlockSubmission,
   FileSystemAccessStorageSelection,
+  OpfsStorageSelection,
   StoragePickerBackendType,
   StoragePickerSelection,
   WebDAVStorageSelection,

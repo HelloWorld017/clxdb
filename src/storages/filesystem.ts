@@ -1,11 +1,21 @@
 import { StorageError } from '@/utils/storage-error';
-import type { StorageBackend } from '../types';
+import type { StorageBackend, StorageBackendMetadata } from '../types';
 
 export class FileSystemBackend implements StorageBackend {
   private handle: FileSystemDirectoryHandle;
+  private provider: 'filesystem-access' | 'opfs';
 
-  constructor(handle: FileSystemDirectoryHandle) {
+  constructor(handle: FileSystemDirectoryHandle, provider: 'filesystem-access' | 'opfs') {
     this.handle = handle;
+    this.provider = provider;
+  }
+
+  getMetadata(): StorageBackendMetadata {
+    return {
+      kind: 'filesystem',
+      provider: this.provider,
+      directoryName: this.handle.name || '(root)',
+    };
   }
 
   private async getFileHandle(path: string, create = false): Promise<FileSystemFileHandle | null> {
