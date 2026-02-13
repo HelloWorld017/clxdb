@@ -1,6 +1,5 @@
 import { SHARD_EXTENSION, SHARDS_DIR } from '@/constants';
 import { shardHeaderCacheSchema } from '@/schemas';
-import { readIndexedDB, writeIndexedDB } from '@/utils/indexeddb';
 import { createPromisePool } from '@/utils/promise-pool';
 import {
   getHeaderLength,
@@ -11,6 +10,7 @@ import {
   calculateHash,
   getShardLevel,
 } from '../utils/shard-utils';
+import type { CacheManager } from './cache-manager';
 import type { CryptoManager } from './crypto-manager';
 import type {
   StorageBackend,
@@ -31,13 +31,20 @@ export class ShardManager {
   private storage: StorageBackend;
   private headers: Map<string, ShardHeader> = new Map();
   private options: ClxDBOptions;
+  private cacheManager: CacheManager;
   private cryptoManager: CryptoManager;
   private cacheLoaded: boolean = false;
 
-  constructor(storage: StorageBackend, options: ClxDBOptions, cryptoManager: CryptoManager) {
+  constructor(
+    storage: StorageBackend,
+    cacheManager: CacheManager,
+    cryptoManager: CryptoManager,
+    options: ClxDBOptions
+  ) {
     this.storage = storage;
-    this.options = options;
+    this.cacheManager = cacheManager;
     this.cryptoManager = cryptoManager;
+    this.options = options;
   }
 
   async initialize(): Promise<void> {
@@ -256,7 +263,7 @@ export class ShardManager {
   }
 
   private async loadFromCache(): Promise<void> {
-    const cache = await readIndexedDB(HEADERS_KEY, this.options, shardHeaderCacheSchema);
+    const cache = await this.cacheManager.readIndexedDB(HEADERS_KEY, shardHeaderCacheSchema);
     if (cache && cache.version === CACHE_VERSION) {
       for (const [filename, cachedHeader] of Object.entries(cache.headers)) {
         this.headers.set(filename, cachedHeader.header);
@@ -280,6 +287,6 @@ export class ShardManager {
       };
     }
 
-    await writeIndexedDB(HEADERS_KEY, this.options, cache);
+    await this.cacheManager.writeIndexedDB(HEADERS_KEY, cache);
   }
 }

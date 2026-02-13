@@ -23,3 +23,18 @@ export const normalizeOptions = (options: ClxDBClientOptions): ClxDBOptions => (
   cacheStorageKey:
     options.cacheStorageKey !== undefined ? options.cacheStorageKey : DEFAULT_CACHE_STORAGE_KEY,
 });
+
+export const resolveCacheStorageKey = (
+  cacheStorageKey: string | null,
+  uuid: string
+): string | null => {
+  if (!cacheStorageKey) {
+    return null;
+  }
+
+  if (cacheStorageKey === DEFAULT_CACHE_STORAGE_KEY) {
+    return `${cacheStorageKey}_${uuid}`;
+  }
+
+  return cacheStorageKey;
+};

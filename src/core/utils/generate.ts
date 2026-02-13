@@ -1,15 +1,17 @@
 import { MANIFEST_PATH, PROTOCOL_VERSION } from '@/constants';
 import { ClxDB } from '../clxdb';
+import { CacheManager } from '../managers/cache-manager';
 import { CryptoManager } from '../managers/crypto-manager';
+import { ManifestManager } from '../managers/manifest-manager';
 import { normalizeOptions } from './options';
-import type { ClxDBCrypto, ClxDBClientOptions, StorageBackend, DatabaseBackend } from '@/types';
+import type { ClxDBParams } from '@/types';
 
-export const generateNewClxDB = async (
-  createDatabase: (uuid: string) => Promise<DatabaseBackend>,
-  storage: StorageBackend,
-  crypto: ClxDBCrypto,
-  clientOptions: ClxDBClientOptions
-) => {
+export const generateNewClxDB = async ({
+  database,
+  storage,
+  crypto,
+  options: clientOptions,
+}: ClxDBParams) => {
   const options = normalizeOptions(clientOptions);
   const manifest = {
     version: PROTOCOL_VERSION,
@@ -18,14 +20,19 @@ export const generateNewClxDB = async (
     shardFiles: [],
   };
 
-  const cryptoManager = new CryptoManager(crypto, options);
-  const initialized = await cryptoManager.signInitialManifest(manifest);
-  if (initialized.crypto) {
-    await storage.write(MANIFEST_PATH, new TextEncoder().encode(JSON.stringify(manifest, null, 2)));
-  }
+  const manifestManager = new ManifestManager(storage);
+  const cacheManager = new CacheManager(options);
+  await cacheManager.initialize(manifest.uuid);
+
+  const cryptoManager = new CryptoManager(crypto, manifestManager, cacheManager);
+  const initializedManifest = await cryptoManager.signInitialManifest(manifest);
+  await storage.write(
+    MANIFEST_PATH,
+    new TextEncoder().encode(JSON.stringify(initializedManifest, null, 2))
+  );
 
   return new ClxDB({
-    database: await createDatabase(manifest.uuid),
+    database,
     storage,
     crypto,
     options,

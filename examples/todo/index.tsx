@@ -1,9 +1,7 @@
-import * as React from 'react';
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createClxDB, createStorageBackend, inspectClxDBStatus } from '@/index';
-import type { ClxDBDatabaseStatus } from '@/index';
-import type { DatabaseBackend } from '@/types';
+import { createClxDB, createStorageBackend, generateNewClxDB, inspectClxDBStatus } from '@/index';
+import type { ClxDBClientOptions, ClxDBCrypto, DatabaseBackend, ClxDBStatus } from '@/index';
 
 declare global {
   interface Window {
@@ -35,20 +33,28 @@ type TodoInput = {
 
 type TodoListener = (todos: Todo[]) => void;
 type ClxDBClient = ReturnType<typeof createClxDB>;
+type ClxDBDatabaseStatus = ClxDBStatus;
 
-const TODO_DB_NAME = 'clxdb_todo_example';
+const TODO_DB_NAME_PREFIX = 'clxdb_todo_example_';
 const TODO_DB_VERSION = 1;
 const TODO_STORE_NAME = 'todos';
+
+const CLXDB_BASE_OPTIONS: ClxDBClientOptions = {
+  syncInterval: 5000,
+  gcOnStart: true,
+  gcGracePeriod: 1000,
+  vacuumOnStart: true,
+};
 
 // ==================== Todo Database (React App Interface) ====================
 
 class TodoDatabase {
-  private dbPromise: Promise<IDBDatabase>;
+  private dbPromise: PromiseWithResolvers<IDBDatabase>;
   private listeners: Set<TodoListener> = new Set();
   private replicationListeners: Set<() => void> = new Set();
 
   constructor() {
-    this.dbPromise = this.openDatabase();
+    this.dbPromise = Promise.withResolvers();
   }
 
   private requestToPromise = <T,>(request: IDBRequest<T>): Promise<T> =>
@@ -74,41 +80,39 @@ class TodoDatabase {
       };
     });
 
-  private openDatabase(): Promise<IDBDatabase> {
-    return new Promise((resolve, reject) => {
-      if (typeof window === 'undefined' || !window.indexedDB) {
-        reject(new Error('IndexedDB is not available in this environment'));
-        return;
-      }
+  private openDatabase(uuid: string) {
+    if (typeof window === 'undefined' || !window.indexedDB) {
+      this.dbPromise.reject(new Error('IndexedDB is not available in this environment'));
+      return;
+    }
 
-      const request = window.indexedDB.open(TODO_DB_NAME, TODO_DB_VERSION);
+    const request = window.indexedDB.open(`${TODO_DB_NAME_PREFIX}${uuid}`, TODO_DB_VERSION);
 
-      request.onupgradeneeded = () => {
-        const database = request.result;
-        if (database.objectStoreNames.contains(TODO_STORE_NAME)) {
-          return;
-        }
-
+    request.onupgradeneeded = () => {
+      const database = request.result;
+      if (!database.objectStoreNames.contains(TODO_STORE_NAME)) {
         const store = database.createObjectStore(TODO_STORE_NAME, { keyPath: 'id' });
         store.createIndex('seq', 'seq', { unique: false });
-      };
+      }
+    };
 
-      request.onsuccess = () => {
-        const database = request.result;
-        database.onversionchange = () => {
-          database.close();
-        };
-        resolve(database);
+    request.onsuccess = () => {
+      const database = request.result;
+      database.onversionchange = () => {
+        database.close();
       };
+      this.dbPromise.resolve(database);
+    };
 
-      request.onerror = () => {
-        reject(request.error ?? new Error('Failed to open IndexedDB'));
-      };
-    });
+    request.onerror = () => {
+      this.dbPromise.reject(request.error ?? new Error('Failed to open IndexedDB'));
+    };
+
+    return this.dbPromise.promise;
   }
 
   private async getRow(id: string): Promise<TodoData | null> {
-    const database = await this.dbPromise;
+    const database = await this.dbPromise.promise;
     const transaction = database.transaction(TODO_STORE_NAME, 'readonly');
     const store = transaction.objectStore(TODO_STORE_NAME);
     const request = store.get(id) as IDBRequest<TodoData | undefined>;
@@ -117,7 +121,7 @@ class TodoDatabase {
   }
 
   private async getRows(): Promise<TodoData[]> {
-    const database = await this.dbPromise;
+    const database = await this.dbPromise.promise;
     const transaction = database.transaction(TODO_STORE_NAME, 'readonly');
     const store = transaction.objectStore(TODO_STORE_NAME);
     const request = store.getAll() as IDBRequest<TodoData[]>;
@@ -125,7 +129,7 @@ class TodoDatabase {
   }
 
   private async putRow(row: TodoData): Promise<void> {
-    const database = await this.dbPromise;
+    const database = await this.dbPromise.promise;
     const transaction = database.transaction(TODO_STORE_NAME, 'readwrite');
     const store = transaction.objectStore(TODO_STORE_NAME);
     store.put(row);
@@ -137,7 +141,7 @@ class TodoDatabase {
       return;
     }
 
-    const database = await this.dbPromise;
+    const database = await this.dbPromise.promise;
     const transaction = database.transaction(TODO_STORE_NAME, 'readwrite');
     const store = transaction.objectStore(TODO_STORE_NAME);
     ids.forEach(id => {
@@ -162,6 +166,10 @@ class TodoDatabase {
   // Get adapter for clxDB
   getClxDBAdapter(): DatabaseBackend {
     return {
+      initialize: async uuid => {
+        await this.openDatabase(uuid);
+      },
+
       read: async ids => {
         const rows = await Promise.all(ids.map(id => this.getRow(id)));
         return rows;
@@ -197,7 +205,7 @@ class TodoDatabase {
         });
 
         if (rowsToUpsert.length > 0) {
-          const database = await this.dbPromise;
+          const database = await this.dbPromise.promise;
           const transaction = database.transaction(TODO_STORE_NAME, 'readwrite');
           const store = transaction.objectStore(TODO_STORE_NAME);
           rowsToUpsert.forEach(row => {
@@ -671,6 +679,22 @@ type UnlockRequest =
 
 type UnlockMode = 'inspecting' | 'new' | 'no-crypto' | 'quick-unlock' | 'master';
 
+const formatDeviceId = (deviceId: string) =>
+  deviceId.length > 12 ? `${deviceId.slice(0, 8)}...${deviceId.slice(-4)}` : deviceId;
+
+const formatLastUsedAt = (timestamp: number) => {
+  if (!Number.isFinite(timestamp)) {
+    return 'Unknown';
+  }
+
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) {
+    return 'Unknown';
+  }
+
+  return date.toLocaleString();
+};
+
 interface UnlockScreenProps {
   directoryHandle: FileSystemDirectoryHandle;
   status: ClxDBDatabaseStatus | null;
@@ -705,7 +729,10 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({
             ? 'quick-unlock'
             : 'master';
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const registeredDeviceKeys = status?.registeredDeviceKeys ?? [];
+  const showRegisteredDevices = mode === 'quick-unlock' || mode === 'master';
+
+  const handleSubmit = (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isLoading || mode === 'inspecting') {
       return;
@@ -871,6 +898,31 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({
             />
           )}
 
+          {showRegisteredDevices && registeredDeviceKeys.length > 0 ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  Registered Devices
+                </p>
+                <span className="text-xs text-slate-400">{registeredDeviceKeys.length}</span>
+              </div>
+              <div className="max-h-44 space-y-2 overflow-y-auto pr-1">
+                {registeredDeviceKeys.map(device => (
+                  <div
+                    key={device.deviceId}
+                    className="rounded-lg border border-slate-200 bg-white p-3"
+                  >
+                    <p className="text-sm font-medium text-slate-700">{device.deviceName}</p>
+                    <p className="text-xs text-slate-500">ID: {formatDeviceId(device.deviceId)}</p>
+                    <p className="text-xs text-slate-500">
+                      Last used: {formatLastUsedAt(device.lastUsedAt)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
           <button
@@ -897,7 +949,7 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({
 
 const App: React.FC = () => {
   const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
-  const [todoDB] = useState(() => new TodoDatabase());
+  const [todoDB, setTodoDB] = useState<TodoDatabase | null>(null);
   const [clxdb, setClxdb] = useState<ClxDBClient | null>(null);
   const [cryptoStatus, setCryptoStatus] = useState<ClxDBDatabaseStatus | null>(null);
   const [isInspectingStatus, setIsInspectingStatus] = useState(false);
@@ -913,6 +965,53 @@ const App: React.FC = () => {
 
     clxdbRef.current = client;
     setClxdb(client);
+  };
+
+  const resolveUnlockConfig = (
+    request: UnlockRequest
+  ): {
+    cryptoConfig: ClxDBCrypto;
+    postInit: ((client: ClxDBClient) => Promise<void>) | null;
+  } => {
+    if (request.kind === 'none') {
+      return {
+        cryptoConfig: { kind: 'none' },
+        postInit: null,
+      };
+    }
+
+    if (request.kind === 'quick-unlock') {
+      return {
+        cryptoConfig: { kind: 'quick-unlock', password: request.quickUnlockPassword },
+        postInit: null,
+      };
+    }
+
+    if (request.kind === 'master') {
+      return {
+        cryptoConfig: { kind: 'master', password: request.masterPassword },
+        postInit: async client => {
+          await client.updateQuickUnlockPassword(
+            request.masterPassword,
+            request.quickUnlockPassword
+          );
+        },
+      };
+    }
+
+    if (!request.encrypt) {
+      return {
+        cryptoConfig: { kind: 'none' },
+        postInit: null,
+      };
+    }
+
+    return {
+      cryptoConfig: { kind: 'master', password: request.masterPassword },
+      postInit: async client => {
+        await client.updateQuickUnlockPassword(request.masterPassword, request.quickUnlockPassword);
+      },
+    };
   };
 
   const openDatabaseWithHandle = async (
@@ -937,63 +1036,44 @@ const App: React.FC = () => {
         return;
       }
 
-      let cryptoConfig:
-        | { kind: 'none' }
-        | { kind: 'quick-unlock'; password: string }
-        | { kind: 'master'; password: string };
+      const todoDatabase = new TodoDatabase();
+      let client: ClxDBClient;
+      const { cryptoConfig, postInit } = resolveUnlockConfig(request);
 
-      let postInit: ((client: ClxDBClient) => Promise<void>) | null = null;
-
-      if (request.kind === 'none') {
-        cryptoConfig = { kind: 'none' };
-      } else if (request.kind === 'quick-unlock') {
-        cryptoConfig = { kind: 'quick-unlock', password: request.quickUnlockPassword };
-      } else if (request.kind === 'master') {
-        cryptoConfig = { kind: 'master', password: request.masterPassword };
-        postInit = async client => {
-          await client.updateQuickUnlockPassword(
-            request.masterPassword,
-            request.quickUnlockPassword
-          );
-        };
-      } else if (!request.encrypt) {
-        cryptoConfig = { kind: 'none' };
+      if (request.kind === 'new') {
+        client = await generateNewClxDB({
+          database: todoDatabase.getClxDBAdapter(),
+          storage,
+          crypto: cryptoConfig,
+          options: CLXDB_BASE_OPTIONS,
+        });
       } else {
-        cryptoConfig = { kind: 'master', password: request.masterPassword };
-        postInit = async client => {
-          await client.updateQuickUnlockPassword(
-            request.masterPassword,
-            request.quickUnlockPassword
-          );
-        };
+        client = createClxDB({
+          database: todoDatabase.getClxDBAdapter(),
+          storage,
+          crypto: cryptoConfig,
+          options: CLXDB_BASE_OPTIONS,
+        });
       }
-
-      const client = createClxDB({
-        database: todoDB.getClxDBAdapter(),
-        storage,
-        crypto: cryptoConfig,
-        options: {
-          syncInterval: 5000,
-          gcOnStart: true,
-          gcGracePeriod: 1000,
-          vacuumOnStart: true,
-        },
-      });
 
       await client.init();
-      if (postInit) {
-        await postInit(client);
-      }
 
       if (attempt !== unlockAttemptRef.current) {
         client.destroy();
         return;
       }
 
+      if (postInit) {
+        await postInit(client);
+      }
+
+      setTodoDB(todoDatabase);
+      setIsInspectingStatus(false);
       replaceClient(client);
     } catch (error) {
       if (attempt === unlockAttemptRef.current) {
         replaceClient(null);
+        setTodoDB(null);
         setUnlockError(error instanceof Error ? error.message : 'Failed to unlock database');
       }
       console.error('Failed to initialize ClxDB:', error);
@@ -1009,6 +1089,7 @@ const App: React.FC = () => {
       return;
     }
 
+    setIsInspectingStatus(false);
     await openDatabaseWithHandle(directoryHandle, request);
   };
 
@@ -1024,13 +1105,14 @@ const App: React.FC = () => {
         handle,
       });
 
-      const status = await inspectClxDBStatus(storage);
+      const status = await inspectClxDBStatus(storage, CLXDB_BASE_OPTIONS);
       if (attempt !== unlockAttemptRef.current) {
         return;
       }
 
       setCryptoStatus(status);
       if (status.hasDatabase && !status.isEncrypted) {
+        setTodoDB(null);
         setIsInspectingStatus(false);
         void openDatabaseWithHandle(handle, { kind: 'none' });
       }
@@ -1050,6 +1132,7 @@ const App: React.FC = () => {
     unlockAttemptRef.current += 1;
     setUnlockError(null);
     replaceClient(null);
+    setTodoDB(null);
     setDirectoryHandle(handle);
     void inspectCryptoStatus(handle);
   };
@@ -1058,6 +1141,7 @@ const App: React.FC = () => {
     unlockAttemptRef.current += 1;
     setUnlockError(null);
     replaceClient(null);
+    setTodoDB(null);
     setDirectoryHandle(null);
     setCryptoStatus(null);
     setIsInspectingStatus(false);
@@ -1090,6 +1174,10 @@ const App: React.FC = () => {
         error={unlockError}
       />
     );
+  }
+
+  if (!todoDB) {
+    return <></>;
   }
 
   return <TodoApp todoDB={todoDB} clxdb={clxdb} />;

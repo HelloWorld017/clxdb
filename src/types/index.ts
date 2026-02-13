@@ -34,6 +34,7 @@ export interface DatabaseDocument {
 }
 
 export interface DatabaseBackend {
+  initialize(uuid: string): Promise<void>;
   read(id: string[]): Promise<(DatabaseDocument | null)[]>;
   readPendingIds(): Promise<string[]>;
   upsert(data: ShardDocument[]): Promise<void>;
@@ -77,6 +78,13 @@ export type ClxDBCrypto =
   | { kind: 'master'; password: string }
   | { kind: 'quick-unlock'; password: string }
   | { kind: 'none' };
+
+export interface ClxDBParams {
+  database: DatabaseBackend;
+  storage: StorageBackend;
+  crypto: ClxDBCrypto;
+  options: ClxDBClientOptions;
+}
 
 export type SyncState = 'idle' | 'pending' | 'syncing';
 

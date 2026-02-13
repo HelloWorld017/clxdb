@@ -5,6 +5,7 @@ export { generateNewClxDB } from '@/core/utils/generate';
 export { inspectClxDBStatus } from '@/core/utils/inspect';
 
 export { createStorageBackend } from '@/storages';
+export type { ClxDBStatus } from '@/core/utils/inspect';
 export type {
   DatabaseBackend,
   StorageBackend,

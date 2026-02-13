@@ -1,15 +1,9 @@
 import { deviceKeyStoreSchema } from '@/schemas';
 import { getFriendlyDeviceName } from '@/utils/device-name';
-import { readIndexedDB, writeIndexedDB } from '@/utils/indexeddb';
 import { stableJSONSerialize } from '@/utils/json';
+import type { CacheManager } from './cache-manager';
 import type { ManifestManager } from './manifest-manager';
-import type {
-  Manifest,
-  ClxDBCrypto,
-  ClxDBOptions,
-  DeviceKeyStore,
-  ManifestDeviceKeyRegistry,
-} from '@/types';
+import type { Manifest, ClxDBCrypto, DeviceKeyStore, ManifestDeviceKeyRegistry } from '@/types';
 
 const AES_ALGORITHM = 'AES-GCM';
 const HASH_ALGORITHM = 'SHA-256';
@@ -162,23 +156,25 @@ const verifyManifest = async (signingKey: CryptoKey, manifest: Manifest) => {
 
 export class CryptoManager {
   private crypto: ClxDBCrypto;
-  private options: ClxDBOptions;
+  private manifestManager: ManifestManager;
+  private cacheManager: CacheManager;
   private rootKey: CryptoKey | null | undefined = undefined;
 
-  constructor(crypto: ClxDBCrypto, options: ClxDBOptions) {
+  constructor(crypto: ClxDBCrypto, manifestManager: ManifestManager, cacheManager: CacheManager) {
     this.crypto = crypto;
-    this.options = options;
+    this.manifestManager = manifestManager;
+    this.cacheManager = cacheManager;
   }
 
-  static async getStoredDeviceKey(options: ClxDBOptions): Promise<DeviceKeyStore | null> {
-    return readIndexedDB(DEVICE_KEY_STORE_KEY, options, deviceKeyStoreSchema);
+  static async getStoredDeviceKey(cacheManager: CacheManager): Promise<DeviceKeyStore | null> {
+    return cacheManager.readIndexedDB(DEVICE_KEY_STORE_KEY, deviceKeyStoreSchema);
   }
 
   static async hasUsableDeviceKey(
     deviceKeyRegistry: ManifestDeviceKeyRegistry,
-    options: ClxDBOptions
+    cacheManager: CacheManager
   ): Promise<boolean> {
-    const deviceKeyStore = await this.getStoredDeviceKey(options);
+    const deviceKeyStore = await this.getStoredDeviceKey(cacheManager);
     if (!deviceKeyStore) {
       return false;
     }
@@ -223,7 +219,6 @@ export class CryptoManager {
     const rootKeyEncrypted = await encrypt(masterKey, rootKeyRaw);
 
     this.rootKey = await importRootKey(rootKeyRaw);
-    this.crypto.password = '';
     rootKeyRaw.fill(0);
 
     const signingKey = await deriveSigningKey(this.rootKey);
@@ -242,8 +237,8 @@ export class CryptoManager {
     return newManifest;
   }
 
-  async openManifest(manifestManager: ManifestManager) {
-    const manifest = manifestManager.getLastManifest();
+  async initialize() {
+    const manifest = this.manifestManager.getLastManifest();
 
     if (!manifest.crypto) {
       if (this.crypto.kind === 'none') {
@@ -272,12 +267,11 @@ export class CryptoManager {
 
       const signingKey = await deriveSigningKey(this.rootKey);
       await verifyManifest(signingKey, manifest);
-      await this.touchCurrentDeviceKey(manifestManager);
       return;
     }
 
     if (this.crypto.kind === 'quick-unlock') {
-      const deviceKeyStore = await CryptoManager.getStoredDeviceKey(this.options);
+      const deviceKeyStore = await CryptoManager.getStoredDeviceKey(this.cacheManager);
 
       const deviceKeyRegistry = manifest.crypto.deviceKey;
       const deviceKeyInfo = deviceKeyStore ? deviceKeyRegistry[deviceKeyStore.deviceId] : undefined;
@@ -294,20 +288,15 @@ export class CryptoManager {
 
       const signingKey = await deriveSigningKey(this.rootKey);
       await verifyManifest(signingKey, manifest);
-      await this.touchCurrentDeviceKey(manifestManager);
       return;
     }
   }
 
-  async updateMasterPassword(
-    manifestManager: ManifestManager,
-    oldPassword: string,
-    newPassword: string
-  ) {
+  async updateMasterPassword(oldPassword: string, newPassword: string) {
     const salt = crypto.getRandomValues(new Uint8Array(32));
     const masterKey = await deriveMasterKey(newPassword, salt);
 
-    const lastManifest = manifestManager.getLastManifest();
+    const lastManifest = this.manifestManager.getLastManifest();
     if (!lastManifest.crypto) {
       throw new Error('Attempting to open unencrypted database');
     }
@@ -345,12 +334,8 @@ export class CryptoManager {
     };
   }
 
-  async updateQuickUnlockPassword(
-    manifestManager: ManifestManager,
-    masterPassword: string,
-    quickUnlockPassword: string
-  ) {
-    const lastManifest = manifestManager.getLastManifest();
+  async updateQuickUnlockPassword(masterPassword: string, quickUnlockPassword: string) {
+    const lastManifest = this.manifestManager.getLastManifest();
     if (!lastManifest.crypto) {
       throw new Error('Attempting to open unencrypted database');
     }
@@ -363,7 +348,7 @@ export class CryptoManager {
         throw new Error('Attempting to open unencrypted database');
       }
 
-      const deviceKeyStore = await CryptoManager.getStoredDeviceKey(this.options);
+      const deviceKeyStore = await CryptoManager.getStoredDeviceKey(this.cacheManager);
 
       const deviceId = deviceKeyStore?.deviceId ?? crypto.randomUUID();
       const deviceKeyRaw = crypto.getRandomValues(new Uint8Array(32));
@@ -401,22 +386,22 @@ export class CryptoManager {
 
       return {
         manifest: newManifest,
-        commit: () => writeIndexedDB(DEVICE_KEY_STORE_KEY, this.options, newDeviceKeyStore),
+        commit: () => this.cacheManager.writeIndexedDB(DEVICE_KEY_STORE_KEY, newDeviceKeyStore),
       };
     };
   }
 
-  async touchCurrentDeviceKey(manifestManager: ManifestManager) {
+  async touchCurrentDeviceKey() {
     if (!this.rootKey) {
       return null;
     }
 
-    const deviceKeyStore = await CryptoManager.getStoredDeviceKey(this.options);
+    const deviceKeyStore = await CryptoManager.getStoredDeviceKey(this.cacheManager);
     if (!deviceKeyStore) {
       return null;
     }
 
-    const manifest = manifestManager.getLastManifest();
+    const manifest = this.manifestManager.getLastManifest();
     if (!manifest.crypto) {
       return null;
     }

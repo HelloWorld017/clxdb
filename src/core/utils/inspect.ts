@@ -1,8 +1,9 @@
 import { MANIFEST_PATH } from '@/constants';
 import { manifestSchema } from '@/schemas';
+import { CacheManager } from '../managers/cache-manager';
 import { CryptoManager } from '../managers/crypto-manager';
 import { normalizeOptions } from './options';
-import type { ClxDBOptions, StorageBackend } from '@/types';
+import type { ClxDBClientOptions, StorageBackend } from '@/types';
 
 export interface ClxDBStatus {
   uuid: string | null;
@@ -19,8 +20,10 @@ export interface ClxDBStatus {
 
 export const inspectClxDBStatus = async (
   storage: StorageBackend,
-  options: ClxDBOptions
+  options: ClxDBClientOptions = {}
 ): Promise<ClxDBStatus> => {
+  const normalizedOptions = normalizeOptions(options);
+
   const stat = await storage.stat(MANIFEST_PATH);
   if (!stat) {
     return {
@@ -61,10 +64,14 @@ export const inspectClxDBStatus = async (
     .sort((a, b) => b.lastUsedAt - a.lastUsedAt);
 
   const hasRegisteredDeviceKey = registeredDeviceKeys.length > 0;
+  const cacheManager = new CacheManager(normalizedOptions);
+  await cacheManager.initialize(manifest.uuid);
   const hasUsableDeviceKey = await CryptoManager.hasUsableDeviceKey(
     manifest.crypto.deviceKey,
-    normalizeOptions(options)
+    cacheManager
   );
+
+  cacheManager.destroy();
 
   return {
     uuid: manifest.uuid,

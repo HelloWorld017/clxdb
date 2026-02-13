@@ -1,40 +1,34 @@
 import { z } from 'zod';
 import { EventEmitter } from '@/utils/event-emitter';
-import { readIndexedDB, writeIndexedDB } from '@/utils/indexeddb';
 import { createPromisePool } from '@/utils/promise-pool';
+import type { CacheManager } from '../managers/cache-manager';
 import type { ManifestManager } from '../managers/manifest-manager';
 import type { ShardManager } from '../managers/shard-manager';
 import type { EngineContext } from '../types';
-import type {
-  ClxDBEvents,
-  ClxDBOptions,
-  DatabaseBackend,
-  ShardDocument,
-  ShardFileInfo,
-} from '@/types';
+import type { ClxDBEvents, DatabaseBackend, ShardDocument, ShardFileInfo } from '@/types';
 
 const LAST_SEQUENCE_KEY = 'lastSequence';
 
 export class SyncEngine extends EventEmitter<ClxDBEvents> {
   private database: DatabaseBackend;
   private manifestManager: ManifestManager;
+  private cacheManager: CacheManager;
   private shardManager: ShardManager;
-  private options: ClxDBOptions;
   private localSequence: number;
   private update: EngineContext['update'];
 
-  constructor({ database, manifestManager, shardManager, options, update }: EngineContext) {
+  constructor({ database, manifestManager, cacheManager, shardManager, update }: EngineContext) {
     super();
     this.database = database;
     this.manifestManager = manifestManager;
+    this.cacheManager = cacheManager;
     this.shardManager = shardManager;
-    this.options = options;
     this.localSequence = 0;
     this.update = update;
   }
 
   async initialize(): Promise<void> {
-    const lastSequence = await readIndexedDB(LAST_SEQUENCE_KEY, this.options, z.number());
+    const lastSequence = await this.cacheManager.readIndexedDB(LAST_SEQUENCE_KEY, z.number());
     if (lastSequence !== null) {
       this.localSequence = lastSequence;
     }
@@ -155,6 +149,6 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
       this.manifestManager.getLastManifest().lastSequence
     );
 
-    await writeIndexedDB(LAST_SEQUENCE_KEY, this.options, this.localSequence);
+    await this.cacheManager.writeIndexedDB(LAST_SEQUENCE_KEY, this.localSequence);
   }
 }

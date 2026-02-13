@@ -4,6 +4,7 @@ import { CompactionEngine } from './engines/compaction-engine';
 import { GarbageCollectorEngine } from './engines/garbage-collector-engine';
 import { SyncEngine } from './engines/sync-engine';
 import { VacuumEngine } from './engines/vacuum-engine';
+import { CacheManager } from './managers/cache-manager';
 import { CryptoManager } from './managers/crypto-manager';
 import { ManifestManager } from './managers/manifest-manager';
 import { ShardManager } from './managers/shard-manager';
@@ -14,19 +15,12 @@ import type {
   ClxDBOptions,
   SyncState,
   ClxDBEvents,
-  ClxDBClientOptions,
   DatabaseBackend,
   Manifest,
   PossiblyPromise,
   ClxDBCrypto,
+  ClxDBParams,
 } from '@/types';
-
-interface ClxDBParams {
-  database: DatabaseBackend;
-  storage: StorageBackend;
-  crypto: ClxDBCrypto;
-  options: ClxDBClientOptions;
-}
 
 export class ClxDB extends EventEmitter<ClxDBEvents> {
   private database: DatabaseBackend;
@@ -35,6 +29,7 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
   private options: ClxDBOptions;
 
   private manifestManager: ManifestManager;
+  private cacheManager: CacheManager;
   private cryptoManager: CryptoManager;
   private shardManager: ShardManager;
   private compactionEngine: CompactionEngine;
@@ -55,13 +50,20 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
     this.crypto = crypto;
     this.options = normalizeOptions(options);
     this.manifestManager = new ManifestManager(this.storage);
-    this.cryptoManager = new CryptoManager(this.crypto, this.options);
-    this.shardManager = new ShardManager(this.storage, this.options, this.cryptoManager);
+    this.cacheManager = new CacheManager(this.options);
+    this.cryptoManager = new CryptoManager(this.crypto, this.manifestManager, this.cacheManager);
+    this.shardManager = new ShardManager(
+      this.storage,
+      this.cacheManager,
+      this.cryptoManager,
+      this.options
+    );
 
     const ctx = {
       storage: this.storage,
       database: this.database,
       manifestManager: this.manifestManager,
+      cacheManager: this.cacheManager,
       shardManager: this.shardManager,
       options: this.options,
       update: this.update.bind(this),
@@ -78,11 +80,16 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
 
   async init(): Promise<void> {
     await this.manifestManager.initialize();
-    await this.initializeCrypto();
+
+    const uuid = this.manifestManager.getLastManifest().uuid;
+    await this.database.initialize(uuid);
+    await this.cacheManager.initialize(uuid);
+    await this.cryptoManager.initialize();
     await this.shardManager.initialize();
 
     await this.syncEngine.initialize();
     await this.sync();
+    await this.touchCurrentDeviceKey();
 
     if (this.options.gcOnStart) {
       void this.garbageCollectorEngine.garbageCollect();
@@ -98,50 +105,10 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
     }
   }
 
-  async updateMasterPassword(oldPassword: string, newPassword: string): Promise<void> {
-    const updateCrypto = await this.cryptoManager.updateMasterPassword(
-      this.manifestManager,
-      oldPassword,
-      newPassword
-    );
-
-    const { commit } = await this.update(async manifest => {
-      const {
-        manifest: { crypto },
-        commit,
-      } = await updateCrypto(manifest);
-
-      return { updatedFields: { crypto: crypto }, commit };
-    });
-
-    commit();
-  }
-
-  async updateQuickUnlockPassword(
-    masterPassword: string,
-    quickUnlockPassword: string
-  ): Promise<void> {
-    const updateCrypto = await this.cryptoManager.updateQuickUnlockPassword(
-      this.manifestManager,
-      masterPassword,
-      quickUnlockPassword
-    );
-
-    const { commit } = await this.update(async manifest => {
-      const {
-        manifest: { crypto },
-        commit,
-      } = await updateCrypto(manifest);
-
-      return { updatedFields: { crypto: crypto }, commit };
-    });
-
-    await commit();
-  }
-
   destroy() {
     this.stop();
     this.cleanup?.();
+    this.cacheManager.destroy();
   }
 
   private markAsPending() {
@@ -222,11 +189,43 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
 
     return update;
   }
+  async updateMasterPassword(oldPassword: string, newPassword: string): Promise<void> {
+    const updateCrypto = await this.cryptoManager.updateMasterPassword(oldPassword, newPassword);
+    const { commit } = await this.update(async manifest => {
+      const {
+        manifest: { crypto },
+        commit,
+      } = await updateCrypto(manifest);
 
-  private async initializeCrypto(): Promise<void> {
-    await this.cryptoManager.openManifest(this.manifestManager);
+      return { updatedFields: { crypto: crypto }, commit };
+    });
 
-    const update = await this.cryptoManager.touchCurrentDeviceKey(this.manifestManager);
+    commit();
+  }
+
+  async updateQuickUnlockPassword(
+    masterPassword: string,
+    quickUnlockPassword: string
+  ): Promise<void> {
+    const updateCrypto = await this.cryptoManager.updateQuickUnlockPassword(
+      masterPassword,
+      quickUnlockPassword
+    );
+
+    const { commit } = await this.update(async manifest => {
+      const {
+        manifest: { crypto },
+        commit,
+      } = await updateCrypto(manifest);
+
+      return { updatedFields: { crypto: crypto }, commit };
+    });
+
+    await commit();
+  }
+
+  private async touchCurrentDeviceKey(): Promise<void> {
+    const update = await this.cryptoManager.touchCurrentDeviceKey();
     if (update) {
       await this.update(manifest => ({ updatedFields: { crypto: update(manifest).crypto } }));
     }
