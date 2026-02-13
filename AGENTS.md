@@ -1,238 +1,334 @@
 # AGENTS.md
 
-## Project Overview
+## Project Snapshot
 
-**clxdb** is a BYOC (Bring Your Own Cloud) local-first synchronized database. It provides a serverless synchronization engine that uses WebDAV or FileSystem Access API as storage backends, designed for single-page applications.
+`clxdb` is a browser-first local-first sync library.
 
-### Key Characteristics
+- Core: append-only shard-based synchronization engine.
+- Storage: BYOC style adapters (WebDAV, FileSystem Access API, OPFS).
+- Security: optional encryption with master password + per-device quick unlock.
+- UI: optional React components for storage selection, unlock flows, and settings.
 
-- **Language**: TypeScript (strict mode enabled)
-- **Package Manager**: pnpm (v10.18.3)
-- **Module System**: ES Modules (`"type": "module"`)
-- **Target**: Browser/SPA applications
-- **License**: MIT
+This file reflects the current codebase structure and behavior.
 
-## Technology Stack
+## Runtime, Build, and Packaging
 
-### Core Dependencies
+- Package manager: `pnpm@10.18.3`
+- Language: TypeScript (`strict: true`, `moduleResolution: bundler`)
+- Module type: ESM (`"type": "module"`)
+- Library bundler: Vite library mode
+- Build outputs:
+  - ESM: `dist/clxdb.js`
+  - CJS/UMD: `dist/clxdb.umd.cjs`
 
-- **zod** (^4.3.6) - Schema validation and type inference
+## Current Tech Stack
 
-### Dev Dependencies
+### Runtime dependencies
 
-- **TypeScript** (^5.9.3) with strict configuration
-- **ESLint** (^9.39.2) with TypeScript support
-- **Prettier** (^3.8.1) for code formatting
-- **rxjs** (^7.8.2) - Reactive programming (peer dependency pattern)
-- **rxdb** (17.0.0-beta.7) - Local-first database (peer dependency pattern)
+- `react@19.2.x`
+- `react-dom@19.2.x`
+- `zod@4.3.x`
 
-## Project Structure
+### Tooling
 
-```
+- `typescript@6.0.0-beta`
+- `vite@7.3.x`
+- `@vitejs/plugin-react-swc`
+- `tailwindcss@4.1.x` + `@tailwindcss/vite`
+- `eslint@9.39.x` + `typescript-eslint@8.54.x` + `eslint-plugin-import-x`
+- `prettier@3.8.x` (+ tailwind/classnames/merge plugins)
+
+## Repository Layout (Current)
+
+```text
 src/
-├── core/
-│   ├── clxdb.ts              # Main entry point
-│   ├── types.ts              # Core internal types
-│   ├── engines/              # Background processing engines
-│   │   ├── sync-engine.ts    # Push/pull synchronization
-│   │   ├── compaction-engine.ts  # Shard merging
-│   │   ├── garbage-collector-engine.ts  # Orphan cleanup
-│   │   └── vacuum-engine.ts  # Dead row removal
-│   ├── managers/             # Resource managers
-│   │   ├── manifest-manager.ts  # Manifest.json operations
-│   │   └── shard-manager.ts     # Shard file operations
-│   └── utils/
-│       └── shard-utils.ts    # Shard encoding/decoding
-├── storages/                 # Storage backend implementations
-│   ├── webdav.ts
-│   ├── filesystem.ts
-│   └── index.ts
-├── types/                    # Public API types
-│   └── index.ts
-├── schemas/                  # Zod schemas
-│   └── index.ts
-├── utils/                    # Shared utilities
-│   ├── event-emitter.ts
-│   ├── backoff.ts
-│   ├── promise-pool.ts
-│   ├── local-storage.ts
-│   └── storage-error.ts
-└── constants/                # Configuration constants
-    └── index.ts
+  index.ts
+  constants/
+    index.ts
+  schemas/
+    index.ts
+  types/
+    index.ts
+    utils.ts
+  utils/
+    event-emitter.ts
+    promise-pool.ts
+    backoff.ts
+    storage-error.ts
+    device-name.ts
+    json.ts
+  core/
+    clxdb.ts
+    types.ts
+    engines/
+      sync-engine.ts
+      compaction-engine.ts
+      vacuum-engine.ts
+      garbage-collector-engine.ts
+    managers/
+      manifest-manager.ts
+      shard-manager.ts
+      cache-manager.ts
+      crypto-manager.ts
+    utils/
+      options.ts
+      generate.ts
+      inspect.ts
+      shard-utils.ts
+      shard-merge.ts
+  storages/
+    index.ts
+    webdav.ts
+    filesystem.ts
+  ui/
+    index.ts
+    storage-picker.tsx
+    database-unlock.tsx
+    common/
+      pin-input.tsx
+    database-settings/
+      database-settings.tsx
+      overview-tab.tsx
+      encryption-tab.tsx
+      devices-tab.tsx
+      export-tab.tsx
+      types.ts
+      utils.ts
+  definitions/
+    global.d.ts
+
+examples/
+  storage-picker/
+    index.html
+    index.css
+    index.tsx
+  todo/
+    index.html
+    index.css
+    index.tsx
 ```
 
-## Code Style & Conventions
+## Public API Surface
 
-### TypeScript Configuration
+From `src/index.ts`:
 
-- **Strict mode**: Enabled (`strict: true`)
-- **Module resolution**: Bundler
-- **Path alias**: `@/*` maps to `./src/*`
-- **No emit**: Type checking only (`noEmit: true`)
-- **Composite**: Enabled for project references support
+- Core creators:
+  - `createClxDB(...)`
+  - `generateNewClxDB(...)`
+  - `inspectClxDBStatus(...)`
+- Storage factory:
+  - `createStorageBackend(...)`
+- UI exports:
+  - `StoragePicker`
+  - `DatabaseUnlock`
+  - `DatabaseSettings`
+- Type exports:
+  - core/runtime/storage/UI related public types
 
-### Formatting (Prettier)
+## Core Architecture
 
-```yaml
-arrowParens: avoid
-bracketSameLine: false
-quoteProps: consistent
-semi: true
-singleQuote: true
-tabWidth: 2
-trailingComma: es5
-printWidth: 100
-```
+### Main class (`ClxDB`)
 
-### Naming Conventions
+`src/core/clxdb.ts` wires managers + engines and owns lifecycle/state:
 
-- **Classes**: PascalCase (e.g., `SyncEngine`, `ManifestManager`)
-- **Interfaces**: PascalCase (e.g., `StorageBackend`, `EngineContext`)
-- **Type aliases**: PascalCase (e.g., `SyncState`, `DocOperation`)
-- **Functions**: camelCase (e.g., `createClxDB`, `calculateHash`)
-- **Variables**: camelCase (e.g., `syncInterval`, `manifestManager`)
-- **Constants**: UPPER_SNAKE_CASE for true constants (e.g., `DEFAULT_SYNC_INTERVAL`)
-- **Private members**: Prefix with underscore not used; rely on `private` keyword
-- **Files**: kebab-case (e.g., `sync-engine.ts`, `shard-utils.ts`)
-- **Directories**: kebab-case or single word lowercase
+- State machine: `idle | pending | syncing`
+- Lifecycle:
+  1. `manifestManager.initialize()`
+  2. `database.initialize(uuid)`
+  3. `cacheManager.initialize(uuid)`
+  4. `cryptoManager.initialize()`
+  5. `shardManager.initialize()`
+  6. `syncEngine.initialize()`
+  7. initial `sync()`
+  8. optional background GC/Vacuum
+  9. replication callback hookup (`database.replicate(...)`)
 
-### Import Organization
+### Engines
 
-Imports must follow this order (enforced by ESLint):
+- `SyncEngine`
+  - Pulls remote updates by manifest diff and shard header/body reads.
+  - Pushes local pending documents (`seq === null`) as new shards.
+- `CompactionEngine`
+  - Merges shard groups per level when threshold is reached.
+- `VacuumEngine`
+  - Rewrites stale shards when utilization drops below threshold.
+- `GarbageCollectorEngine`
+  - Deletes orphaned shard files older than `gcGracePeriod`.
 
-1. Built-in modules
-2. External dependencies
-3. Internal modules (`@/*` aliases)
-4. Parent/Index/Sibling imports
-5. Type imports (marked with `type` keyword)
+### Managers
 
-Example:
+- `ManifestManager`
+  - Reads/parses manifest and performs CAS update via `atomicUpdate`.
+- `ShardManager`
+  - Reads/writes encrypted shard headers + bodies.
+  - Maintains in-memory + IndexedDB header cache.
+- `CacheManager`
+  - IndexedDB wrapper for cache objects (`lastSequence`, headers, device key).
+- `CryptoManager`
+  - Handles master-key, quick-unlock device key, shard encryption, manifest signing.
 
-```typescript
-import { z } from 'zod';
-import { EventEmitter } from '@/utils/event-emitter';
-import type { EngineContext } from '../types';
-import type { StorageBackend, SyncState } from '@/types';
-```
+## Crypto and Security Model
 
-### Code Patterns
+- Encryption algorithm: `AES-GCM`
+- Key derivation:
+  - master password: `PBKDF2` (`1_500_000` iterations, `SHA-256`)
+  - shard and quick-unlock derivations: `HKDF`
+- Manifest integrity: `HMAC SHA-256` signature over stable JSON payload.
+- Device registry is stored in `manifest.crypto.deviceKey` and can be managed from `ClxDB` methods/UI.
 
-1. **Type Imports**: Use `type` keyword for type-only imports (`@typescript-eslint/consistent-type-imports`)
+## Storage Contract
 
-2. **Arrow Functions**: Prefer arrow functions with implicit returns when possible (`arrow-body-style: as-needed`)
+Any adapter must satisfy `StorageBackend` in `src/types/index.ts`:
 
-3. **Curly Braces**: Always use curly braces for control flow (`curly: all`)
+- `read(path, range?)`
+- `write(path, content)`
+- `delete(path)`
+- `stat(path)`
+- `atomicUpdate(path, content, previousEtag)`
+- `list(path)`
+- Optional `getMetadata()` for UI overview cards
 
-4. **Quotes**: Single quotes for strings, template literals when needed
+Implemented adapters:
 
-5. **Trailing Commas**: ES5 compatible (omit after last parameter)
+- `WebDAVBackend` (`src/storages/webdav.ts`)
+- `FileSystemBackend` for `filesystem-access` and `opfs` (`src/storages/filesystem.ts`)
 
-6. **Unused Variables**: Prefix with underscore to ignore (`_unusedVar`)
+## Database Contract
 
-7. **Error Handling**: Prefer explicit error types; use `StorageError` class for storage operations
+Any local database adapter passed to `createClxDB(...)` must satisfy `DatabaseBackend` in
+`src/types/index.ts`:
 
-8. **Async Patterns**: Use `Promise<void>` for async operations; avoid floating promises (use `void` prefix if intentional)
+- `initialize(uuid)`
+- `read(ids)`
+- `readPendingIds()`
+- `upsert(data)`
+- `delete(data)`
+- `replicate(onUpdate)`
 
-9. **Console**: Only `console.warn` and `console.error` allowed; use events for user-facing messages
+Behavioral expectations:
 
-## Architecture Patterns
+- User-originated create/update/delete operations should be staged with `seq: null`.
+- `readPendingIds()` should return IDs currently staged with `seq: null`.
+- `replicate(onUpdate)` should notify ClxDB when local staged changes occur.
+- Sync-ack writes from ClxDB (`upsert/delete` with concrete `seq`) should not re-trigger
+  replication callbacks.
+- `read(ids)` must preserve input order and return `(DatabaseDocument | null)[]`.
 
-### Engine Pattern
+Reference implementation:
 
-Background processing is organized into "Engines":
+- Example adapter in `examples/todo/index.tsx` (`TodoDatabase.getClxDBAdapter()`).
 
-- Each engine extends `EventEmitter` for event-based communication
-- Engines receive an `EngineContext` with shared dependencies
-- Engines are initialized in `ClxDB.init()`
+## Defaults and Important Constants
 
-### Manager Pattern
+From `src/constants/index.ts` + `normalizeOptions(...)`:
 
-Resource management uses "Managers":
+- `syncInterval`: 5 minutes
+- `compactionThreshold`: 4
+- `desiredShardSize`: 5 MB
+- `maxShardLevel`: 6
+- `gcOnStart`: `true`
+- `gcGracePeriod`: 1 hour
+- `vacuumOnStart`: `true`
+- `vacuumThreshold`: `0.15`
+- `vacuumCount`: `3`
+- `cacheStorageKey`: `clxdb_cache`
+- `MAX_SYNC_AGE_DAYS`: `365`
 
-- Encapsulate operations on specific resources (manifest, shards)
-- Provide high-level APIs for complex operations
-- Handle error recovery and retries
+## Coding Conventions
 
-### Storage Backend Pattern
+### TypeScript
 
-Storage implementations must conform to `StorageBackend` interface:
+- Keep strict typing; avoid `any`.
+- Prefer explicit exported types for public APIs.
+- Use `type` imports where applicable (`@typescript-eslint/consistent-type-imports`).
 
-- Immutable writes (never overwrite existing files)
-- Range read support for partial file access
-- Atomic updates with CAS (Compare-And-Swap) for manifest.json
-- List operations for directory scanning
+### Imports
 
-### Event Emitter Pattern
+ESLint enforces this group order:
 
-All major components extend `EventEmitter`:
+1. `builtin`
+2. `external`
+3. `internal` (`@/...`)
+4. `parent`
+5. `index`
+6. `sibling`
+7. `type`
 
-- Type-safe events using generic type parameters
-- Events: `stateChange`, `syncStart`, `syncComplete`, `syncError`, `compactionStart`, `compactionComplete`, `documentsChanged`
+### Lint/style rules to preserve
 
-## Commands
+- Single quotes
+- Curly braces required (`curly: all`)
+- `console.log` is disallowed (`console.warn`/`console.error` allowed)
+- Camelcase rule enabled (`properties: never`)
+- Prettier is integrated via ESLint (`prettier/prettier`)
 
-### Linting
+### Formatting
 
-```bash
-pnpm run lint
-```
+From `.prettierrc`:
 
-Runs ESLint with TypeScript checking on all source files.
+- `semi: true`
+- `singleQuote: true`
+- `printWidth: 100`
+- `tabWidth: 2`
 
-### Type Checking
+## Development Commands
 
-TypeScript checking is integrated into ESLint via `typescript-eslint`. No separate `tsc` command is configured.
+- Start dev server: `pnpm dev`
+- Build library bundle: `pnpm build`
+- Type check: `pnpm typecheck`
+- Lint: `pnpm lint`
 
-### Build
+Examples are plain Vite entry HTML files under `examples/*/index.html`.
 
-No build script is currently configured. The project is designed to be consumed as TypeScript source or bundled by the consumer.
+## Testing Status
 
-## Testing
+There is no dedicated automated test suite configured yet.
 
-No test suite is currently configured. When adding tests:
+When adding tests later, prefer covering:
 
-- Consider using Vitest or Jest
-- Mock storage backends for unit tests
-- Test sync scenarios with controlled timing
+- sync conflict scenarios
+- manifest CAS retries
+- shard merge/vacuum behavior
+- crypto/unlock flows
 
-## Common Tasks
+## Common Workflows
 
-### Adding a New Engine
+### Create a brand-new database
 
-1. Create file in `src/core/engines/{name}-engine.ts`
-2. Extend `EventEmitter<ClxDBEvents>`
-3. Accept `EngineContext` in constructor
-4. Add initialization logic in `initialize()` method
-5. Wire up in `ClxDB` class constructor
+Use `generateNewClxDB(...)`.
 
-### Adding a New Storage Backend
+- It creates and writes `manifest.json`.
+- It signs initial manifest when encryption is enabled.
 
-1. Create file in `src/storages/{name}.ts`
-2. Implement `StorageBackend` interface from `@/types`
-3. Handle all required methods: `read`, `write`, `delete`, `stat`, `atomicUpdate`, `list`
+### Open an existing database
+
+Use `createClxDB(...)` + `await client.init()`.
+
+- `ManifestManager.initialize()` expects existing manifest.
+- If manifest does not exist, creation path must be used.
+
+### Add a storage backend
+
+1. Implement `StorageBackend`
+2. Respect immutable-write semantics (existing file => error)
+3. Implement CAS in `atomicUpdate`
 4. Export from `src/storages/index.ts`
+5. Optionally expose `getMetadata()` for `DatabaseSettings` overview
 
-### Adding New Constants
+### Add or modify UI settings features
 
-1. Add to `src/constants/index.ts`
-2. Use UPPER_SNAKE_CASE naming
-3. Include units in comments (e.g., `// 5 minutes`)
-4. Provide default values in `ClxDBOptions` interface
+- Main container: `src/ui/database-settings/database-settings.tsx`
+- Tab-level logic:
+  - `overview-tab.tsx`
+  - `encryption-tab.tsx`
+  - `devices-tab.tsx`
+  - `export-tab.tsx`
+- Integration contract: `DatabaseSettingsClient` in `src/ui/database-settings/types.ts`
 
-## Design Principles
+## Gotchas
 
-1. **Immutable Storage**: Never overwrite existing files; write new files and update manifest
-2. **CAS Operations**: All manifest updates use Compare-And-Swap for consistency
-3. **Idempotency**: Uploads check file existence before writing
-4. **Event-Driven**: Components communicate via events, not direct callbacks
-5. **Tiered Sharding**: L0 (real-time) → L1 (merged) → L2 (optimized) compaction strategy
-6. **Lazy Loading**: Fetch only required data using range requests
-7. **Graceful Degradation**: Handle offline scenarios and partial failures
-
-## Important Notes
-
-- **No console.log**: Use events or the `warn`/`error` levels only
-- **Strict TypeScript**: All code must pass strict type checking
-- **No floating promises**: Prefix intentional floating promises with `void`
-- **Error handling**: Emit an event on failures
-- **GC Cooldown**: Garbage collection has a 1-hour cooldown to prevent race conditions
+- `createClxDB` does not create database files; it assumes manifest exists.
+- Compaction and vacuum skip work while local pending updates exist.
+- GC and vacuum are enabled on start by default via normalized options.
+- Cache behavior depends on browser IndexedDB availability.
+- UI export/import tab is currently presentation-only (disabled actions).
