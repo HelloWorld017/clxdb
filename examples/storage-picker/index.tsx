@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createStorageBackend, DatabaseUnlock, StoragePicker } from '@/index';
+import { createStorageBackend, DatabaseSettings, DatabaseUnlock, StoragePicker } from '@/index';
 import './index.css';
 import type {
   ClxDBStatus,
+  DatabaseSettingsClient,
   DatabaseUnlockSubmission,
   StorageBackend,
   StoragePickerSelection,
@@ -154,6 +155,86 @@ const toUnlockPreview = (submission: DatabaseUnlockSubmission): PanelPreview => 
   };
 };
 
+type SettingsAction =
+  | {
+      kind: 'update-master-password';
+      oldPassword: string;
+      newPassword: string;
+    }
+  | {
+      kind: 'update-quick-unlock-pin';
+      masterPassword: string;
+      quickUnlockPin: string;
+    }
+  | {
+      kind: 'remove-device';
+      deviceId: string;
+    };
+
+const toSettingsActionPreview = (action: SettingsAction): PanelPreview => {
+  if (action.kind === 'update-master-password') {
+    return {
+      title: 'settings:update-master-password',
+      rows: [
+        { label: 'Action', value: 'Rotate master password' },
+        { label: 'Current master password', value: maskSecret(action.oldPassword) },
+        { label: 'New master password', value: maskSecret(action.newPassword) },
+        { label: 'Result', value: 'Mock success (example-only)' },
+      ],
+      json: JSON.stringify(
+        {
+          action: action.kind,
+          oldPassword: maskSecret(action.oldPassword),
+          newPassword: maskSecret(action.newPassword),
+          mocked: true,
+        },
+        null,
+        2
+      ),
+    };
+  }
+
+  if (action.kind === 'update-quick-unlock-pin') {
+    return {
+      title: 'settings:update-quick-unlock-pin',
+      rows: [
+        { label: 'Action', value: 'Rotate quick unlock PIN' },
+        { label: 'Master password', value: maskSecret(action.masterPassword) },
+        { label: 'New PIN', value: maskSecret(action.quickUnlockPin) },
+        { label: 'Result', value: 'Mock success (example-only)' },
+      ],
+      json: JSON.stringify(
+        {
+          action: action.kind,
+          masterPassword: maskSecret(action.masterPassword),
+          quickUnlockPin: maskSecret(action.quickUnlockPin),
+          mocked: true,
+        },
+        null,
+        2
+      ),
+    };
+  }
+
+  return {
+    title: 'settings:remove-device',
+    rows: [
+      { label: 'Action', value: 'Remove trusted device' },
+      { label: 'Device ID', value: action.deviceId },
+      { label: 'Result', value: 'Mock success (example-only)' },
+    ],
+    json: JSON.stringify(
+      {
+        action: action.kind,
+        deviceId: action.deviceId,
+        mocked: true,
+      },
+      null,
+      2
+    ),
+  };
+};
+
 const formatAppliedAt = (timestamp: number | null) => {
   if (!timestamp) {
     return 'Not applied yet';
@@ -168,6 +249,38 @@ function StoragePickerExampleApp() {
   const [statusSnapshot, setStatusSnapshot] = useState<ClxDBStatus | null>(null);
   const [unlockPreview, setUnlockPreview] = useState<PanelPreview | null>(null);
   const [unlockAppliedAt, setUnlockAppliedAt] = useState<number | null>(null);
+  const [settingsPreview, setSettingsPreview] = useState<PanelPreview | null>(null);
+  const [settingsAppliedAt, setSettingsAppliedAt] = useState<number | null>(null);
+
+  const settingsClient = useMemo<DatabaseSettingsClient>(
+    () => ({
+      updateMasterPassword: (oldPassword, newPassword) => {
+        setSettingsPreview(
+          toSettingsActionPreview({ kind: 'update-master-password', oldPassword, newPassword })
+        );
+        setSettingsAppliedAt(Date.now());
+        return Promise.resolve();
+      },
+      updateQuickUnlockPassword: (masterPassword, quickUnlockPin) => {
+        setSettingsPreview(
+          toSettingsActionPreview({
+            kind: 'update-quick-unlock-pin',
+            masterPassword,
+            quickUnlockPin,
+          })
+        );
+        setSettingsAppliedAt(Date.now());
+        return Promise.resolve();
+      },
+      removeRegisteredDevice: deviceId => {
+        setSettingsPreview(toSettingsActionPreview({ kind: 'remove-device', deviceId }));
+        setSettingsAppliedAt(Date.now());
+        return Promise.resolve();
+      },
+      getCurrentDeviceId: () => Promise.resolve(null),
+    }),
+    []
+  );
 
   const selectionPreview = useMemo(() => {
     if (!selection) {
@@ -202,7 +315,7 @@ function StoragePickerExampleApp() {
       return `webdav:${selection.url}:${selection.auth.user}`;
     }
 
-    return `filesystem-access:${selection.handle.name}:${selection.handle.kind}`;
+    return `${selection.type}:${selection.handle.name}:${selection.handle.kind}`;
   }, [selection]);
 
   const handleSelect = (nextSelection: StoragePickerSelection) => {
@@ -211,6 +324,8 @@ function StoragePickerExampleApp() {
     setStatusSnapshot(null);
     setUnlockPreview(null);
     setUnlockAppliedAt(null);
+    setSettingsPreview(null);
+    setSettingsAppliedAt(null);
   };
 
   const handleUnlockSubmit = (submission: DatabaseUnlockSubmission) => {
@@ -225,12 +340,33 @@ function StoragePickerExampleApp() {
           <StoragePicker onSelect={handleSelect} submitLabel="Use selected storage" />
 
           {storageBackend ? (
-            <DatabaseUnlock
-              key={unlockKey}
-              storage={storageBackend}
-              onSubmit={handleUnlockSubmit}
-              onStatusChange={setStatusSnapshot}
-            />
+            <>
+              <DatabaseUnlock
+                key={unlockKey}
+                storage={storageBackend}
+                onSubmit={handleUnlockSubmit}
+                onStatusChange={setStatusSnapshot}
+              />
+
+              <DatabaseSettings
+                key={`settings:${unlockKey}`}
+                storage={storageBackend}
+                client={settingsClient}
+              />
+
+              <section
+                className="rounded-[1.75rem] border border-zinc-200 bg-white/80 p-5
+                  shadow-[0_32px_64px_-52px_rgba(24,24,27,0.45)] backdrop-blur-sm"
+              >
+                <p className="text-[11px] font-semibold tracking-[0.2em] text-zinc-500 uppercase">
+                  Example Mode
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                  In this demo, settings actions are mocked to preview integration wiring. The panel
+                  on the right shows the payload shape.
+                </p>
+              </section>
+            </>
           ) : (
             <section
               className="rounded-[1.75rem] border border-zinc-200 bg-white/80 p-6
@@ -339,9 +475,40 @@ function StoragePickerExampleApp() {
             )}
           </section>
 
+          <section className="mt-6">
+            <h2 className="text-sm font-semibold text-zinc-900">Settings Actions</h2>
+            <p className="mt-1 text-xs text-zinc-500">
+              Applied at: {formatAppliedAt(settingsAppliedAt)}
+            </p>
+
+            {settingsPreview ? (
+              <div className="mt-3 space-y-2">
+                {settingsPreview.rows.map(row => (
+                  <div
+                    key={`settings-${row.label}`}
+                    className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs"
+                  >
+                    <p className="font-medium text-zinc-500">{row.label}</p>
+                    <p className="mt-0.5 break-all text-zinc-800">{row.value}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p
+                className="mt-3 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-3 py-3
+                  text-xs text-zinc-500"
+              >
+                Trigger a settings action to inspect payload wiring.
+              </p>
+            )}
+          </section>
+
           <div className="mt-5 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-900/95">
             <pre className="max-h-64 overflow-auto px-3 py-3 text-xs leading-relaxed text-zinc-100">
-              {unlockPreview?.json ?? selectionPreview?.json ?? '{\n  "preview": null\n}'}
+              {settingsPreview?.json ??
+                unlockPreview?.json ??
+                selectionPreview?.json ??
+                '{\n  "preview": null\n}'}
             </pre>
           </div>
         </aside>
