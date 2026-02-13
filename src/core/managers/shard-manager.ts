@@ -160,6 +160,10 @@ export class ShardManager {
   }
 
   async writeShard(docs: ShardDocument[]): Promise<{ info: ShardFileInfo; header: ShardHeader }> {
+    if (docs.length === 0) {
+      throw new Error('Cannot write empty shard');
+    }
+
     const plainBodyParts = buildShardBodyParts(docs);
     const encryptedBodyLengths = plainBodyParts.map(bodyPart =>
       this.cryptoManager.getShardPartSize(bodyPart.length)

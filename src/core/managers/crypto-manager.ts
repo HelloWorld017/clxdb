@@ -189,14 +189,28 @@ export class CryptoManager {
       return manifest;
     }
 
-    if (this.crypto.kind === 'master') {
-      throw new Error('Master password is needed to create a new manifest');
-    }
-
     const salt = crypto.getRandomValues(new Uint8Array(32));
     const masterKey = await deriveMasterKey(this.crypto.password, salt);
     const rootKeyRaw = crypto.getRandomValues(new Uint8Array(32));
-    const rootKeyEncrypted = await encrypt(masterKey, rootKeyRaw);
+    const rootKeyEncryptedByMaster = await encrypt(masterKey, rootKeyRaw);
+
+    let deviceKeyRegistry: Record<string, string> = {};
+    if (this.crypto.kind === 'quick-unlock') {
+      const deviceId = crypto.randomUUID();
+      const deviceKeyRaw = crypto.getRandomValues(new Uint8Array(32));
+      const deviceKey = await importDeviceKey(deviceKeyRaw);
+      deviceKeyRaw.fill(0);
+
+      const deviceKeyStore = { deviceId, key: deviceKey };
+      const quickUnlockKey = await deriveQuickUnlockKey(this.crypto.password, deviceKeyStore);
+      const rootKeyEncryptedByQuickUnlock = await encrypt(quickUnlockKey, rootKeyRaw);
+      await writeIndexedDB(DEVICE_KEY_STORE_KEY, this.options, deviceKeyStore);
+
+      deviceKeyRegistry = {
+        [deviceId]: rootKeyEncryptedByQuickUnlock.toBase64(),
+      };
+    }
+
     this.rootKey = await importRootKey(rootKeyRaw);
     this.crypto.password = '';
     rootKeyRaw.fill(0);
@@ -205,9 +219,9 @@ export class CryptoManager {
     const newManifest = await signManifest(signingKey, {
       ...manifest,
       crypto: {
-        masterKey: rootKeyEncrypted.toBase64(),
+        masterKey: rootKeyEncryptedByMaster.toBase64(),
         masterKeySalt: salt.toBase64(),
-        deviceKey: {},
+        deviceKey: deviceKeyRegistry,
         nonce: crypto.randomUUID(),
         timestamp: Date.now(),
         signature: '',
@@ -220,13 +234,17 @@ export class CryptoManager {
   async openManifest(manifestManager: ManifestManager) {
     const manifest = manifestManager.getLastManifest();
 
-    if (this.crypto.kind === 'none') {
-      this.rootKey = null;
-      return;
+    if (!manifest.crypto) {
+      if (this.crypto.kind === 'none') {
+        this.rootKey = null;
+        return;
+      }
+
+      throw new Error('Attempting to open unencrypted database');
     }
 
-    if (!manifest.crypto) {
-      throw new Error('Attempting to open unencrypted database');
+    if (this.crypto.kind === 'none') {
+      throw new Error('Attempting to open encrypted database without crypto configuration');
     }
 
     if (this.crypto.kind === 'master') {

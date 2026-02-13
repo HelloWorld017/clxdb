@@ -57,6 +57,9 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
       const data = docDataById.get(id);
       return data && data.seq === null;
     });
+    if (idsToSync.length === 0) {
+      return;
+    }
 
     const { addedShardList } = await this.update(manifest => ({
       addedShardList: [
@@ -78,13 +81,20 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
   }
 
   async pull(): Promise<void> {
-    const { manifest } = (await this.manifestManager.read())!;
-    const newShards = manifest.shardFiles.filter(s => !this.shardManager.has(s.filename));
+    const latest = await this.manifestManager.read();
+    if (!latest) {
+      throw new Error('Manifest not found');
+    }
+
+    const shardsToScan = latest.manifest.shardFiles.filter(
+      shard => shard.range.max > this.localSequence
+    );
+    const newShards = shardsToScan.filter(shard => !this.shardManager.has(shard.filename));
     await this.shardManager.fetchHeaders(newShards);
 
     const pendingIdsSet = new Set(await this.database.readPendingIds());
     await createPromisePool(
-      newShards.values().map(shardInfo => this.fetchAndApplyShard(shardInfo, pendingIdsSet))
+      shardsToScan.values().map(shardInfo => this.fetchAndApplyShard(shardInfo, pendingIdsSet))
     );
 
     await this.updateLocalSequence();
@@ -117,10 +127,12 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
         .map(doc => [doc.id, doc.at])
     );
 
-    const changes: ShardDocument[] = results.filter(change => {
-      const localTimestamp = timestampByPendingId.get(change.id);
-      return !localTimestamp || localTimestamp < change.at;
-    });
+    const changes: ShardDocument[] = results
+      .filter((change): change is ShardDocument => !!change)
+      .filter(change => {
+        const localTimestamp = timestampByPendingId.get(change.id);
+        return !localTimestamp || localTimestamp < change.at;
+      });
 
     if (changes.length > 0) {
       this.emit('documentsChanged', changes);

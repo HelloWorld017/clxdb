@@ -54,6 +54,7 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
   private state: SyncState = 'idle';
   private syncIntervalId: ReturnType<typeof setInterval> | null = null;
   private syncPromise: Promise<void> | null = null;
+  private syncRequestedWhileSyncing: boolean = false;
   private cleanup: (() => void) | null = null;
 
   constructor({ database, storage, crypto, options }: ClxDBParams) {
@@ -106,7 +107,7 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
     await this.shardManager.initialize();
 
     await this.syncEngine.initialize();
-    await this.sync().catch(() => {});
+    await this.sync();
 
     if (this.options.gcOnStart) {
       void this.garbageCollectorEngine.garbageCollect();
@@ -185,6 +186,11 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
   }
 
   private markAsPending() {
+    if (this.state === 'syncing') {
+      this.syncRequestedWhileSyncing = true;
+      return;
+    }
+
     if (this.state === 'idle') {
       this.setState('pending');
     }
@@ -197,8 +203,10 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
           return;
         }
 
+        const isPending = this.state === 'pending' || this.syncRequestedWhileSyncing;
+        this.syncRequestedWhileSyncing = false;
         this.setState('syncing');
-        this.emit('syncStart', this.state === 'pending');
+        this.emit('syncStart', isPending);
 
         try {
           await this.syncEngine.sync();
@@ -207,8 +215,13 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
         } catch (error) {
           this.emit('syncError', error as Error);
         } finally {
-          this.setState('idle');
+          const shouldSyncAgain = this.syncRequestedWhileSyncing;
+          this.setState(shouldSyncAgain ? 'pending' : 'idle');
           this.syncPromise = null;
+
+          if (shouldSyncAgain) {
+            void this.sync();
+          }
         }
       })();
     }
@@ -220,7 +233,8 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
     const update = await this.manifestManager.updateManifest(
       async manifest => {
         const descriptor = await onUpdate(manifest);
-        if (!descriptor.addedShardList) {
+        const addedShardList = descriptor.addedShardList?.filter(shard => shard.length > 0);
+        if (!addedShardList?.length) {
           return {
             addedShardMetadataList: [],
             finalizeManifest: this.cryptoManager.finalizeManifest.bind(this.cryptoManager),
@@ -229,7 +243,7 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
         }
 
         const addedShardMetadataList = await createPromisePool(
-          descriptor.addedShardList.values().map(shard => this.shardManager.writeShard(shard))
+          addedShardList.values().map(shard => this.shardManager.writeShard(shard))
         );
 
         return {

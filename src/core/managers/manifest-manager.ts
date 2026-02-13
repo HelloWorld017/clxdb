@@ -50,13 +50,17 @@ export class ManifestManager {
       return null;
     }
 
-    if (stat.etag === this.lastEtag) {
-      return { manifest: this.lastManifest!, etag: this.lastEtag };
+    if (stat.etag === this.lastEtag && this.lastManifest) {
+      return { manifest: this.lastManifest, etag: this.lastEtag };
     }
 
     const content = await this.storage.read(MANIFEST_PATH);
+    const manifest = this.parseManifest(content);
+    this.lastManifest = manifest;
+    this.lastEtag = stat.etag;
+
     return {
-      manifest: this.parseManifest(content),
+      manifest,
       etag: stat.etag,
     };
   }
@@ -78,16 +82,12 @@ export class ManifestManager {
     onRetry: () => PossiblyPromise<void>
   ): Promise<T> {
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-      const stat = await this.storage.stat(MANIFEST_PATH);
-      if (!stat) {
+      const latest = await this.read();
+      if (!latest) {
         throw new Error('Manifest not found');
       }
 
-      const manifest = this.lastManifest;
-      if (!manifest) {
-        await onRetry();
-        continue;
-      }
+      const { manifest, etag } = latest;
 
       const manifestUpdate = await onUpdate(manifest);
       const { addedShardInfoList, removedShardFilenameList, updatedFields, finalizeManifest } =
@@ -101,9 +101,9 @@ export class ManifestManager {
         .filter(shard => !removedFiles.has(shard.filename))
         .sort((a, b) => a.range.min - b.range.min);
 
-      const newUniqueShards = new Map(newShards.map(shard => [shard.filename, shard]))
-        .values()
-        .toArray();
+      const newUniqueShards = Array.from(
+        new Map(newShards.map(shard => [shard.filename, shard])).values()
+      );
 
       let newManifest = {
         ...manifest,
@@ -122,9 +122,9 @@ export class ManifestManager {
 
       const newContent = new TextEncoder().encode(JSON.stringify(newManifest, null, 2));
 
-      const result = await this.storage.atomicUpdate(MANIFEST_PATH, newContent, stat.etag);
+      const result = await this.storage.atomicUpdate(MANIFEST_PATH, newContent, etag);
       if (result.success) {
-        this.lastEtag = result.newEtag || stat.etag;
+        this.lastEtag = result.newEtag || etag;
         this.lastManifest = newManifest;
         return manifestUpdate;
       }

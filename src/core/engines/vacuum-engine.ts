@@ -82,7 +82,11 @@ export class VacuumEngine extends EventEmitter<ClxDBEvents> {
     const vacuumResultToCommit = vacuumResult.filter(({ original, vacuumed }) => {
       const originalLength = original.docs.reduce((sum, doc) => sum + doc.len, 0);
       const vacuumedLength = vacuumed.reduce((sum, doc) => sum + doc.len, 0);
-      return vacuumedLength >= originalLength * (1 - this.options.vacuumThreshold);
+      if (originalLength === 0) {
+        return false;
+      }
+
+      return vacuumedLength <= originalLength * (1 - this.options.vacuumThreshold);
     });
 
     await this.update(latestManifest => {
