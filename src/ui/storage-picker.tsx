@@ -449,7 +449,7 @@ export function StoragePicker({
                     disabled={controlsLocked}
                     placeholder="https://cloud.example.com/remote.php/dav/files/user"
                     className="mt-2 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2.5
-                      text-sm text-zinc-800 transition-colors duration-200 outline-none
+                      text-sm font-normal text-zinc-800 transition-colors duration-200 outline-none
                       placeholder:text-zinc-400 focus:border-zinc-500 focus:bg-white
                       disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100"
                   />
@@ -467,8 +467,8 @@ export function StoragePicker({
                       autoComplete="username"
                       placeholder="my-user"
                       className="mt-2 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3
-                        py-2.5 text-sm text-zinc-800 transition-colors duration-200 outline-none
-                        placeholder:text-zinc-400 focus:border-zinc-500 focus:bg-white
+                        py-2.5 text-sm font-normal text-zinc-800 transition-colors duration-200
+                        outline-none placeholder:text-zinc-400 focus:border-zinc-500 focus:bg-white
                         disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100"
                     />
                   </label>
@@ -484,8 +484,8 @@ export function StoragePicker({
                       autoComplete="current-password"
                       placeholder="••••••••"
                       className="mt-2 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3
-                        py-2.5 text-sm text-zinc-800 transition-colors duration-200 outline-none
-                        placeholder:text-zinc-400 focus:border-zinc-500 focus:bg-white
+                        py-2.5 text-sm font-normal text-zinc-800 transition-colors duration-200
+                        outline-none placeholder:text-zinc-400 focus:border-zinc-500 focus:bg-white
                         disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100"
                     />
                   </label>

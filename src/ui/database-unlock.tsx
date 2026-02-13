@@ -30,8 +30,6 @@ export interface DatabaseUnlockProps {
   onStatusChange?: (status: ClxDBStatus) => void;
   className?: string;
   disabled?: boolean;
-  title?: string;
-  description?: string;
 }
 
 type UnlockMode =
@@ -173,14 +171,14 @@ const PinInput = ({ idPrefix, label, hint, digits, disabled, onChange }: PinInpu
   };
 
   return (
-    <div className="space-y-2">
+    <div className="my-12 flex flex-col items-center space-y-2">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-semibold text-zinc-800" htmlFor={`${idPrefix}-0`}>
+        <label className="text-md font-semibold text-zinc-800" htmlFor={`${idPrefix}-0`}>
           {label}
         </label>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="mt-6 mb-4 flex items-center gap-2 sm:gap-3">
         {PIN_SLOT_KEYS.map((slotKey, index) => (
           <input
             key={`${idPrefix}-${slotKey}`}
@@ -207,7 +205,7 @@ const PinInput = ({ idPrefix, label, hint, digits, disabled, onChange }: PinInpu
         ))}
       </div>
 
-      <p className="text-xs text-zinc-500">{hint}</p>
+      <p className="max-w-[324px] text-center text-xs text-zinc-500">{hint}</p>
     </div>
   );
 };
@@ -219,8 +217,6 @@ export function DatabaseUnlock({
   onStatusChange,
   className,
   disabled = false,
-  title = 'Database Access Control',
-  description = 'Inspect this storage backend and continue with the correct unlock path for your encrypted ClxDB instance.',
 }: DatabaseUnlockProps) {
   const [status, setStatus] = useState<ClxDBStatus | null>(null);
   const [isInspecting, setIsInspecting] = useState(true);
@@ -417,15 +413,15 @@ export function DatabaseUnlock({
       />
 
       <div className="relative">
-        <header className="mb-7 flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold tracking-[0.18em] text-zinc-500 uppercase">
-              Encryption Onboarding
+        <header className="mb-6 flex flex-wrap items-start justify-between gap-4 sm:mb-7">
+          <div className="max-w-2xl space-y-2">
+            <p className="text-xs font-semibold tracking-[0.2em] text-zinc-500 uppercase">
+              Database Encryption
             </p>
             <h2 className="text-2xl font-semibold tracking-tight text-zinc-900 sm:text-3xl">
-              {title}
+              {modeTitle}
             </h2>
-            <p className="max-w-2xl text-sm leading-relaxed text-zinc-600">{description}</p>
+            <p className="text-sm leading-relaxed text-zinc-600">{modeDescription}</p>
           </div>
 
           <button
@@ -442,94 +438,92 @@ export function DatabaseUnlock({
           </button>
         </header>
 
-        <div className="rounded-2xl border border-zinc-200 bg-white/75 p-5 sm:p-6">
-          <h3 className="text-xl font-semibold tracking-tight text-zinc-900">{modeTitle}</h3>
-          <p className="mt-2 text-sm leading-relaxed text-zinc-600">{modeDescription}</p>
+        {mode === 'inspecting' && (
+          <div
+            className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-100
+              px-3 py-2 text-sm text-zinc-600"
+          >
+            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-zinc-500" />
+            Inspecting storage state...
+          </div>
+        )}
 
-          {mode === 'inspecting' && (
-            <div
-              className="mt-5 inline-flex items-center gap-2 rounded-lg border border-zinc-200
-                bg-zinc-100 px-3 py-2 text-sm text-zinc-600"
-            >
-              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-zinc-500" />
-              Inspecting storage state...
-            </div>
-          )}
+        {mode === 'inspection-error' && inspectError && (
+          <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {inspectError}
+          </p>
+        )}
 
-          {mode === 'inspection-error' && inspectError && (
-            <p
-              className="mt-5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm
-                text-red-700"
-            >
-              {inspectError}
-            </p>
-          )}
+        {mode === 'unsupported' && (
+          <p
+            className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm
+              text-amber-800"
+          >
+            This backend appears to host an unencrypted database.
+          </p>
+        )}
 
-          {mode === 'unsupported' && (
-            <p
-              className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm
-                text-amber-800"
-            >
-              This backend appears to host an unencrypted database.
-            </p>
-          )}
-
-          {formVisible && (
-            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-              {requiresMaster && (
-                <label
-                  className="block text-sm font-semibold text-zinc-800"
-                  htmlFor={`${baseId}-master`}
-                >
-                  Master Password
-                  <input
-                    id={`${baseId}-master`}
-                    type="password"
-                    value={masterPassword}
-                    onChange={event => setMasterPassword(event.target.value)}
-                    autoComplete={mode === 'create' ? 'new-password' : 'current-password'}
-                    disabled={controlsLocked}
-                    placeholder="Enter your master password"
-                    className="mt-2 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2.5
-                      text-sm text-zinc-800 transition-colors duration-200 outline-none
-                      placeholder:text-zinc-400 focus:border-zinc-500 focus:bg-white
-                      disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100"
-                  />
-                </label>
-              )}
-
-              {requiresPin && (
-                <PinInput
-                  idPrefix={`${baseId}-pin`}
-                  label={mode === 'master-recovery' ? 'New Quick Unlock PIN' : 'Quick Unlock PIN'}
-                  hint="PIN is local to this device and unlocks your database without re-entering the master password."
-                  digits={quickUnlockPinDigits}
-                  disabled={controlsLocked}
-                  onChange={setQuickUnlockPinDigits}
-                />
-              )}
-
-              {submitError && (
-                <p
-                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm
-                    text-red-700"
-                >
-                  {submitError}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                disabled={controlsLocked}
-                className="inline-flex w-full items-center justify-center rounded-xl bg-zinc-900
-                  px-4 py-2.5 text-sm font-semibold text-zinc-100 transition-colors duration-200
-                  hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+        {formVisible && (
+          <form
+            onSubmit={handleSubmit}
+            className="mt-7 space-y-5 rounded-2xl border border-zinc-300 bg-white/90 p-5 pt-1
+              shadow-[0_24px_45px_-36px_rgba(24,24,27,0.7)] sm:p-6 sm:pt-2"
+          >
+            {requiresMaster && (
+              <label
+                className="text-md my-12 block flex flex-col items-center space-y-2 font-semibold
+                  text-zinc-800"
+                htmlFor={`${baseId}-master`}
               >
-                {isSubmitting ? 'Applying...' : submitLabel}
-              </button>
-            </form>
-          )}
-        </div>
+                <span>Master Password</span>
+                <input
+                  id={`${baseId}-master`}
+                  type="password"
+                  value={masterPassword}
+                  onChange={event => setMasterPassword(event.target.value)}
+                  autoComplete={mode === 'create' ? 'new-password' : 'current-password'}
+                  disabled={controlsLocked}
+                  placeholder="Enter your master password"
+                  className="mt-6 w-[324px] rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2.5
+                    text-sm font-normal text-zinc-800 transition-colors duration-200 outline-none
+                    placeholder:text-zinc-400 focus:border-zinc-500 focus:bg-white
+                    disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100"
+                />
+              </label>
+            )}
+
+            {requiresPin && (
+              <PinInput
+                idPrefix={`${baseId}-pin`}
+                label={mode === 'master-recovery' ? 'New Quick Unlock PIN' : 'Quick Unlock PIN'}
+                hint="PIN is local to this device and unlocks your database without re-entering the master password."
+                digits={quickUnlockPinDigits}
+                disabled={controlsLocked}
+                onChange={setQuickUnlockPinDigits}
+              />
+            )}
+
+            {submitError && (
+              <p
+                className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm
+                  text-red-700"
+              >
+                {submitError}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={controlsLocked}
+              className="inline-flex w-full items-center justify-center rounded-xl bg-zinc-900 px-4
+                py-3 text-sm font-semibold text-zinc-100
+                shadow-[0_14px_30px_-22px_rgba(24,24,27,0.95)] transition-colors duration-200
+                hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+            >
+              {isSubmitting ? 'Applying...' : submitLabel}
+            </button>
+          </form>
+        )}
       </div>
     </section>
   );
