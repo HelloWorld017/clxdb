@@ -1,0 +1,14 @@
+@import 'tailwindcss';
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'IBM Plex Sans', 'Space Grotesk', 'Noto Sans KR', sans-serif;
+  background:
+    radial-gradient(circle at 14% 16%, rgba(212, 212, 216, 0.45), transparent 40%),
+    radial-gradient(circle at 86% 82%, rgba(228, 228, 231, 0.6), transparent 45%), #f4f4f5;
+}

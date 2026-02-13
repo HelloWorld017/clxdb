@@ -1,8 +1,15 @@
-arrowParens: avoid
-bracketSameLine: false
-quoteProps: consistent
-semi: true
-singleQuote: true
-tabWidth: 2
-trailingComma: es5
-printWidth: 100
+{
+  "arrowParens": "avoid",
+  "bracketSameLine": false,
+  "quoteProps": "consistent",
+  "semi": true,
+  "singleQuote": true,
+  "tabWidth": 2,
+  "trailingComma": "es5",
+  "printWidth": 100,
+  "plugins": [
+    "prettier-plugin-tailwindcss",
+    "prettier-plugin-classnames",
+    "prettier-plugin-merge"
+  ]
+}

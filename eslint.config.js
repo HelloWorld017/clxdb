@@ -11,6 +11,7 @@ const config = defineConfig(
   {
     files: [
       'src/**/*.ts',
+      'src/**/*.tsx',
       'examples/**/*.ts',
       'examples/**/*.tsx',
       'eslint.config.js',
