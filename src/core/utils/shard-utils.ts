@@ -9,9 +9,6 @@ export interface EncodedShard {
   header: ShardHeader;
 }
 
-const encodeHeader = (header: ShardHeader): Uint8Array<ArrayBuffer> =>
-  new Uint8Array(new TextEncoder().encode(JSON.stringify(header)));
-
 export function buildShardBodyParts(documents: ShardDocument[]): Uint8Array<ArrayBuffer>[] {
   return documents.map(row => {
     const docData = row.del ? null : row.data;
@@ -56,42 +53,6 @@ export function buildShardHeaderFromLengths(
   });
 
   return header;
-}
-
-export function encodeShard(documents: ShardDocument[]): EncodedShard {
-  const bodyParts = buildShardBodyParts(documents);
-  const header = buildShardHeader(documents, bodyParts);
-
-  return {
-    data: serializeShard(encodeHeader(header), bodyParts),
-    header,
-  };
-}
-
-export function serializeShardFromHeader(header: ShardHeader, bodyParts: Uint8Array[]): Uint8Array {
-  return serializeShard(encodeHeader(header), bodyParts);
-}
-
-export function serializeShard(headerBytes: Uint8Array, bodyParts: Uint8Array[]): Uint8Array {
-  const headerLenBytes = new Uint8Array(HEADER_LENGTH_BYTES);
-  new DataView(headerLenBytes.buffer).setUint32(0, headerBytes.length, LITTLE_ENDIAN);
-
-  const bodyLength = bodyParts.reduce((sum, part) => sum + part.length, 0);
-  const totalLen = HEADER_LENGTH_BYTES + headerBytes.length + bodyLength;
-  const result = new Uint8Array(totalLen);
-
-  let pos = 0;
-  result.set(headerLenBytes, pos);
-  pos += HEADER_LENGTH_BYTES;
-  result.set(headerBytes, pos);
-  pos += headerBytes.length;
-
-  for (const part of bodyParts) {
-    result.set(part, pos);
-    pos += part.length;
-  }
-
-  return result;
 }
 
 export function parseShardHeader(data: Uint8Array): ShardHeader {
