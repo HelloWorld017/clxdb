@@ -1,8 +1,15 @@
 import { deviceKeyStoreSchema } from '@/schemas';
+import { getFriendlyDeviceName } from '@/utils/device-name';
 import { readIndexedDB, writeIndexedDB } from '@/utils/indexeddb';
 import { stableJSONSerialize } from '@/utils/json';
 import type { ManifestManager } from './manifest-manager';
-import type { Manifest, ClxDBCrypto, ClxDBOptions, DeviceKeyStore } from '@/types';
+import type {
+  Manifest,
+  ClxDBCrypto,
+  ClxDBOptions,
+  DeviceKeyStore,
+  ManifestDeviceKeyRegistry,
+} from '@/types';
 
 const AES_ALGORITHM = 'AES-GCM';
 const HASH_ALGORITHM = 'SHA-256';
@@ -168,7 +175,7 @@ export class CryptoManager {
   }
 
   static async hasUsableDeviceKey(
-    deviceKeyRegistry: Record<string, string>,
+    deviceKeyRegistry: ManifestDeviceKeyRegistry,
     options: ClxDBOptions
   ): Promise<boolean> {
     const deviceKeyStore = await this.getStoredDeviceKey(options);
@@ -176,7 +183,7 @@ export class CryptoManager {
       return false;
     }
 
-    return !!deviceKeyRegistry[deviceKeyStore.deviceId];
+    return !!deviceKeyRegistry[deviceKeyStore.deviceId]?.key;
   }
 
   async finalizeManifest(manifest: Manifest): Promise<Manifest> {
@@ -200,7 +207,7 @@ export class CryptoManager {
     });
   }
 
-  async initializeManifest(manifest: Manifest): Promise<Manifest> {
+  async signInitialManifest(manifest: Manifest): Promise<Manifest> {
     if (this.crypto.kind === 'none') {
       this.rootKey = null;
       return manifest;
@@ -265,6 +272,7 @@ export class CryptoManager {
 
       const signingKey = await deriveSigningKey(this.rootKey);
       await verifyManifest(signingKey, manifest);
+      await this.touchCurrentDeviceKey(manifestManager);
       return;
     }
 
@@ -272,11 +280,12 @@ export class CryptoManager {
       const deviceKeyStore = await CryptoManager.getStoredDeviceKey(this.options);
 
       const deviceKeyRegistry = manifest.crypto.deviceKey;
-      if (!deviceKeyStore || !deviceKeyRegistry[deviceKeyStore.deviceId]) {
+      const deviceKeyInfo = deviceKeyStore ? deviceKeyRegistry[deviceKeyStore.deviceId] : undefined;
+      if (!deviceKeyStore || !deviceKeyInfo) {
         throw new Error('No deviceKey exist');
       }
 
-      const rootKeyEncrypted = Uint8Array.fromBase64(deviceKeyRegistry[deviceKeyStore.deviceId]);
+      const rootKeyEncrypted = Uint8Array.fromBase64(deviceKeyInfo.key);
       const quickUnlockKey = await deriveQuickUnlockKey(this.crypto.password, deviceKeyStore);
       const rootKeyRaw = await decrypt(quickUnlockKey, rootKeyEncrypted);
       this.rootKey = await importRootKey(rootKeyRaw);
@@ -285,6 +294,7 @@ export class CryptoManager {
 
       const signingKey = await deriveSigningKey(this.rootKey);
       await verifyManifest(signingKey, manifest);
+      await this.touchCurrentDeviceKey(manifestManager);
       return;
     }
   }
@@ -367,6 +377,9 @@ export class CryptoManager {
       const rootKeyEncrypted = await encrypt(quickUnlockKey, rootKeyRaw);
       rootKeyRaw.fill(0);
 
+      const deviceName = await getFriendlyDeviceName();
+      const lastUsedAt = Date.now();
+
       const signingKey = await deriveSigningKey(this.rootKey);
       const newManifest = await signManifest(signingKey, {
         ...manifest,
@@ -374,7 +387,11 @@ export class CryptoManager {
           ...manifest.crypto,
           deviceKey: {
             ...manifest.crypto.deviceKey,
-            [deviceId]: rootKeyEncrypted.toBase64(),
+            [deviceId]: {
+              key: rootKeyEncrypted.toBase64(),
+              deviceName,
+              lastUsedAt,
+            },
           },
           nonce: crypto.randomUUID(),
           timestamp: Date.now(),
@@ -385,6 +402,55 @@ export class CryptoManager {
       return {
         manifest: newManifest,
         commit: () => writeIndexedDB(DEVICE_KEY_STORE_KEY, this.options, newDeviceKeyStore),
+      };
+    };
+  }
+
+  async touchCurrentDeviceKey(manifestManager: ManifestManager) {
+    if (!this.rootKey) {
+      return null;
+    }
+
+    const deviceKeyStore = await CryptoManager.getStoredDeviceKey(this.options);
+    if (!deviceKeyStore) {
+      return null;
+    }
+
+    const manifest = manifestManager.getLastManifest();
+    if (!manifest.crypto) {
+      return null;
+    }
+
+    const deviceName = await getFriendlyDeviceName();
+    const lastUsedAt = Date.now();
+
+    const currentDeviceKeyInfo = manifest.crypto.deviceKey[deviceKeyStore.deviceId];
+    if (!currentDeviceKeyInfo) {
+      return null;
+    }
+
+    const device = {
+      ...currentDeviceKeyInfo,
+      deviceName,
+      lastUsedAt,
+    };
+
+    return (manifest: Manifest) => {
+      if (!manifest.crypto) {
+        return manifest;
+      }
+
+      const newCrypto = {
+        ...manifest.crypto,
+        deviceKey: {
+          ...manifest.crypto.deviceKey,
+          [deviceKeyStore.deviceId]: device,
+        },
+      };
+
+      return {
+        ...manifest,
+        crypto: newCrypto,
       };
     };
   }

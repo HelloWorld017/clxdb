@@ -1,6 +1,6 @@
 import { EventEmitter } from '@/utils/event-emitter';
 import { createPromisePool } from '@/utils/promise-pool';
-import { mergeAliveShardDocuments } from '../utils/engine-utils';
+import { mergeAliveShardDocuments } from '../utils/shard-merge';
 import type { ManifestManager } from '../managers/manifest-manager';
 import type { ShardManager } from '../managers/shard-manager';
 import type { EngineContext } from '../types';

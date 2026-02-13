@@ -8,7 +8,7 @@ const MAX_RETRIES = 10;
 export interface ManifestUpdateDescriptor {
   addedShardInfoList?: ShardFileInfo[];
   removedShardFilenameList?: string[];
-  updatedFields?: Omit<Manifest, 'version' | 'lastSequence' | 'shardFiles'>;
+  updatedFields?: Omit<Manifest, 'version' | 'lastSequence' | 'shardFiles' | 'uuid'>;
   finalizeManifest?: (manifest: Manifest) => PossiblyPromise<Manifest>;
 }
 
@@ -24,23 +24,14 @@ export class ManifestManager {
   async initialize(): Promise<void> {
     const stat = await this.storage.stat(MANIFEST_PATH);
 
-    if (stat) {
-      this.lastEtag = stat.etag;
-      const content = await this.storage.read(MANIFEST_PATH);
-      const manifest = this.parseManifest(content);
-      this.lastManifest = manifest;
-      return;
+    if (!stat) {
+      throw new Error('No database exists!');
     }
 
-    const manifest = this.createInitialManifest();
-    await this.storage.write(
-      MANIFEST_PATH,
-      new TextEncoder().encode(JSON.stringify(manifest, null, 2))
-    );
-
+    this.lastEtag = stat.etag;
+    const content = await this.storage.read(MANIFEST_PATH);
+    const manifest = this.parseManifest(content);
     this.lastManifest = manifest;
-    const newStat = await this.storage.stat(MANIFEST_PATH);
-    this.lastEtag = newStat!.etag;
   }
 
   async read(): Promise<{ manifest: Manifest; etag: string } | null> {
@@ -135,14 +126,6 @@ export class ManifestManager {
     }
 
     throw new Error(`Failed to update manifest after ${MAX_RETRIES} retries`);
-  }
-
-  private createInitialManifest(): Manifest {
-    return {
-      version: PROTOCOL_VERSION,
-      lastSequence: 0,
-      shardFiles: [],
-    };
   }
 
   private parseManifest(content: Uint8Array): Manifest {

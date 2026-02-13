@@ -22,8 +22,17 @@ export const shardFileInfoSchema = z.object({
   }),
 });
 
+export const manifestDeviceKeyInfoSchema = z.object({
+  key: z.string(),
+  deviceName: z.string(),
+  lastUsedAt: z.number(),
+});
+
+export const manifestDeviceKeyRegistrySchema = z.record(z.string(), manifestDeviceKeyInfoSchema);
+
 export const manifestSchema = z.object({
   version: z.number(),
+  uuid: z.string(),
   lastSequence: z.number(),
   shardFiles: z.array(shardFileInfoSchema),
   crypto: z
@@ -32,7 +41,7 @@ export const manifestSchema = z.object({
       timestamp: z.number(),
       masterKey: z.string(),
       masterKeySalt: z.string(),
-      deviceKey: z.record(z.string(), z.string()),
+      deviceKey: manifestDeviceKeyRegistrySchema,
       signature: z.string(),
     })
     .optional(),
@@ -57,6 +66,8 @@ export const deviceKeyStoreSchema = z.object({
 export type ShardDocInfo = z.infer<typeof shardDocInfoSchema>;
 export type ShardHeader = z.infer<typeof shardHeaderSchema>;
 export type ShardFileInfo = z.infer<typeof shardFileInfoSchema>;
+export type ManifestDeviceKeyInfo = z.infer<typeof manifestDeviceKeyInfoSchema>;
+export type ManifestDeviceKeyRegistry = z.infer<typeof manifestDeviceKeyRegistrySchema>;
 export type Manifest = z.infer<typeof manifestSchema>;
 export type CachedShardHeader = z.infer<typeof cachedShardHeaderSchema>;
 export type ShardHeaderCache = z.infer<typeof shardHeaderCacheSchema>;

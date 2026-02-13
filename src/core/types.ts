@@ -1,18 +1,13 @@
 import type { ClxDB } from './clxdb';
-import type { ManifestManager } from './managers/manifest-manager';
+import type { ManifestManager, ManifestUpdateDescriptor } from './managers/manifest-manager';
 import type { ShardManager } from './managers/shard-manager';
-import type {
-  ClxDBOptions,
-  DatabaseBackend,
-  Manifest,
-  ShardDocument,
-  StorageBackend,
-} from '@/types';
+import type { ClxDBOptions, DatabaseBackend, ShardDocument, StorageBackend } from '@/types';
 
-export interface UpdateDescriptor {
+export interface UpdateDescriptor extends Pick<
+  ManifestUpdateDescriptor,
+  'removedShardFilenameList' | 'updatedFields'
+> {
   addedShardList?: ShardDocument[][];
-  removedShardFilenameList?: string[];
-  updatedFields?: Omit<Manifest, 'version' | 'lastSequence' | 'shardFiles'>;
 }
 
 export interface EngineContext {
