@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { EventEmitter } from '@/utils/event-emitter';
-import { readLocalStorage, writeLocalStorage } from '@/utils/local-storage';
+import { readIndexedDB, writeIndexedDB } from '@/utils/indexeddb';
 import { createPromisePool } from '@/utils/promise-pool';
 import type { ManifestManager } from '../managers/manifest-manager';
 import type { ShardManager } from '../managers/shard-manager';
@@ -33,8 +33,8 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
     this.update = update;
   }
 
-  initialize() {
-    const lastSequence = readLocalStorage(LAST_SEQUENCE_KEY, this.options, z.number());
+  async initialize(): Promise<void> {
+    const lastSequence = await readIndexedDB(LAST_SEQUENCE_KEY, this.options, z.number());
     if (lastSequence !== null) {
       this.localSequence = lastSequence;
     }
@@ -74,7 +74,7 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
     }));
 
     await this.database.upsert(addedShardList?.flat() ?? []);
-    this.updateLocalSequence();
+    await this.updateLocalSequence();
   }
 
   async pull(): Promise<void> {
@@ -87,7 +87,7 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
       newShards.values().map(shardInfo => this.fetchAndApplyShard(shardInfo, pendingIdsSet))
     );
 
-    this.updateLocalSequence();
+    await this.updateLocalSequence();
   }
 
   private async fetchAndApplyShard(
@@ -104,7 +104,11 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
     const shardManager = this.shardManager;
     const results = await createPromisePool(
       docsToFetch.values().map(doc => shardManager.fetchDocument(shardInfo, doc)),
-      { onError: error => (lastError = { error }) }
+      {
+        onError: error => {
+          lastError = { error };
+        },
+      }
     );
 
     const timestampByPendingId = new Map(
@@ -131,12 +135,12 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
     }
   }
 
-  private updateLocalSequence(): void {
+  private async updateLocalSequence(): Promise<void> {
     this.localSequence = Math.max(
       this.localSequence,
       this.manifestManager.getLastManifest().lastSequence
     );
 
-    writeLocalStorage(LAST_SEQUENCE_KEY, this.options, this.localSequence);
+    await writeIndexedDB(LAST_SEQUENCE_KEY, this.options, this.localSequence);
   }
 }

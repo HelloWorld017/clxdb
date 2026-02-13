@@ -98,10 +98,10 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
   }
 
   async init(): Promise<void> {
-    this.shardManager.initialize();
+    await this.shardManager.initialize();
     await this.manifestManager.initialize();
 
-    this.syncEngine.initialize();
+    await this.syncEngine.initialize();
     await this.sync().catch(() => {});
 
     if (this.options.gcOnStart) {

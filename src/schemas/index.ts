@@ -48,9 +48,15 @@ export const shardHeaderCacheSchema = z.object({
   headers: z.record(z.string(), cachedShardHeaderSchema),
 });
 
+export const deviceKeyStoreSchema = z.object({
+  deviceId: z.string(),
+  key: z.instanceof(CryptoKey),
+});
+
 export type ShardDocInfo = z.infer<typeof shardDocInfoSchema>;
 export type ShardHeader = z.infer<typeof shardHeaderSchema>;
 export type ShardFileInfo = z.infer<typeof shardFileInfoSchema>;
 export type Manifest = z.infer<typeof manifestSchema>;
 export type CachedShardHeader = z.infer<typeof cachedShardHeaderSchema>;
 export type ShardHeaderCache = z.infer<typeof shardHeaderCacheSchema>;
+export type DeviceKeyStore = z.infer<typeof deviceKeyStoreSchema>;

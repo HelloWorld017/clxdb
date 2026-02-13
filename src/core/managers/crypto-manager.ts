@@ -1,10 +1,13 @@
+import { deviceKeyStoreSchema } from '@/schemas';
+import { readIndexedDB } from '@/utils/indexeddb';
 import type { ManifestManager } from './manifest-manager';
-import type { Manifest, ClxDBCrypto } from '@/types';
+import type { Manifest, ClxDBCrypto, ClxDBOptions, DeviceKeyStore } from '@/types';
 
 const AES_ALGORITHM = 'AES-GCM';
 const HASH_ALGORITHM = 'SHA-256';
 const PBKDF2_ITERATIONS = 1_500_000;
 const IV_SIZE = 12;
+const DEVICE_KEY_STORE_KEY = 'device_key';
 
 const encrypt = async (key: CryptoKey, plaintext: Uint8Array<ArrayBuffer>) => {
   const iv = crypto.getRandomValues(new Uint8Array(IV_SIZE));
@@ -26,6 +29,9 @@ const decrypt = async (key: CryptoKey, input: Uint8Array) => {
 };
 
 const importRootKey = (plaintext: Uint8Array<ArrayBuffer>) =>
+  crypto.subtle.importKey('raw', plaintext, 'HKDF', false, ['deriveKey']);
+
+const importDeviceKey = (plaintext: Uint8Array<ArrayBuffer>) =>
   crypto.subtle.importKey('raw', plaintext, 'HKDF', false, ['deriveKey']);
 
 const deriveMasterKey = async (password: string) => {
@@ -55,7 +61,23 @@ const deriveMasterKey = async (password: string) => {
   return masterKey;
 };
 
-const deriveQuickUnlockKey = async (password: string) => {};
+const deriveQuickUnlockKey = async (password: string, deviceKeyStore: DeviceKeyStore) => {
+  const encoder = new TextEncoder();
+  const quickUnlockKey = await crypto.subtle.deriveKey(
+    {
+      name: 'HKDF',
+      salt: new Uint8Array(0),
+      info: encoder.encode(`encryption:quick_unlock/${password}`),
+      hash: HASH_ALGORITHM,
+    },
+    deviceKeyStore.key,
+    { name: AES_ALGORITHM, length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+
+  return quickUnlockKey;
+};
 
 const deriveShardKey = async (rootKey: CryptoKey, shardHash: string) => {
   const encoder = new TextEncoder();
@@ -127,10 +149,12 @@ const verifyManifest = async (signingKey: CryptoKey, manifest: Manifest) =>
 
 export class CryptoManager {
   private crypto: ClxDBCrypto;
+  private options: ClxDBOptions;
   private rootKey: CryptoKey | null | undefined = undefined;
 
-  constructor(crypto: ClxDBCrypto) {
+  constructor(crypto: ClxDBCrypto, options: ClxDBOptions) {
     this.crypto = crypto;
+    this.options = options;
   }
 
   async initializeManifest(manifest: Manifest): Promise<Manifest> {
@@ -191,9 +215,20 @@ export class CryptoManager {
     }
 
     if (this.crypto.kind === 'quick-unlock') {
-      const masterKey = await deriveMasterKey(this.crypto.password);
-      const rootKeyEncrypted = Uint8Array.fromBase64(manifest.crypto.masterKey);
-      const rootKeyRaw = await decrypt(masterKey, rootKeyEncrypted);
+      const deviceKeyStore = await readIndexedDB(
+        DEVICE_KEY_STORE_KEY,
+        this.options,
+        deviceKeyStoreSchema
+      );
+
+      const deviceKeyRegistry = manifest.crypto.deviceKey;
+      if (!deviceKeyStore || !deviceKeyRegistry[deviceKeyStore.deviceId]) {
+        throw new Error('No deviceKey exist');
+      }
+
+      const rootKeyEncrypted = Uint8Array.fromBase64(deviceKeyRegistry[deviceKeyStore.deviceId]);
+      const quickUnlockKey = await deriveQuickUnlockKey(this.crypto.password, deviceKeyStore);
+      const rootKeyRaw = await decrypt(quickUnlockKey, rootKeyEncrypted);
       this.rootKey = await importRootKey(rootKeyRaw);
       this.crypto.password = '';
       rootKeyRaw.fill(0);
@@ -202,5 +237,92 @@ export class CryptoManager {
       await verifyManifest(signingKey, manifest);
       return;
     }
+  }
+
+  async updateMasterPassword(oldPassword: string, newPassword: string) {
+    const masterKey = await deriveMasterKey(newPassword);
+    const oldMasterKey = await deriveMasterKey(oldPassword);
+
+    return async (manifest: Manifest) => {
+      if (!manifest.crypto || !this.rootKey) {
+        throw new Error('Attempting to open unencrypted database');
+      }
+
+      const rootKeyRaw = await decrypt(
+        oldMasterKey,
+        Uint8Array.fromBase64(manifest.crypto.masterKey)
+      );
+
+      const rootKeyEncrypted = await encrypt(masterKey, rootKeyRaw);
+      rootKeyRaw.fill(0);
+
+      const signingKey = await deriveSigningKey(this.rootKey);
+      const newManifest = await signManifest(signingKey, {
+        ...manifest,
+        crypto: {
+          masterKey: rootKeyEncrypted.toBase64(),
+          deviceKey: {},
+          nonce: crypto.randomUUID(),
+          timestamp: Date.now(),
+          signature: '',
+        },
+      });
+
+      return newManifest;
+    };
+  }
+
+  async updateQuickUnlockPassword(masterPassword: string, quickUnlockPassword: string) {
+    const masterKey = await deriveMasterKey(masterPassword);
+
+    return async (manifest: Manifest) => {
+      if (!manifest.crypto || !this.rootKey) {
+        throw new Error('Attempting to open unencrypted database');
+      }
+
+      const deviceKeyStore = await readIndexedDB(
+        DEVICE_KEY_STORE_KEY,
+        this.options,
+        deviceKeyStoreSchema
+      );
+
+      const deviceId = deviceKeyStore?.deviceId ?? crypto.randomUUID();
+      const deviceKeyRaw = crypto.getRandomValues(new Uint8Array(32));
+      const deviceKey = await importDeviceKey(deviceKeyRaw);
+      const quickUnlockKey = await deriveQuickUnlockKey(quickUnlockPassword, {
+        deviceId,
+        key: deviceKey,
+      });
+
+      const rootKeyRaw = await decrypt(masterKey, Uint8Array.fromBase64(manifest.crypto.masterKey));
+      const rootKeyEncrypted = await encrypt(quickUnlockKey, rootKeyRaw);
+      rootKeyRaw.fill(0);
+
+      const signingKey = await deriveSigningKey(this.rootKey);
+      const newManifest = await signManifest(signingKey, {
+        ...manifest,
+        crypto: {
+          ...manifest.crypto,
+          deviceKey: {
+            ...manifest.crypto.deviceKey,
+            [deviceId]: rootKeyEncrypted.toBase64(),
+          },
+          nonce: crypto.randomUUID(),
+          timestamp: Date.now(),
+          signature: '',
+        },
+      });
+
+      return newManifest;
+    };
+  }
+
+  async encryptShardPart(shardHash: string) {
+    if (!this.rootKey) {
+      return (part: Uint8Array<ArrayBuffer>) => part;
+    }
+
+    const shardKey = await deriveShardKey(this.rootKey, shardHash);
+    return (part: Uint8Array<ArrayBuffer>) => encrypt(shardKey, part);
   }
 }

@@ -1,6 +1,6 @@
 import { SHARD_EXTENSION, SHARDS_DIR } from '@/constants';
 import { shardHeaderCacheSchema } from '@/schemas';
-import { readLocalStorage, writeLocalStorage } from '@/utils/local-storage';
+import { readIndexedDB, writeIndexedDB } from '@/utils/indexeddb';
 import { createPromisePool } from '@/utils/promise-pool';
 import {
   getHeaderLength,
@@ -34,9 +34,9 @@ export class ShardManager {
     this.options = options;
   }
 
-  initialize(): void {
+  async initialize(): Promise<void> {
     if (!this.cacheLoaded) {
-      this.loadFromCache();
+      await this.loadFromCache();
     }
   }
 
@@ -60,7 +60,7 @@ export class ShardManager {
 
     const header = await this.fetchHeaderFromRemote(shardInfo);
     this.headers.set(shardInfo.filename, header);
-    this.saveToCache();
+    void this.saveToCache();
     return header;
   }
 
@@ -71,19 +71,19 @@ export class ShardManager {
   addHeader(filename: string, header: ShardHeader) {
     if (!this.headers.has(filename)) {
       this.headers.set(filename, header);
-      this.saveToCache();
+      void this.saveToCache();
     }
   }
 
   removeHeader(filename: string) {
     if (this.headers.delete(filename)) {
-      this.saveToCache();
+      void this.saveToCache();
     }
   }
 
   clear(): void {
     this.headers.clear();
-    this.saveToCache();
+    void this.saveToCache();
   }
 
   getDocInfo(filename: string, docId: string): ShardDocInfo | undefined {
@@ -172,8 +172,8 @@ export class ShardManager {
     };
   }
 
-  private loadFromCache(): void {
-    const cache = readLocalStorage('headers', this.options, shardHeaderCacheSchema);
+  private async loadFromCache(): Promise<void> {
+    const cache = await readIndexedDB(HEADERS_KEY, this.options, shardHeaderCacheSchema);
     if (cache && cache.version === CACHE_VERSION) {
       for (const [filename, cachedHeader] of Object.entries(cache.headers)) {
         this.headers.set(filename, cachedHeader.header);
@@ -183,7 +183,7 @@ export class ShardManager {
     this.cacheLoaded = true;
   }
 
-  private saveToCache(): void {
+  private async saveToCache(): Promise<void> {
     const cache: ShardHeaderCache = {
       version: CACHE_VERSION,
       headers: {},
@@ -197,6 +197,6 @@ export class ShardManager {
       };
     }
 
-    writeLocalStorage(HEADERS_KEY, this.options, cache);
+    await writeIndexedDB(HEADERS_KEY, this.options, cache);
   }
 }
