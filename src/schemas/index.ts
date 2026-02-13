@@ -31,6 +31,7 @@ export const manifestSchema = z.object({
       nonce: z.string(),
       timestamp: z.number(),
       masterKey: z.string(),
+      masterKeySalt: z.string(),
       deviceKey: z.record(z.string(), z.string()),
       signature: z.string(),
     })

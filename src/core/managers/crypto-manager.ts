@@ -1,5 +1,5 @@
 import { deviceKeyStoreSchema } from '@/schemas';
-import { readIndexedDB } from '@/utils/indexeddb';
+import { readIndexedDB, writeIndexedDB } from '@/utils/indexeddb';
 import type { ManifestManager } from './manifest-manager';
 import type { Manifest, ClxDBCrypto, ClxDBOptions, DeviceKeyStore } from '@/types';
 
@@ -34,8 +34,7 @@ const importRootKey = (plaintext: Uint8Array<ArrayBuffer>) =>
 const importDeviceKey = (plaintext: Uint8Array<ArrayBuffer>) =>
   crypto.subtle.importKey('raw', plaintext, 'HKDF', false, ['deriveKey']);
 
-const deriveMasterKey = async (password: string) => {
-  const salt = crypto.getRandomValues(new Uint8Array(32));
+const deriveMasterKey = async (password: string, salt: Uint8Array<ArrayBuffer>) => {
   const encoder = new TextEncoder();
   const masterPassword = await crypto.subtle.importKey(
     'raw',
@@ -139,13 +138,18 @@ const signManifest = async (signingKey: CryptoKey, manifest: Manifest) =>
     },
   }) satisfies Manifest;
 
-const verifyManifest = async (signingKey: CryptoKey, manifest: Manifest) =>
-  crypto.subtle.verify(
+const verifyManifest = async (signingKey: CryptoKey, manifest: Manifest) => {
+  const result = await crypto.subtle.verify(
     'HMAC',
     signingKey,
     Uint8Array.fromBase64(manifest.crypto!.signature),
     getManifestForSign(manifest)
   );
+
+  if (!result) {
+    throw new Error('Manifest is tampered!');
+  }
+};
 
 export class CryptoManager {
   private crypto: ClxDBCrypto;
@@ -167,7 +171,8 @@ export class CryptoManager {
       throw new Error('Master password is needed to create a new manifest');
     }
 
-    const masterKey = await deriveMasterKey(this.crypto.password);
+    const salt = crypto.getRandomValues(new Uint8Array(32));
+    const masterKey = await deriveMasterKey(this.crypto.password, salt);
     const rootKeyRaw = crypto.getRandomValues(new Uint8Array(32));
     const rootKeyEncrypted = await encrypt(masterKey, rootKeyRaw);
     this.rootKey = await importRootKey(rootKeyRaw);
@@ -179,6 +184,7 @@ export class CryptoManager {
       ...manifest,
       crypto: {
         masterKey: rootKeyEncrypted.toBase64(),
+        masterKeySalt: salt.toBase64(),
         deviceKey: {},
         nonce: crypto.randomUUID(),
         timestamp: Date.now(),
@@ -202,7 +208,11 @@ export class CryptoManager {
     }
 
     if (this.crypto.kind === 'master') {
-      const masterKey = await deriveMasterKey(this.crypto.password);
+      const masterKey = await deriveMasterKey(
+        this.crypto.password,
+        Uint8Array.fromBase64(manifest.crypto.masterKeySalt)
+      );
+
       const rootKeyEncrypted = Uint8Array.fromBase64(manifest.crypto.masterKey);
       const rootKeyRaw = await decrypt(masterKey, rootKeyEncrypted);
       this.rootKey = await importRootKey(rootKeyRaw);
@@ -239,9 +249,21 @@ export class CryptoManager {
     }
   }
 
-  async updateMasterPassword(oldPassword: string, newPassword: string) {
-    const masterKey = await deriveMasterKey(newPassword);
-    const oldMasterKey = await deriveMasterKey(oldPassword);
+  async updateMasterPassword(
+    manifestManager: ManifestManager,
+    oldPassword: string,
+    newPassword: string
+  ) {
+    const salt = crypto.getRandomValues(new Uint8Array(32));
+    const masterKey = await deriveMasterKey(newPassword, salt);
+
+    const lastManifest = manifestManager.getLastManifest();
+    if (!lastManifest.crypto) {
+      throw new Error('Attempting to open unencrypted database');
+    }
+
+    const oldSalt = Uint8Array.fromBase64(lastManifest.crypto.masterKeySalt);
+    const oldMasterKey = await deriveMasterKey(oldPassword, oldSalt);
 
     return async (manifest: Manifest) => {
       if (!manifest.crypto || !this.rootKey) {
@@ -261,6 +283,7 @@ export class CryptoManager {
         ...manifest,
         crypto: {
           masterKey: rootKeyEncrypted.toBase64(),
+          masterKeySalt: salt.toBase64(),
           deviceKey: {},
           nonce: crypto.randomUUID(),
           timestamp: Date.now(),
@@ -268,12 +291,22 @@ export class CryptoManager {
         },
       });
 
-      return newManifest;
+      return { manifest: newManifest, commit: () => {} };
     };
   }
 
-  async updateQuickUnlockPassword(masterPassword: string, quickUnlockPassword: string) {
-    const masterKey = await deriveMasterKey(masterPassword);
+  async updateQuickUnlockPassword(
+    manifestManager: ManifestManager,
+    masterPassword: string,
+    quickUnlockPassword: string
+  ) {
+    const lastManifest = manifestManager.getLastManifest();
+    if (!lastManifest.crypto) {
+      throw new Error('Attempting to open unencrypted database');
+    }
+
+    const salt = Uint8Array.fromBase64(lastManifest.crypto.masterKeySalt);
+    const masterKey = await deriveMasterKey(masterPassword, salt);
 
     return async (manifest: Manifest) => {
       if (!manifest.crypto || !this.rootKey) {
@@ -289,10 +322,10 @@ export class CryptoManager {
       const deviceId = deviceKeyStore?.deviceId ?? crypto.randomUUID();
       const deviceKeyRaw = crypto.getRandomValues(new Uint8Array(32));
       const deviceKey = await importDeviceKey(deviceKeyRaw);
-      const quickUnlockKey = await deriveQuickUnlockKey(quickUnlockPassword, {
-        deviceId,
-        key: deviceKey,
-      });
+      deviceKeyRaw.fill(0);
+
+      const newDeviceKeyStore = { deviceId, key: deviceKey };
+      const quickUnlockKey = await deriveQuickUnlockKey(quickUnlockPassword, newDeviceKeyStore);
 
       const rootKeyRaw = await decrypt(masterKey, Uint8Array.fromBase64(manifest.crypto.masterKey));
       const rootKeyEncrypted = await encrypt(quickUnlockKey, rootKeyRaw);
@@ -313,7 +346,10 @@ export class CryptoManager {
         },
       });
 
-      return newManifest;
+      return {
+        manifest: newManifest,
+        commit: () => writeIndexedDB(DEVICE_KEY_STORE_KEY, this.options, newDeviceKeyStore),
+      };
     };
   }
 
