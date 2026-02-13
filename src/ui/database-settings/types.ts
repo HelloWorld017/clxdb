@@ -1,11 +1,12 @@
 import type { ClxDBClientOptions, StorageBackend } from '@/types';
+import type { ReactNode } from 'react';
 
 export type SettingsTab = 'overview' | 'encryption' | 'devices' | 'export';
 
 export interface TabOption {
   id: SettingsTab;
   label: string;
-  description: string;
+  icon: ReactNode;
 }
 
 export interface StorageOverview {

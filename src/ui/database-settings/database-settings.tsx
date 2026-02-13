@@ -3,32 +3,17 @@ import { inspectClxDBStatus } from '@/core/utils/inspect';
 import { DevicesTab } from './devices-tab';
 import { EncryptionTab } from './encryption-tab';
 import { ExportTab } from './export-tab';
+import { DevicesIcon, EncryptionIcon, ExportIcon, OverviewIcon } from './icons';
 import { OverviewTab } from './overview-tab';
 import { classes, getErrorMessage, getStorageOverview, resolveStorageMetadata } from './utils';
 import type { DatabaseSettingsProps, SettingsTab, TabOption } from './types';
 import type { ClxDBStatus } from '@/core/utils/inspect';
 
 export const TAB_OPTIONS: TabOption[] = [
-  {
-    id: 'overview',
-    label: 'Overview',
-    description: 'Storage and runtime status',
-  },
-  {
-    id: 'encryption',
-    label: 'Encryption',
-    description: 'Master password and PIN',
-  },
-  {
-    id: 'devices',
-    label: 'Devices',
-    description: 'Trusted quick-unlock devices',
-  },
-  {
-    id: 'export',
-    label: 'Export',
-    description: 'JSON backup and restore',
-  },
+  { id: 'overview', label: 'Overview', icon: <OverviewIcon /> },
+  { id: 'encryption', label: 'Encryption', icon: <EncryptionIcon /> },
+  { id: 'devices', label: 'Devices', icon: <DevicesIcon /> },
+  { id: 'export', label: 'Export', icon: <ExportIcon /> },
 ];
 
 export function DatabaseSettings({
@@ -122,119 +107,61 @@ export function DatabaseSettings({
   const controlsLocked = disabled || isInspecting;
   const registeredDeviceCount = status?.registeredDeviceKeys.length ?? 0;
 
-  const statusBadgeLabel =
-    !status || !status.hasDatabase
-      ? 'No database'
-      : status.isEncrypted
-        ? 'Encrypted'
-        : 'Unencrypted';
-
-  const statusBadgeClass =
-    !status || !status.hasDatabase
-      ? 'border-zinc-300 bg-zinc-100 text-zinc-600'
-      : status.isEncrypted
-        ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
-        : 'border-amber-300 bg-amber-50 text-amber-800';
-
   return (
     <section
       className={classes(
-        `relative isolate mx-auto w-full max-w-4xl overflow-hidden rounded-[2rem] border
-        border-zinc-200 bg-gradient-to-br from-zinc-50 via-zinc-100/70 to-stone-100/80 p-5
-        font-['Space_Grotesk','Manrope','sans-serif'] shadow-[0_34px_70px_-48px_rgba(24,24,27,0.45)]
-        backdrop-blur-sm sm:p-8`,
+        `relative isolate mx-auto flex h-150 w-full max-w-4xl flex-col overflow-hidden
+        rounded-[2rem] border border-zinc-200 bg-white/85`,
         className
       )}
     >
-      <div
-        className="pointer-events-none absolute -top-20 -left-20 h-52 w-52 rounded-full
-          bg-zinc-300/30 blur-3xl"
-      />
-      <div
-        className="pointer-events-none absolute -right-20 -bottom-16 h-52 w-52 rounded-full
-          bg-stone-300/35 blur-3xl"
-      />
+      <header
+        className="mb-3 flex flex-none flex-wrap items-start justify-between gap-4 px-8 py-6
+          sm:mb-4"
+      >
+        <p className="text-xs font-semibold tracking-[0.2em] text-zinc-500 uppercase">
+          Database Settings
+        </p>
+      </header>
 
-      <div className="relative">
-        <header className="mb-6 flex flex-wrap items-start justify-between gap-4 sm:mb-7">
-          <div className="max-w-2xl space-y-2">
-            <p className="text-xs font-semibold tracking-[0.2em] text-zinc-500 uppercase">
-              Database Settings
-            </p>
-            <h2 className="text-2xl font-semibold tracking-tight text-zinc-900 sm:text-3xl">
-              Manage your database from one place
-            </h2>
-            <p className="text-sm leading-relaxed text-zinc-600">
-              Review storage, rotate credentials, manage trusted devices, and prepare backup flows.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={classes(
-                'inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold',
-                statusBadgeClass
-              )}
-            >
-              {statusBadgeLabel}
-            </span>
-
-            <button
-              type="button"
-              onClick={() => {
-                if (!controlsLocked) {
-                  void refreshStatus();
-                }
-              }}
-              disabled={controlsLocked}
-              className="inline-flex items-center justify-center rounded-xl border border-zinc-300
-                bg-white px-3.5 py-2 text-xs font-semibold tracking-wide text-zinc-700 uppercase
-                transition-colors duration-200 hover:border-zinc-400 hover:bg-zinc-100
-                disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100
-                disabled:text-zinc-400"
-            >
-              Refresh
-            </button>
-          </div>
-        </header>
-
-        <div className="grid gap-4 md:grid-cols-[13rem_minmax(0,1fr)]">
-          <aside className="rounded-2xl border border-zinc-200 bg-white/80 p-3">
-            <p className="text-[11px] font-semibold tracking-[0.16em] text-zinc-500 uppercase">
-              Tabs
-            </p>
-            <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-1">
-              {TAB_OPTIONS.map(option => {
-                const isActive = activeTab === option.id;
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => setActiveTab(option.id)}
+      <div className="grid min-h-0 flex-1 gap-1 md:grid-cols-[13rem_minmax(0,1fr)]">
+        <aside className="p-4 pt-0">
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-1">
+            {TAB_OPTIONS.map(option => {
+              const isActive = activeTab === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setActiveTab(option.id)}
+                  className={classes(
+                    `flex items-center gap-3 rounded-xl border border-transparent px-3 py-2
+                    text-left font-medium transition-colors duration-200`,
+                    isActive
+                      ? 'border-zinc-100 bg-zinc-100 text-zinc-900'
+                      : 'text-zinc-700 hover:border-zinc-50 hover:bg-zinc-50'
+                  )}
+                >
+                  <span
                     className={classes(
-                      'rounded-xl border px-3 py-2 text-left transition-colors duration-200',
-                      isActive
-                        ? 'border-zinc-900 bg-zinc-900 text-zinc-100'
-                        : `border-zinc-200 bg-white text-zinc-700 hover:border-zinc-400
-                          hover:bg-zinc-50`
+                      'flex flex-none rounded-md p-1.5 transition-colors duration-200',
+                      isActive ? 'bg-zinc-700 text-zinc-100' : 'bg-zinc-100/80'
                     )}
                   >
-                    <p className="text-sm font-semibold">{option.label}</p>
-                    <p
-                      className={classes(
-                        'mt-0.5 text-[11px] leading-relaxed',
-                        isActive ? 'text-zinc-300' : 'text-zinc-500'
-                      )}
-                    >
-                      {option.description}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          </aside>
+                    {option.icon}
+                  </span>
+                  <p className="text-sm">{option.label}</p>
+                </button>
+              );
+            })}
+          </div>
+        </aside>
 
-          <div className="rounded-2xl border border-zinc-200 bg-white/85 p-5 sm:p-6">
+        <div className="h-full min-h-0 p-4 pt-0">
+          <div
+            className="h-full overflow-y-auto rounded-2xl border border-zinc-200 bg-white/85 p-5
+              sm:p-6"
+          >
             {isInspecting && (
               <div
                 className="mb-4 inline-flex items-center gap-2 rounded-lg border border-zinc-200

@@ -52,7 +52,7 @@ export const getStorageOverview = (metadata: StorageBackendMetadata | null): Sto
   }
 
   const providerLabel =
-    metadata.provider === 'opfs' ? 'Origin Private File System (OPFS)' : 'FileSystem Access API';
+    metadata.provider === 'opfs' ? 'Origin Private File System' : 'FileSystem Access API';
 
   return {
     backendLabel: providerLabel,

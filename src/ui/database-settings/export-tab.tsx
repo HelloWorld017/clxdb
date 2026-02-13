@@ -17,9 +17,9 @@ export const ExportTab = () => (
         type="button"
         disabled
         className="mt-4 inline-flex items-center justify-center rounded-xl border border-zinc-300
-          bg-white px-4 py-2.5 text-sm font-semibold text-zinc-500"
+          bg-white px-4 py-2.5 text-sm font-medium text-zinc-500"
       >
-        Export JSON (UI only)
+        Export JSON
       </button>
     </article>
 
@@ -34,7 +34,7 @@ export const ExportTab = () => (
           type="file"
           accept="application/json"
           disabled
-          className="block w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-xs
+          className="block flex-1 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-xs
             text-zinc-500 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-900 file:px-3
             file:py-1.5 file:text-xs file:font-semibold file:text-zinc-100"
         />
@@ -42,9 +42,9 @@ export const ExportTab = () => (
           type="button"
           disabled
           className="inline-flex items-center justify-center rounded-xl border border-zinc-300
-            bg-white px-4 py-2.5 text-sm font-semibold text-zinc-500"
+            bg-white px-4 py-2.5 text-sm font-medium text-zinc-500"
         >
-          Import JSON (UI only)
+          Import JSON
         </button>
       </div>
     </article>

@@ -29,10 +29,10 @@ export const OverviewTab = ({
         <p className="mt-1 text-sm leading-relaxed text-zinc-600">{storageOverview.description}</p>
 
         <div className="mt-4 rounded-xl border border-zinc-200 bg-white px-3 py-2.5">
-          <p className="text-xs font-medium text-zinc-500">{storageOverview.detailLabel}</p>
+          <p className="text-xs text-zinc-500">{storageOverview.detailLabel}</p>
           <p
-            className="mt-1 font-['IBM_Plex_Mono','ui-monospace','monospace'] text-xs font-medium
-              break-all text-zinc-800"
+            className="mt-1 font-[ui-monospace,monospace] text-sm font-medium break-all
+              text-zinc-800"
           >
             {storageOverview.detailValue}
           </p>
@@ -45,36 +45,24 @@ export const OverviewTab = ({
         </p>
 
         <div className="mt-3 space-y-2 text-sm">
-          <div className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2">
-            <span className="text-zinc-500">UUID</span>
+          <div className="flex flex-col gap-1 rounded-lg border border-zinc-200 bg-white px-3 py-2">
+            <span className="text-xs text-zinc-500">UUID</span>
             <span
-              className="max-w-[55%] truncate text-right
-                font-['IBM_Plex_Mono','ui-monospace','monospace'] text-zinc-800"
+              className="max-w-[55%] truncate font-[ui-monospace,monospace] font-medium
+                text-zinc-800"
               title={status?.uuid ?? 'Not available'}
             >
               {status?.uuid ?? 'Not available'}
             </span>
           </div>
-          <div className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2">
-            <span className="text-zinc-500">Manifest</span>
-            <span className="font-medium text-zinc-800">
-              {status?.hasDatabase ? 'Present' : 'Missing'}
-            </span>
-          </div>
-          <div className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2">
-            <span className="text-zinc-500">Encryption</span>
+          <div className="flex flex-col gap-1 rounded-lg border border-zinc-200 bg-white px-3 py-2">
+            <span className="text-xs text-zinc-500">Encryption</span>
             <span className="font-medium text-zinc-800">
               {status?.isEncrypted ? 'Enabled' : 'Disabled'}
             </span>
           </div>
-          <div className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2">
-            <span className="text-zinc-500">Quick unlock on this device</span>
-            <span className="font-medium text-zinc-800">
-              {status?.hasUsableDeviceKey ? 'Available' : 'Unavailable'}
-            </span>
-          </div>
-          <div className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2">
-            <span className="text-zinc-500">Registered devices</span>
+          <div className="flex flex-col gap-1 rounded-lg border border-zinc-200 bg-white px-3 py-2">
+            <span className="text-xs text-zinc-500">Registered devices</span>
             <span className="font-medium text-zinc-800">{registeredDeviceCount}</span>
           </div>
         </div>

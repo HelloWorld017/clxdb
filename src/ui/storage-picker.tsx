@@ -96,14 +96,19 @@ const DatabaseIcon = ({ className }: IconProps) => (
 );
 
 const LinkIcon = ({ className }: IconProps) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden
+  >
     <title>WebDAV</title>
-    <path
-      d="M9.75 14.25 14.25 9.75M9.4 6.4l-2.55 2.55a3.6 3.6 0 0 0 5.1 5.1l2.05-2.05m.05-4.05 2.05-2.05a3.6 3.6 0 1 1 5.1 5.1l-2.55 2.55"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
   </svg>
 );
 
