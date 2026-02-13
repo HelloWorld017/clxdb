@@ -12,7 +12,6 @@ export interface StorageBackend {
 }
 
 export type StorageConfig =
-  | { type: 'opfs'; path: string }
   | { type: 'webdav'; url: string; auth: { user: string; pass: string } }
   | { type: 'filesystem-access'; handle: FileSystemDirectoryHandle };
 
