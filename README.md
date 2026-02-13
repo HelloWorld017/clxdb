@@ -7,6 +7,10 @@
 A serverless synchronization engine that uses WebDAV or the FileSystem Access API for storage.
 Sync documents and blobs via _your own cloud_. Designed for single-html applications.
 
+### Screenshot
+| ![Storage Selector](./docs/images/screenshot_storage.png) | ![Onboarding](./docs/images/screenshot_open.png) | ![Settings](./docs/images/screenshot_settings.png) |
+|------------------|------------|----------|
+| Storage Selector | Onboarding | Settings |
 ### Features
 
 - Bring-your-own-cloud sync
