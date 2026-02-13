@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { inspectClxDBStatus } from '@/core/utils/inspect';
 import type { ClxDBStatus } from '@/core/utils/inspect';
 import type { ClxDBClientOptions, StorageBackend } from '@/types';
-import type { SubmitEvent } from 'react';
+import type { ClipboardEvent, KeyboardEvent, SubmitEvent } from 'react';
 
 export type DatabaseUnlockSubmission =
   | {
@@ -42,26 +42,22 @@ type UnlockMode =
   | 'unsupported'
   | 'inspection-error';
 
+type PinInputProps = {
+  idPrefix: string;
+  label: string;
+  hint: string;
+  digits: string[];
+  disabled: boolean;
+  onChange: (next: string[]) => void;
+};
+
+const PIN_LENGTH = 6;
+const PIN_SLOT_KEYS = ['d1', 'd2', 'd3', 'd4', 'd5', 'd6'] as const;
+
 const classes = (...values: Array<string | null | undefined | false>) =>
   values.filter(Boolean).join(' ');
 
-const formatDeviceId = (value: string) =>
-  value.length > 16 ? `${value.slice(0, 10)}...${value.slice(-4)}` : value;
-
-const formatLastUsedAt = (value: number) => {
-  if (!Number.isFinite(value)) {
-    return 'Unknown';
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return 'Unknown';
-  }
-
-  return parsed.toLocaleString();
-};
-
-const PIN_MIN_LENGTH = 4;
+const createEmptyPin = () => Array.from({ length: PIN_LENGTH }, () => '');
 
 const getInspectErrorMessage = (error: unknown) => {
   const fallback = 'Unable to inspect storage metadata. Check connectivity and try again.';
@@ -72,6 +68,11 @@ const getSubmitErrorMessage = (error: unknown) => {
   const fallback = 'Unlock request failed. Verify credentials and retry.';
   return error instanceof Error ? error.message : fallback;
 };
+
+const pinToString = (digits: string[]) => digits.join('');
+
+const isCompletePin = (digits: string[]) =>
+  digits.length === PIN_LENGTH && digits.every(digit => /^\d$/.test(digit));
 
 const resolveMode = (
   status: ClxDBStatus | null,
@@ -105,25 +106,111 @@ const resolveMode = (
   return 'master-recovery';
 };
 
-type StatusPillProps = {
-  label: string;
-  value: string;
-  healthy: boolean;
-};
+const PinInput = ({ idPrefix, label, hint, digits, disabled, onChange }: PinInputProps) => {
+  const refs = useRef<Array<HTMLInputElement | null>>([]);
 
-const StatusPill = ({ label, value, healthy }: StatusPillProps) => (
-  <div
-    className={classes(
-      'rounded-xl border px-3 py-2 transition-colors duration-200',
-      healthy
-        ? 'border-zinc-300 bg-white/70 text-zinc-800'
-        : 'border-zinc-200 bg-zinc-100/70 text-zinc-500'
-    )}
-  >
-    <p className="text-[10px] font-semibold tracking-[0.16em] uppercase">{label}</p>
-    <p className="mt-1 text-sm font-medium">{value}</p>
-  </div>
-);
+  const focusIndex = (index: number) => {
+    const input = refs.current[index];
+    input?.focus();
+    input?.select();
+  };
+
+  const updateDigit = (index: number, value: string) => {
+    const next = [...digits];
+    next[index] = value;
+    onChange(next);
+  };
+
+  const handleChange = (index: number, rawValue: string) => {
+    const nextDigit = rawValue.replace(/\D/g, '').slice(-1);
+    updateDigit(index, nextDigit);
+
+    if (nextDigit && index < PIN_LENGTH - 1) {
+      focusIndex(index + 1);
+    }
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>, index: number) => {
+    if (event.key === 'ArrowLeft' && index > 0) {
+      event.preventDefault();
+      focusIndex(index - 1);
+      return;
+    }
+
+    if (event.key === 'ArrowRight' && index < PIN_LENGTH - 1) {
+      event.preventDefault();
+      focusIndex(index + 1);
+      return;
+    }
+
+    if (event.key === 'Backspace' && digits[index] === '' && index > 0) {
+      event.preventDefault();
+      updateDigit(index - 1, '');
+      focusIndex(index - 1);
+    }
+  };
+
+  const handlePaste = (event: ClipboardEvent<HTMLInputElement>, startIndex: number) => {
+    const pasted = event.clipboardData
+      .getData('text')
+      .replace(/\D/g, '')
+      .slice(0, PIN_LENGTH - startIndex);
+
+    if (!pasted) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const next = [...digits];
+    pasted.split('').forEach((digit, offset) => {
+      next[startIndex + offset] = digit;
+    });
+    onChange(next);
+
+    const focusTarget = Math.min(startIndex + pasted.length, PIN_LENGTH - 1);
+    focusIndex(focusTarget);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-semibold text-zinc-800" htmlFor={`${idPrefix}-0`}>
+          {label}
+        </label>
+      </div>
+
+      <div className="flex items-center gap-2 sm:gap-3">
+        {PIN_SLOT_KEYS.map((slotKey, index) => (
+          <input
+            key={`${idPrefix}-${slotKey}`}
+            ref={element => {
+              refs.current[index] = element;
+            }}
+            id={`${idPrefix}-${index}`}
+            type="text"
+            value={digits[index]}
+            disabled={disabled}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern="[0-9]*"
+            maxLength={1}
+            aria-label={`${label} digit ${index + 1}`}
+            onChange={event => handleChange(index, event.target.value)}
+            onKeyDown={event => handleKeyDown(event, index)}
+            onPaste={event => handlePaste(event, index)}
+            className="h-12 w-11 rounded-xl border border-zinc-300 bg-zinc-50 text-center text-lg
+              font-semibold tracking-[0.08em] text-zinc-900 transition-colors duration-200
+              outline-none focus:border-zinc-500 focus:bg-white disabled:cursor-not-allowed
+              disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400"
+          />
+        ))}
+      </div>
+
+      <p className="text-xs text-zinc-500">{hint}</p>
+    </div>
+  );
+};
 
 export function DatabaseUnlock({
   storage,
@@ -141,7 +228,9 @@ export function DatabaseUnlock({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [masterPassword, setMasterPassword] = useState('');
-  const [quickUnlockPin, setQuickUnlockPin] = useState('');
+  const [quickUnlockPinDigits, setQuickUnlockPinDigits] = useState<string[]>(() =>
+    createEmptyPin()
+  );
 
   const inspectionSequenceRef = useRef(0);
   const baseId = useId();
@@ -164,6 +253,8 @@ export function DatabaseUnlock({
       }
 
       setStatus(nextStatus);
+      setMasterPassword('');
+      setQuickUnlockPinDigits(createEmptyPin());
       onStatusChange?.(nextStatus);
     } catch (error) {
       if (sequence !== inspectionSequenceRef.current) {
@@ -171,6 +262,8 @@ export function DatabaseUnlock({
       }
 
       setStatus(null);
+      setMasterPassword('');
+      setQuickUnlockPinDigits(createEmptyPin());
       setInspectError(getInspectErrorMessage(error));
     } finally {
       if (sequence === inspectionSequenceRef.current) {
@@ -186,63 +279,57 @@ export function DatabaseUnlock({
     };
   }, [inspect]);
 
-  const submitLabel =
-    mode === 'create'
-      ? 'Create Encrypted Database'
-      : mode === 'quick-unlock'
-        ? 'Unlock with PIN'
-        : mode === 'master-recovery'
-          ? 'Unlock and Enroll PIN'
-          : 'Continue';
+  const formVisible = mode === 'create' || mode === 'quick-unlock' || mode === 'master-recovery';
+  const requiresMaster = mode === 'create' || mode === 'master-recovery';
+  const requiresPin = formVisible;
+  const controlsLocked = disabled || isSubmitting || isInspecting;
 
   const modeTitle =
     mode === 'inspecting'
-      ? 'Inspecting backend metadata'
+      ? 'Checking this storage backend'
       : mode === 'create'
-        ? 'Create a new encrypted database'
+        ? 'Create your encrypted database'
         : mode === 'quick-unlock'
-          ? 'Quick unlock available'
+          ? 'Enter your quick unlock PIN'
           : mode === 'master-recovery'
-            ? 'Recover with master password'
+            ? 'Recover access with master password'
             : mode === 'unsupported'
               ? 'Unsupported database state'
               : 'Inspection failed';
 
   const modeDescription =
     mode === 'inspecting'
-      ? 'Reading manifest and local device-key cache. This determines your unlock flow.'
+      ? 'Reading storage metadata to pick the correct unlock flow.'
       : mode === 'create'
-        ? 'No manifest was found. Set a master password and local quick unlock PIN to bootstrap encryption.'
+        ? 'Set one master password and one 6-digit PIN to start using this storage.'
         : mode === 'quick-unlock'
-          ? 'A valid local device key exists. Enter your PIN to derive the quick unlock key.'
+          ? 'Enter the 6-digit PIN for this device.'
           : mode === 'master-recovery'
-            ? 'This device cannot use quick unlock yet. Enter master password once and enroll a new local PIN.'
+            ? 'Enter master password once, then set a new 6-digit PIN for this device.'
             : mode === 'unsupported'
-              ? 'The existing database is not encrypted. This UI handles encrypted create/unlock flows only.'
-              : 'Metadata inspection could not be completed. Retry after checking storage credentials.';
+              ? 'This backend contains an unencrypted database. This screen supports encrypted flows only.'
+              : 'Storage inspection failed. Try re-scanning after checking storage settings.';
 
-  const requiresMaster = mode === 'create' || mode === 'master-recovery';
-  const requiresPin = mode === 'create' || mode === 'quick-unlock' || mode === 'master-recovery';
-
-  const controlsLocked = disabled || isSubmitting || isInspecting;
+  const submitLabel =
+    mode === 'create'
+      ? 'Create Database'
+      : mode === 'quick-unlock'
+        ? 'Unlock Database'
+        : mode === 'master-recovery'
+          ? 'Unlock and Save PIN'
+          : 'Continue';
 
   const validateForm = () => {
     if (!status) {
-      return 'Database status is unavailable. Run inspection again.';
+      return 'Database status is unavailable. Run re-scan and try again.';
     }
 
     if (requiresMaster && masterPassword.length === 0) {
       return 'Enter your master password.';
     }
 
-    if (requiresPin) {
-      if (quickUnlockPin.length === 0) {
-        return 'Enter your quick unlock PIN.';
-      }
-
-      if (quickUnlockPin.length < PIN_MIN_LENGTH) {
-        return `Quick unlock PIN must be at least ${PIN_MIN_LENGTH} characters.`;
-      }
+    if (requiresPin && !isCompletePin(quickUnlockPinDigits)) {
+      return `Enter all ${PIN_LENGTH} PIN digits.`;
     }
 
     return null;
@@ -259,11 +346,7 @@ export function DatabaseUnlock({
   const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (controlsLocked || !status) {
-      return;
-    }
-
-    if (!['create', 'quick-unlock', 'master-recovery'].includes(mode)) {
+    if (controlsLocked || !status || !formVisible) {
       return;
     }
 
@@ -273,6 +356,8 @@ export function DatabaseUnlock({
       return;
     }
 
+    const pinValue = pinToString(quickUnlockPinDigits);
+
     setSubmitError(null);
     setIsSubmitting(true);
 
@@ -281,7 +366,7 @@ export function DatabaseUnlock({
         await onSubmit({
           mode,
           masterPassword,
-          quickUnlockPin,
+          quickUnlockPin: pinValue,
           status,
         });
       }
@@ -289,7 +374,7 @@ export function DatabaseUnlock({
       if (mode === 'quick-unlock') {
         await onSubmit({
           mode,
-          quickUnlockPin,
+          quickUnlockPin: pinValue,
           status,
         });
       }
@@ -298,13 +383,13 @@ export function DatabaseUnlock({
         await onSubmit({
           mode,
           masterPassword,
-          quickUnlockPin,
+          quickUnlockPin: pinValue,
           status,
         });
       }
 
       setMasterPassword('');
-      setQuickUnlockPin('');
+      setQuickUnlockPinDigits(createEmptyPin());
       await inspect();
     } catch (error) {
       setSubmitError(getSubmitErrorMessage(error));
@@ -313,20 +398,10 @@ export function DatabaseUnlock({
     }
   };
 
-  const registeredDeviceKeys = status?.registeredDeviceKeys ?? [];
-  const showRegisteredDeviceKeys =
-    (mode === 'quick-unlock' || mode === 'master-recovery') && registeredDeviceKeys.length > 0;
-
-  const formVisible = mode === 'create' || mode === 'quick-unlock' || mode === 'master-recovery';
-
-  const summaryHasDatabase = status?.hasDatabase ?? false;
-  const summaryEncrypted = status?.isEncrypted ?? false;
-  const summaryQuickUnlock = status?.hasUsableDeviceKey ?? false;
-
   return (
     <section
       className={classes(
-        `relative isolate mx-auto w-full max-w-3xl overflow-hidden rounded-[2rem] border
+        `relative isolate mx-auto w-full max-w-4xl overflow-hidden rounded-[2rem] border
         border-zinc-200 bg-zinc-50/85 p-6 shadow-[0_34px_70px_-48px_rgba(24,24,27,0.45)]
         backdrop-blur-sm sm:p-8`,
         className
@@ -367,39 +442,9 @@ export function DatabaseUnlock({
           </button>
         </header>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <StatusPill
-            label="Manifest"
-            value={summaryHasDatabase ? 'Found' : 'Missing'}
-            healthy={summaryHasDatabase}
-          />
-          <StatusPill
-            label="Encryption"
-            value={summaryEncrypted ? 'Enabled' : 'Disabled'}
-            healthy={summaryEncrypted}
-          />
-          <StatusPill
-            label="Quick Unlock"
-            value={summaryQuickUnlock ? 'Usable' : 'Unavailable'}
-            healthy={summaryQuickUnlock}
-          />
-        </div>
-
-        <div className="mt-5 rounded-2xl border border-zinc-200 bg-white/75 p-5 sm:p-6">
-          <p className="text-xs font-semibold tracking-[0.16em] text-zinc-500 uppercase">
-            Current Step
-          </p>
-          <h3 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900">{modeTitle}</h3>
+        <div className="rounded-2xl border border-zinc-200 bg-white/75 p-5 sm:p-6">
+          <h3 className="text-xl font-semibold tracking-tight text-zinc-900">{modeTitle}</h3>
           <p className="mt-2 text-sm leading-relaxed text-zinc-600">{modeDescription}</p>
-
-          {status?.uuid ? (
-            <p
-              className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs
-                text-zinc-500"
-            >
-              Database UUID: <span className="font-mono text-zinc-700">{status.uuid}</span>
-            </p>
-          ) : null}
 
           {mode === 'inspecting' && (
             <div
@@ -425,8 +470,7 @@ export function DatabaseUnlock({
               className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm
                 text-amber-800"
             >
-              This backend appears to host an unencrypted database. Use a non-encrypted open flow or
-              migrate the manifest to encrypted mode.
+              This backend appears to host an unencrypted database.
             </p>
           )}
 
@@ -455,57 +499,14 @@ export function DatabaseUnlock({
               )}
 
               {requiresPin && (
-                <label
-                  className="block text-sm font-semibold text-zinc-800"
-                  htmlFor={`${baseId}-pin`}
-                >
-                  {mode === 'master-recovery' ? 'New Quick Unlock PIN' : 'Quick Unlock PIN'}
-                  <input
-                    id={`${baseId}-pin`}
-                    type="password"
-                    value={quickUnlockPin}
-                    onChange={event => setQuickUnlockPin(event.target.value)}
-                    autoComplete={mode === 'quick-unlock' ? 'current-password' : 'new-password'}
-                    inputMode="numeric"
-                    disabled={controlsLocked}
-                    placeholder="At least 4 characters"
-                    className="mt-2 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2.5
-                      text-sm text-zinc-800 transition-colors duration-200 outline-none
-                      placeholder:text-zinc-400 focus:border-zinc-500 focus:bg-white
-                      disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100"
-                  />
-                  <span className="mt-1 block text-xs font-normal text-zinc-500">
-                    This PIN stays local to this device and is used to derive your quick unlock key.
-                  </span>
-                </label>
-              )}
-
-              {showRegisteredDeviceKeys && (
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <p className="text-xs font-semibold tracking-[0.16em] text-zinc-500 uppercase">
-                      Registered Devices
-                    </p>
-                    <span className="text-xs text-zinc-500">{registeredDeviceKeys.length}</span>
-                  </div>
-
-                  <div className="max-h-44 space-y-2 overflow-y-auto pr-1">
-                    {registeredDeviceKeys.map(device => (
-                      <div
-                        key={device.deviceId}
-                        className="rounded-lg border border-zinc-200 bg-white px-3 py-2"
-                      >
-                        <p className="text-sm font-medium text-zinc-800">{device.deviceName}</p>
-                        <p className="text-xs text-zinc-500">
-                          Device ID: {formatDeviceId(device.deviceId)}
-                        </p>
-                        <p className="text-xs text-zinc-500">
-                          Last activity: {formatLastUsedAt(device.lastUsedAt)}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <PinInput
+                  idPrefix={`${baseId}-pin`}
+                  label={mode === 'master-recovery' ? 'New Quick Unlock PIN' : 'Quick Unlock PIN'}
+                  hint="PIN is local to this device and unlocks your database without re-entering the master password."
+                  digits={quickUnlockPinDigits}
+                  disabled={controlsLocked}
+                  onChange={setQuickUnlockPinDigits}
+                />
               )}
 
               {submitError && (

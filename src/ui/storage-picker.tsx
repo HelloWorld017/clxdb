@@ -25,8 +25,6 @@ export interface StoragePickerProps {
   className?: string;
   disabled?: boolean;
   initialType?: StoragePickerBackendType;
-  title?: string;
-  description?: string;
   submitLabel?: string;
 }
 
@@ -107,8 +105,6 @@ export function StoragePicker({
   className,
   disabled = false,
   initialType = 'filesystem-access',
-  title = 'Choose a storage backend',
-  description = 'Select FileSystem Access API, Origin Private File System, or WebDAV.',
   submitLabel = 'Save storage settings',
 }: StoragePickerProps) {
   const [selectedType, setSelectedType] = useState<StoragePickerBackendType>(initialType);
@@ -322,9 +318,11 @@ export function StoragePicker({
             Storage Backend
           </p>
           <h2 className="text-2xl font-semibold tracking-tight text-zinc-900 sm:text-3xl">
-            {title}
+            Choose a storage backend
           </h2>
-          <p className="max-w-2xl text-sm leading-relaxed text-zinc-600">{description}</p>
+          <p className="max-w-2xl text-sm leading-relaxed text-zinc-600">
+            Select FileSystem Access API, Origin Private File System, or WebDAV.
+          </p>
         </header>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -399,23 +397,27 @@ export function StoragePicker({
 
           {selectedType === 'filesystem-access' && (
             <div className="rounded-2xl border border-zinc-200 bg-white/80 p-4 sm:p-5">
-              <p className="text-sm font-semibold text-zinc-800">FileSystem Access API</p>
-              <p className="mt-1 text-xs text-zinc-500">
-                Pick a local folder. This app will request explicit permission for read/write
-                access.
-              </p>
+              <div className="flex justify-between gap-2">
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-semibold text-zinc-800">FileSystem Access API</p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    Pick a local folder. This app will request explicit permission for read/write
+                    access.
+                  </p>
+                </div>
 
-              <button
-                type="button"
-                onClick={pickDirectory}
-                disabled={controlsLocked || isPickingDirectory}
-                className="mt-4 inline-flex items-center gap-2 rounded-xl border border-zinc-300
-                  bg-zinc-900 px-4 py-2.5 text-sm font-medium text-zinc-100 transition-colors
-                  duration-200 hover:bg-zinc-800 disabled:cursor-not-allowed
-                  disabled:border-zinc-200 disabled:bg-zinc-300"
-              >
-                {isPickingDirectory ? 'Opening...' : 'Select Folder'}
-              </button>
+                <button
+                  type="button"
+                  onClick={pickDirectory}
+                  disabled={controlsLocked || isPickingDirectory}
+                  className="inline-flex items-center gap-2 rounded-xl border border-zinc-300
+                    bg-zinc-900 px-4 py-2.5 text-sm font-medium text-zinc-100 transition-colors
+                    duration-200 hover:bg-zinc-800 disabled:cursor-not-allowed
+                    disabled:border-zinc-200 disabled:bg-zinc-300"
+                >
+                  {isPickingDirectory ? 'Opening...' : 'Select Folder'}
+                </button>
+              </div>
 
               <p className="mt-3 text-xs text-zinc-500">
                 {directoryHandle ? `Selected: ${directoryHandle.name}` : 'No folder selected yet.'}
