@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createClxDB, createStorageBackend } from '@/index';
+import { createClxDB, createStorageBackend, inspectClxDBStatus } from '@/index';
+import type { ClxDBDatabaseStatus } from '@/index';
 import type { DatabaseBackend } from '@/types';
 
 declare global {
@@ -38,7 +39,6 @@ type ClxDBClient = ReturnType<typeof createClxDB>;
 const TODO_DB_NAME = 'clxdb_todo_example';
 const TODO_DB_VERSION = 1;
 const TODO_STORE_NAME = 'todos';
-const QUICK_UNLOCK_CACHE_KEY = 'clxdb_todo_quick_unlock';
 
 // ==================== Todo Database (React App Interface) ====================
 
@@ -662,31 +662,136 @@ const DirectorySelector: React.FC<{ onSelect: (handle: FileSystemDirectoryHandle
 
 // ==================== Main App ====================
 
-interface QuickUnlockScreenProps {
+type UnlockRequest =
+  | { kind: 'none' }
+  | { kind: 'quick-unlock'; quickUnlockPassword: string }
+  | { kind: 'master'; masterPassword: string; quickUnlockPassword: string }
+  | { kind: 'new'; encrypt: false }
+  | { kind: 'new'; encrypt: true; masterPassword: string; quickUnlockPassword: string };
+
+type UnlockMode = 'inspecting' | 'new' | 'no-crypto' | 'quick-unlock' | 'master';
+
+interface UnlockScreenProps {
   directoryHandle: FileSystemDirectoryHandle;
-  onUnlock: (password: string) => Promise<void>;
+  status: ClxDBDatabaseStatus | null;
+  isInspecting: boolean;
+  onOpen: (request: UnlockRequest) => Promise<void>;
   onChangeDirectory: () => void;
   isLoading: boolean;
   error: string | null;
 }
 
-const QuickUnlockScreen: React.FC<QuickUnlockScreenProps> = ({
+const UnlockScreen: React.FC<UnlockScreenProps> = ({
   directoryHandle,
-  onUnlock,
+  status,
+  isInspecting,
+  onOpen,
   onChangeDirectory,
   isLoading,
   error,
 }) => {
-  const [password, setPassword] = useState('');
+  const [encryptOnCreate, setEncryptOnCreate] = useState(true);
+  const [masterPassword, setMasterPassword] = useState('');
+  const [quickUnlockPassword, setQuickUnlockPassword] = useState('');
+
+  const mode: UnlockMode =
+    isInspecting || !status
+      ? 'inspecting'
+      : !status.hasDatabase
+        ? 'new'
+        : !status.isEncrypted
+          ? 'no-crypto'
+          : status.hasUsableDeviceKey
+            ? 'quick-unlock'
+            : 'master';
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!password || isLoading) {
+    if (isLoading || mode === 'inspecting') {
       return;
     }
 
-    void onUnlock(password);
+    if (mode === 'no-crypto') {
+      void onOpen({ kind: 'none' });
+      return;
+    }
+
+    if (mode === 'new') {
+      if (!encryptOnCreate) {
+        void onOpen({ kind: 'new', encrypt: false });
+        return;
+      }
+
+      if (!masterPassword || !quickUnlockPassword) {
+        return;
+      }
+
+      void onOpen({
+        kind: 'new',
+        encrypt: true,
+        masterPassword,
+        quickUnlockPassword,
+      });
+      return;
+    }
+
+    if (mode === 'quick-unlock') {
+      if (!quickUnlockPassword) {
+        return;
+      }
+
+      void onOpen({ kind: 'quick-unlock', quickUnlockPassword });
+      return;
+    }
+
+    if (!masterPassword || !quickUnlockPassword) {
+      return;
+    }
+
+    void onOpen({ kind: 'master', masterPassword, quickUnlockPassword });
   };
+
+  const submitDisabled =
+    isLoading ||
+    mode === 'inspecting' ||
+    (mode === 'quick-unlock' && !quickUnlockPassword) ||
+    (mode === 'master' && (!masterPassword || !quickUnlockPassword)) ||
+    (mode === 'new' && encryptOnCreate && (!masterPassword || !quickUnlockPassword));
+
+  const title =
+    mode === 'inspecting'
+      ? 'Checking Database'
+      : mode === 'new'
+        ? 'Create Database'
+        : mode === 'no-crypto'
+          ? 'Open Database'
+          : mode === 'quick-unlock'
+            ? 'Quick Unlock'
+            : 'Master Recovery';
+
+  const description =
+    mode === 'inspecting'
+      ? 'Inspecting database and crypto status...'
+      : mode === 'new'
+        ? `No database found in ${directoryHandle.name}. Choose encryption mode.`
+        : mode === 'no-crypto'
+          ? `Database in ${directoryHandle.name} is not encrypted.`
+          : mode === 'quick-unlock'
+            ? `Enter your quick unlock password for ${directoryHandle.name}.`
+            : `Quick unlock key is not available on this device for ${directoryHandle.name}.`;
+
+  const submitLabel =
+    mode === 'inspecting'
+      ? 'Checking...'
+      : mode === 'new'
+        ? encryptOnCreate
+          ? 'Create Encrypted DB'
+          : 'Create Plain DB'
+        : mode === 'no-crypto'
+          ? 'Open & Sync'
+          : mode === 'quick-unlock'
+            ? 'Unlock & Sync'
+            : 'Unlock, Add Quick Password & Sync';
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
@@ -699,7 +804,7 @@ const QuickUnlockScreen: React.FC<QuickUnlockScreenProps> = ({
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <title>Quick unlock</title>
+              <title>Unlock</title>
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -708,37 +813,79 @@ const QuickUnlockScreen: React.FC<QuickUnlockScreenProps> = ({
               />
             </svg>
           </div>
-          <h2 className="text-2xl font-light text-slate-800 mb-2">Quick Unlock</h2>
-          <p className="text-sm text-slate-500">
-            Enter a quick unlock password for <strong>{directoryHandle.name}</strong>
-          </p>
+          <h2 className="text-2xl font-light text-slate-800 mb-2">{title}</h2>
+          <p className="text-sm text-slate-500">{description}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="password"
-            value={password}
-            onChange={event => setPassword(event.target.value)}
-            autoComplete="current-password"
-            placeholder="Quick unlock password"
-            className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-          />
+          {mode === 'new' ? (
+            <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
+              <button
+                type="button"
+                onClick={() => setEncryptOnCreate(true)}
+                disabled={isLoading}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                  encryptOnCreate
+                    ? 'bg-white text-slate-700 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Encrypt
+              </button>
+              <button
+                type="button"
+                onClick={() => setEncryptOnCreate(false)}
+                disabled={isLoading}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                  !encryptOnCreate
+                    ? 'bg-white text-slate-700 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                No Encryption
+              </button>
+            </div>
+          ) : null}
+
+          {(mode === 'master' || (mode === 'new' && encryptOnCreate)) && (
+            <input
+              type="password"
+              value={masterPassword}
+              onChange={event => setMasterPassword(event.target.value)}
+              autoComplete="current-password"
+              placeholder="Master password"
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+            />
+          )}
+
+          {(mode === 'quick-unlock' ||
+            mode === 'master' ||
+            (mode === 'new' && encryptOnCreate)) && (
+            <input
+              type="password"
+              value={quickUnlockPassword}
+              onChange={event => setQuickUnlockPassword(event.target.value)}
+              autoComplete="current-password"
+              placeholder="Quick unlock password"
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+            />
+          )}
 
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
           <button
             type="submit"
-            disabled={isLoading || !password}
+            disabled={submitDisabled}
             className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors duration-200"
           >
-            {isLoading ? 'Unlocking...' : 'Unlock & Sync'}
+            {isLoading ? 'Opening...' : submitLabel}
           </button>
         </form>
 
         <button
           type="button"
           onClick={onChangeDirectory}
-          disabled={isLoading}
+          disabled={isLoading || isInspecting}
           className="w-full mt-3 text-sm text-slate-500 hover:text-slate-700 disabled:text-slate-400 transition-colors duration-200"
         >
           Choose another folder
@@ -752,6 +899,8 @@ const App: React.FC = () => {
   const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [todoDB] = useState(() => new TodoDatabase());
   const [clxdb, setClxdb] = useState<ClxDBClient | null>(null);
+  const [cryptoStatus, setCryptoStatus] = useState<ClxDBDatabaseStatus | null>(null);
+  const [isInspectingStatus, setIsInspectingStatus] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [unlockError, setUnlockError] = useState<string | null>(null);
   const clxdbRef = useRef<ClxDBClient | null>(null);
@@ -766,22 +915,11 @@ const App: React.FC = () => {
     setClxdb(client);
   };
 
-  const handleDirectorySelect = (handle: FileSystemDirectoryHandle) => {
-    unlockAttemptRef.current += 1;
-    setUnlockError(null);
-    replaceClient(null);
-    setDirectoryHandle(handle);
-  };
-
-  const handleChangeDirectory = () => {
-    unlockAttemptRef.current += 1;
-    setUnlockError(null);
-    replaceClient(null);
-    setDirectoryHandle(null);
-  };
-
-  const unlockDatabase = async (password: string): Promise<void> => {
-    if (!directoryHandle || isUnlocking) {
+  const openDatabaseWithHandle = async (
+    handle: FileSystemDirectoryHandle,
+    request: UnlockRequest
+  ): Promise<void> => {
+    if (isUnlocking) {
       return;
     }
 
@@ -792,30 +930,61 @@ const App: React.FC = () => {
     try {
       const storage = createStorageBackend({
         type: 'filesystem-access',
-        handle: directoryHandle,
+        handle,
       });
 
       if (attempt !== unlockAttemptRef.current) {
         return;
       }
 
+      let cryptoConfig:
+        | { kind: 'none' }
+        | { kind: 'quick-unlock'; password: string }
+        | { kind: 'master'; password: string };
+
+      let postInit: ((client: ClxDBClient) => Promise<void>) | null = null;
+
+      if (request.kind === 'none') {
+        cryptoConfig = { kind: 'none' };
+      } else if (request.kind === 'quick-unlock') {
+        cryptoConfig = { kind: 'quick-unlock', password: request.quickUnlockPassword };
+      } else if (request.kind === 'master') {
+        cryptoConfig = { kind: 'master', password: request.masterPassword };
+        postInit = async client => {
+          await client.updateQuickUnlockPassword(
+            request.masterPassword,
+            request.quickUnlockPassword
+          );
+        };
+      } else if (!request.encrypt) {
+        cryptoConfig = { kind: 'none' };
+      } else {
+        cryptoConfig = { kind: 'master', password: request.masterPassword };
+        postInit = async client => {
+          await client.updateQuickUnlockPassword(
+            request.masterPassword,
+            request.quickUnlockPassword
+          );
+        };
+      }
+
       const client = createClxDB({
         database: todoDB.getClxDBAdapter(),
         storage,
-        crypto: {
-          kind: 'quick-unlock',
-          password,
-        },
+        crypto: cryptoConfig,
         options: {
           syncInterval: 5000,
           gcOnStart: true,
           gcGracePeriod: 1000,
           vacuumOnStart: true,
-          cacheStorageKey: QUICK_UNLOCK_CACHE_KEY,
         },
       });
 
       await client.init();
+      if (postInit) {
+        await postInit(client);
+      }
+
       if (attempt !== unlockAttemptRef.current) {
         client.destroy();
         return;
@@ -835,6 +1004,65 @@ const App: React.FC = () => {
     }
   };
 
+  const openDatabase = async (request: UnlockRequest): Promise<void> => {
+    if (!directoryHandle) {
+      return;
+    }
+
+    await openDatabaseWithHandle(directoryHandle, request);
+  };
+
+  const inspectCryptoStatus = async (handle: FileSystemDirectoryHandle): Promise<void> => {
+    const attempt = ++unlockAttemptRef.current;
+    setIsInspectingStatus(true);
+    setUnlockError(null);
+    setCryptoStatus(null);
+
+    try {
+      const storage = createStorageBackend({
+        type: 'filesystem-access',
+        handle,
+      });
+
+      const status = await inspectClxDBStatus(storage);
+      if (attempt !== unlockAttemptRef.current) {
+        return;
+      }
+
+      setCryptoStatus(status);
+      if (status.hasDatabase && !status.isEncrypted) {
+        setIsInspectingStatus(false);
+        void openDatabaseWithHandle(handle, { kind: 'none' });
+      }
+    } catch (error) {
+      if (attempt === unlockAttemptRef.current) {
+        setUnlockError(error instanceof Error ? error.message : 'Failed to inspect database');
+      }
+      console.error('Failed to inspect crypto status:', error);
+    } finally {
+      if (attempt === unlockAttemptRef.current) {
+        setIsInspectingStatus(false);
+      }
+    }
+  };
+
+  const handleDirectorySelect = (handle: FileSystemDirectoryHandle) => {
+    unlockAttemptRef.current += 1;
+    setUnlockError(null);
+    replaceClient(null);
+    setDirectoryHandle(handle);
+    void inspectCryptoStatus(handle);
+  };
+
+  const handleChangeDirectory = () => {
+    unlockAttemptRef.current += 1;
+    setUnlockError(null);
+    replaceClient(null);
+    setDirectoryHandle(null);
+    setCryptoStatus(null);
+    setIsInspectingStatus(false);
+  };
+
   useEffect(
     () => () => {
       unlockAttemptRef.current += 1;
@@ -852,9 +1080,11 @@ const App: React.FC = () => {
 
   if (!clxdb) {
     return (
-      <QuickUnlockScreen
+      <UnlockScreen
         directoryHandle={directoryHandle}
-        onUnlock={unlockDatabase}
+        status={cryptoStatus}
+        isInspecting={isInspectingStatus}
+        onOpen={openDatabase}
         onChangeDirectory={handleChangeDirectory}
         isLoading={isUnlocking}
         error={unlockError}
