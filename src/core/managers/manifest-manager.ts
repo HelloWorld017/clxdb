@@ -10,6 +10,7 @@ export interface ManifestUpdateDescriptor {
   addedShardInfoList?: ShardFileInfo[];
   removedShardFilenameList?: string[];
   updatedFields?: Omit<Manifest, 'version' | 'lastSequence' | 'shardFiles'>;
+  finalizeManifest?: (manifest: Manifest) => PossiblyPromise<Manifest>;
 }
 
 export class ManifestManager {
@@ -89,7 +90,8 @@ export class ManifestManager {
       }
 
       const manifestUpdate = await onUpdate(manifest);
-      const { addedShardInfoList, removedShardFilenameList, updatedFields } = manifestUpdate;
+      const { addedShardInfoList, removedShardFilenameList, updatedFields, finalizeManifest } =
+        manifestUpdate;
       if (!addedShardInfoList?.length && !removedShardFilenameList?.length && !updatedFields) {
         return manifestUpdate;
       }
@@ -103,7 +105,7 @@ export class ManifestManager {
         .values()
         .toArray();
 
-      const newManifest = {
+      let newManifest = {
         ...manifest,
         ...updatedFields,
         version: PROTOCOL_VERSION,
@@ -113,6 +115,10 @@ export class ManifestManager {
         ),
         shardFiles: newUniqueShards,
       };
+
+      if (finalizeManifest) {
+        newManifest = await finalizeManifest(newManifest);
+      }
 
       const newContent = new TextEncoder().encode(JSON.stringify(newManifest, null, 2));
 

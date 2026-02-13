@@ -7,6 +7,7 @@ const AES_ALGORITHM = 'AES-GCM';
 const HASH_ALGORITHM = 'SHA-256';
 const PBKDF2_ITERATIONS = 1_500_000;
 const IV_SIZE = 12;
+const AUTH_TAG_SIZE = 16;
 const DEVICE_KEY_STORE_KEY = 'device_key';
 
 const encrypt = async (key: CryptoKey, plaintext: Uint8Array<ArrayBuffer>) => {
@@ -159,6 +160,27 @@ export class CryptoManager {
   constructor(crypto: ClxDBCrypto, options: ClxDBOptions) {
     this.crypto = crypto;
     this.options = options;
+  }
+
+  async finalizeManifest(manifest: Manifest): Promise<Manifest> {
+    if (!this.rootKey) {
+      return manifest;
+    }
+
+    if (!manifest.crypto) {
+      throw new Error('Attempting to sign unencrypted database');
+    }
+
+    const signingKey = await deriveSigningKey(this.rootKey);
+    return signManifest(signingKey, {
+      ...manifest,
+      crypto: {
+        ...manifest.crypto,
+        nonce: crypto.randomUUID(),
+        timestamp: Date.now(),
+        signature: '',
+      },
+    });
   }
 
   async initializeManifest(manifest: Manifest): Promise<Manifest> {
@@ -360,5 +382,22 @@ export class CryptoManager {
 
     const shardKey = await deriveShardKey(this.rootKey, shardHash);
     return (part: Uint8Array<ArrayBuffer>) => encrypt(shardKey, part);
+  }
+
+  async decryptShardPart(shardHash: string) {
+    if (!this.rootKey) {
+      return (part: Uint8Array<ArrayBuffer>) => part;
+    }
+
+    const shardKey = await deriveShardKey(this.rootKey, shardHash);
+    return (part: Uint8Array<ArrayBuffer>) => decrypt(shardKey, part);
+  }
+
+  getShardPartSize(originalSize: number): number {
+    if (!this.rootKey) {
+      return originalSize;
+    }
+
+    return originalSize + IV_SIZE + AUTH_TAG_SIZE;
   }
 }

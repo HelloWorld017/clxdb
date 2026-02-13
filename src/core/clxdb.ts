@@ -14,6 +14,7 @@ import { CompactionEngine } from './engines/compaction-engine';
 import { GarbageCollectorEngine } from './engines/garbage-collector-engine';
 import { SyncEngine } from './engines/sync-engine';
 import { VacuumEngine } from './engines/vacuum-engine';
+import { CryptoManager } from './managers/crypto-manager';
 import { ManifestManager } from './managers/manifest-manager';
 import { ShardManager } from './managers/shard-manager';
 import type { UpdateDescriptor } from './types';
@@ -43,6 +44,7 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
   private options: ClxDBOptions;
 
   private manifestManager: ManifestManager;
+  private cryptoManager: CryptoManager;
   private shardManager: ShardManager;
   private compactionEngine: CompactionEngine;
   private garbageCollectorEngine: GarbageCollectorEngine;
@@ -61,7 +63,8 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
     this.crypto = crypto;
     this.options = this.normalizeOptions(options);
     this.manifestManager = new ManifestManager(this.storage);
-    this.shardManager = new ShardManager(this.storage, this.options);
+    this.cryptoManager = new CryptoManager(this.crypto, this.options);
+    this.shardManager = new ShardManager(this.storage, this.options, this.cryptoManager);
 
     const ctx = {
       storage: this.storage,
@@ -98,8 +101,9 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
   }
 
   async init(): Promise<void> {
-    await this.shardManager.initialize();
     await this.manifestManager.initialize();
+    await this.initializeCrypto();
+    await this.shardManager.initialize();
 
     await this.syncEngine.initialize();
     await this.sync().catch(() => {});
@@ -116,6 +120,63 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
     if (this.options.syncInterval > 0) {
       this.start();
     }
+  }
+
+  async updateMasterPassword(oldPassword: string, newPassword: string): Promise<void> {
+    const updateCrypto = await this.cryptoManager.updateMasterPassword(
+      this.manifestManager,
+      oldPassword,
+      newPassword
+    );
+
+    let commit: (() => Promise<void> | void) | undefined;
+
+    await this.manifestManager.updateManifest(
+      async manifest => {
+        const result = await updateCrypto(manifest);
+        commit = result.commit;
+
+        return {
+          updatedFields: {
+            crypto: result.manifest.crypto,
+          },
+          finalizeManifest: this.cryptoManager.finalizeManifest.bind(this.cryptoManager),
+        };
+      },
+      () => this.syncEngine.pull()
+    );
+
+    await commit?.();
+  }
+
+  async updateQuickUnlockPassword(
+    masterPassword: string,
+    quickUnlockPassword: string
+  ): Promise<void> {
+    const updateCrypto = await this.cryptoManager.updateQuickUnlockPassword(
+      this.manifestManager,
+      masterPassword,
+      quickUnlockPassword
+    );
+
+    let commit: (() => Promise<void> | void) | undefined;
+
+    await this.manifestManager.updateManifest(
+      async manifest => {
+        const result = await updateCrypto(manifest);
+        commit = result.commit;
+
+        return {
+          updatedFields: {
+            crypto: result.manifest.crypto,
+          },
+          finalizeManifest: this.cryptoManager.finalizeManifest.bind(this.cryptoManager),
+        };
+      },
+      () => this.syncEngine.pull()
+    );
+
+    await commit?.();
   }
 
   destroy() {
@@ -160,7 +221,11 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
       async manifest => {
         const descriptor = await onUpdate(manifest);
         if (!descriptor.addedShardList) {
-          return { addedShardMetadataList: [], ...descriptor };
+          return {
+            addedShardMetadataList: [],
+            finalizeManifest: this.cryptoManager.finalizeManifest.bind(this.cryptoManager),
+            ...descriptor,
+          };
         }
 
         const addedShardMetadataList = await createPromisePool(
@@ -170,6 +235,7 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
         return {
           addedShardMetadataList,
           addedShardInfoList: addedShardMetadataList.map(shard => shard.info),
+          finalizeManifest: this.cryptoManager.finalizeManifest.bind(this.cryptoManager),
           ...descriptor,
         };
       },
@@ -185,6 +251,26 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
     });
 
     return update;
+  }
+
+  private async initializeCrypto(): Promise<void> {
+    const manifest = this.manifestManager.getLastManifest();
+    if (!manifest.crypto && this.crypto.kind !== 'none') {
+      const initialized = await this.cryptoManager.initializeManifest(manifest);
+      if (initialized.crypto) {
+        await this.manifestManager.updateManifest(
+          () => ({
+            updatedFields: {
+              crypto: initialized.crypto,
+            },
+          }),
+          () => {}
+        );
+      }
+      return;
+    }
+
+    await this.cryptoManager.openManifest(this.manifestManager);
   }
 
   start(): void {

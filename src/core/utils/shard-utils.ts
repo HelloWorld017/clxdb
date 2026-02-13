@@ -9,15 +9,40 @@ export interface EncodedShard {
   header: ShardHeader;
 }
 
-export function encodeShard(documents: ShardDocument[]): EncodedShard {
-  const header: ShardHeader = { docs: [] };
-  const bodyParts: Uint8Array[] = [];
-  let currentOffset = 0;
+const encodeHeader = (header: ShardHeader): Uint8Array<ArrayBuffer> =>
+  new Uint8Array(new TextEncoder().encode(JSON.stringify(header)));
 
-  for (const row of documents) {
+export function buildShardBodyParts(documents: ShardDocument[]): Uint8Array<ArrayBuffer>[] {
+  return documents.map(row => {
     const docData = row.del ? null : row.data;
     const bodyJson = JSON.stringify(docData);
-    const bodyBytes = new TextEncoder().encode(bodyJson);
+    return new Uint8Array(new TextEncoder().encode(bodyJson));
+  });
+}
+
+export function buildShardHeader(documents: ShardDocument[], bodyParts: Uint8Array[]): ShardHeader {
+  return buildShardHeaderFromLengths(
+    documents,
+    bodyParts.map(bodyPart => bodyPart.length)
+  );
+}
+
+export function buildShardHeaderFromLengths(
+  documents: ShardDocument[],
+  bodyPartLengths: number[]
+): ShardHeader {
+  if (documents.length !== bodyPartLengths.length) {
+    throw new Error('Mismatched documents and body lengths');
+  }
+
+  const header: ShardHeader = { docs: [] };
+  let currentOffset = 0;
+
+  documents.forEach((row, index) => {
+    const bodyLength = bodyPartLengths[index];
+    if (bodyLength === undefined) {
+      throw new Error('Mismatched documents and body lengths');
+    }
 
     header.docs.push({
       id: row.id,
@@ -25,22 +50,29 @@ export function encodeShard(documents: ShardDocument[]): EncodedShard {
       seq: row.seq,
       del: row.del,
       offset: currentOffset,
-      len: bodyBytes.length,
+      len: bodyLength,
     });
+    currentOffset += bodyLength;
+  });
 
-    bodyParts.push(bodyBytes);
-    currentOffset += bodyBytes.length;
-  }
+  return header;
+}
+
+export function encodeShard(documents: ShardDocument[]): EncodedShard {
+  const bodyParts = buildShardBodyParts(documents);
+  const header = buildShardHeader(documents, bodyParts);
 
   return {
-    data: serializeShard(header, bodyParts),
+    data: serializeShard(encodeHeader(header), bodyParts),
     header,
   };
 }
 
-function serializeShard(header: ShardHeader, bodyParts: Uint8Array[]): Uint8Array {
-  const headerJson = JSON.stringify(header);
-  const headerBytes = new TextEncoder().encode(headerJson);
+export function serializeShardFromHeader(header: ShardHeader, bodyParts: Uint8Array[]): Uint8Array {
+  return serializeShard(encodeHeader(header), bodyParts);
+}
+
+export function serializeShard(headerBytes: Uint8Array, bodyParts: Uint8Array[]): Uint8Array {
   const headerLenBytes = new Uint8Array(HEADER_LENGTH_BYTES);
   new DataView(headerLenBytes.buffer).setUint32(0, headerBytes.length, LITTLE_ENDIAN);
 
@@ -51,12 +83,10 @@ function serializeShard(header: ShardHeader, bodyParts: Uint8Array[]): Uint8Arra
   let pos = 0;
   result.set(headerLenBytes, pos);
   pos += HEADER_LENGTH_BYTES;
-  //TODO add header crypto
   result.set(headerBytes, pos);
   pos += headerBytes.length;
 
   for (const part of bodyParts) {
-    //TODO add bodyBytes crypto
     result.set(part, pos);
     pos += part.length;
   }
