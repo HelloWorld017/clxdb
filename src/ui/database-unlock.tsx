@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { inspectClxDBStatus } from '@/core/utils/inspect';
-import { PIN_LENGTH, PinInput, createEmptyPin, isCompletePin, pinToString } from './pin-input';
+import {
+  PIN_LENGTH,
+  PinInput,
+  createEmptyPin,
+  isCompletePin,
+  pinToString,
+} from './common/pin-input';
 import type { ClxDBStatus } from '@/core/utils/inspect';
 import type { ClxDBClientOptions, StorageBackend } from '@/types';
 import type { SubmitEvent } from 'react';

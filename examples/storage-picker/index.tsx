@@ -222,12 +222,7 @@ function StoragePickerExampleApp() {
     <main className="min-h-screen px-4 py-8 sm:px-8 sm:py-12">
       <div className="mx-auto grid w-full max-w-7xl gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-6">
-          <StoragePicker
-            onSelect={handleSelect}
-            title="Choose a storage backend"
-            description="Step 1 of 2. Select storage, then continue with database create/unlock."
-            submitLabel="Use selected storage"
-          />
+          <StoragePicker onSelect={handleSelect} submitLabel="Use selected storage" />
 
           {storageBackend ? (
             <DatabaseUnlock
@@ -235,8 +230,6 @@ function StoragePickerExampleApp() {
               storage={storageBackend}
               onSubmit={handleUnlockSubmit}
               onStatusChange={setStatusSnapshot}
-              title="Create or unlock your database"
-              description="Step 2 of 2. This flow inspects the backend first, then branches into create, PIN unlock, or master recovery."
             />
           ) : (
             <section
