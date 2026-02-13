@@ -57,6 +57,7 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
       const data = docDataById.get(id);
       return data && data.seq === null;
     });
+
     if (idsToSync.length === 0) {
       return;
     }
@@ -86,10 +87,10 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
       throw new Error('Manifest not found');
     }
 
-    const shardsToScan = latest.manifest.shardFiles.filter(
-      shard => shard.range.max > this.localSequence
+    const newShards = latest.manifest.shardFiles.filter(
+      shard => !this.shardManager.has(shard.filename)
     );
-    const newShards = shardsToScan.filter(shard => !this.shardManager.has(shard.filename));
+
     await this.shardManager.fetchHeaders(newShards);
 
     const pendingIdsSet = new Set(await this.database.readPendingIds());

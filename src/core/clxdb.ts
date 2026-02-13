@@ -203,7 +203,7 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
           return;
         }
 
-        const isPending = this.state === 'pending' || this.syncRequestedWhileSyncing;
+        const isPending = this.state === 'pending';
         this.syncRequestedWhileSyncing = false;
         this.setState('syncing');
         this.emit('syncStart', isPending);
@@ -215,13 +215,8 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
         } catch (error) {
           this.emit('syncError', error as Error);
         } finally {
-          const shouldSyncAgain = this.syncRequestedWhileSyncing;
-          this.setState(shouldSyncAgain ? 'pending' : 'idle');
+          this.setState(this.syncRequestedWhileSyncing ? 'pending' : 'idle');
           this.syncPromise = null;
-
-          if (shouldSyncAgain) {
-            void this.sync();
-          }
         }
       })();
     }

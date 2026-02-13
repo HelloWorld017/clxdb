@@ -189,27 +189,14 @@ export class CryptoManager {
       return manifest;
     }
 
+    if (this.crypto.kind !== 'master') {
+      throw new Error('Master password is needed to create a new manifest');
+    }
+
     const salt = crypto.getRandomValues(new Uint8Array(32));
     const masterKey = await deriveMasterKey(this.crypto.password, salt);
     const rootKeyRaw = crypto.getRandomValues(new Uint8Array(32));
-    const rootKeyEncryptedByMaster = await encrypt(masterKey, rootKeyRaw);
-
-    let deviceKeyRegistry: Record<string, string> = {};
-    if (this.crypto.kind === 'quick-unlock') {
-      const deviceId = crypto.randomUUID();
-      const deviceKeyRaw = crypto.getRandomValues(new Uint8Array(32));
-      const deviceKey = await importDeviceKey(deviceKeyRaw);
-      deviceKeyRaw.fill(0);
-
-      const deviceKeyStore = { deviceId, key: deviceKey };
-      const quickUnlockKey = await deriveQuickUnlockKey(this.crypto.password, deviceKeyStore);
-      const rootKeyEncryptedByQuickUnlock = await encrypt(quickUnlockKey, rootKeyRaw);
-      await writeIndexedDB(DEVICE_KEY_STORE_KEY, this.options, deviceKeyStore);
-
-      deviceKeyRegistry = {
-        [deviceId]: rootKeyEncryptedByQuickUnlock.toBase64(),
-      };
-    }
+    const rootKeyEncrypted = await encrypt(masterKey, rootKeyRaw);
 
     this.rootKey = await importRootKey(rootKeyRaw);
     this.crypto.password = '';
@@ -219,9 +206,9 @@ export class CryptoManager {
     const newManifest = await signManifest(signingKey, {
       ...manifest,
       crypto: {
-        masterKey: rootKeyEncryptedByMaster.toBase64(),
+        masterKey: rootKeyEncrypted.toBase64(),
         masterKeySalt: salt.toBase64(),
-        deviceKey: deviceKeyRegistry,
+        deviceKey: {},
         nonce: crypto.randomUUID(),
         timestamp: Date.now(),
         signature: '',
