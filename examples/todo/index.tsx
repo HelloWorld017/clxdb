@@ -414,35 +414,36 @@ const TodoApp: React.FC<TodoAppProps> = ({ todoDB, clxdb }) => {
   const completedCount = todos.length - activeCount;
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-slate-50 px-4 py-12 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-2xl">
         {/* Header */}
-        <div className="text-center mb-10">
-          <h1 className="text-4xl font-light text-slate-800 mb-2 tracking-tight">Tasks</h1>
-          <p className="text-slate-500 text-sm font-medium">
+        <div className="mb-10 text-center">
+          <h1 className="mb-2 text-4xl font-light tracking-tight text-slate-800">Tasks</h1>
+          <p className="text-sm font-medium text-slate-500">
             {activeCount} active · {completedCount} completed
           </p>
         </div>
 
         {/* Sync Status */}
-        <div className="flex justify-center mb-6">
+        <div className="mb-6 flex justify-center">
           <div
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-all duration-300 ${
-              syncState === 'syncing'
-                ? 'bg-blue-50 text-blue-600'
-                : syncState === 'error'
-                  ? 'bg-red-50 text-red-600'
-                  : 'bg-emerald-50 text-emerald-600'
-            }`}
+            className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium
+              transition-all duration-300 ${
+                syncState === 'syncing'
+                  ? 'bg-blue-50 text-blue-600'
+                  : syncState === 'error'
+                    ? 'bg-red-50 text-red-600'
+                    : 'bg-emerald-50 text-emerald-600'
+              }`}
           >
             <span
-              className={`w-2 h-2 rounded-full ${
+              className={`h-2 w-2 rounded-full ${
                 syncState === 'syncing'
-                  ? 'bg-blue-500 animate-pulse'
+                  ? 'animate-pulse bg-blue-500'
                   : syncState === 'error'
                     ? 'bg-red-500'
                     : 'bg-emerald-500'
-              }`}
+                }`}
             />
             {syncState === 'syncing'
               ? 'Syncing...'
@@ -453,7 +454,7 @@ const TodoApp: React.FC<TodoAppProps> = ({ todoDB, clxdb }) => {
         </div>
 
         {/* Input */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-2 mb-6">
+        <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
           <div className="flex gap-2">
             <input
               ref={inputRef}
@@ -462,13 +463,15 @@ const TodoApp: React.FC<TodoAppProps> = ({ todoDB, clxdb }) => {
               onChange={e => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="What needs to be done?"
-              className="flex-1 px-4 py-3 bg-transparent text-slate-700 placeholder-slate-400 text-base outline-none rounded-xl"
+              className="flex-1 rounded-xl bg-transparent px-4 py-3 text-base text-slate-700
+                placeholder-slate-400 outline-none"
             />
             <button
               type="button"
               onClick={() => void addTodo()}
               disabled={!inputValue.trim()}
-              className="px-6 py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors duration-200"
+              className="rounded-xl bg-blue-500 px-6 py-3 font-medium text-white transition-colors
+                duration-200 hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               Add
             </button>
@@ -478,10 +481,13 @@ const TodoApp: React.FC<TodoAppProps> = ({ todoDB, clxdb }) => {
         {/* Todo List */}
         <div className="space-y-2">
           {todos.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-100 flex items-center justify-center">
+            <div className="py-16 text-center">
+              <div
+                className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full
+                  bg-slate-100"
+              >
                 <svg
-                  className="w-8 h-8 text-slate-400"
+                  className="h-8 w-8 text-slate-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -495,26 +501,28 @@ const TodoApp: React.FC<TodoAppProps> = ({ todoDB, clxdb }) => {
                   />
                 </svg>
               </div>
-              <p className="text-slate-400 text-sm">No tasks yet. Add one above!</p>
+              <p className="text-sm text-slate-400">No tasks yet. Add one above!</p>
             </div>
           ) : (
             todos.map(todo => (
               <div
                 key={todo.id}
-                className="group bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-4 hover:border-blue-300 hover:shadow-sm transition-all duration-200"
+                className="group flex items-center gap-4 rounded-xl border border-slate-200 bg-white
+                  p-4 transition-all duration-200 hover:border-blue-300 hover:shadow-sm"
               >
                 <button
                   type="button"
                   onClick={() => void toggleTodo(todo.id)}
-                  className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
-                    todo.completed
-                      ? 'bg-blue-500 border-blue-500'
-                      : 'border-slate-300 hover:border-blue-400'
-                  }`}
+                  className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full
+                    border-2 transition-all duration-200 ${
+                      todo.completed
+                        ? 'border-blue-500 bg-blue-500'
+                        : 'border-slate-300 hover:border-blue-400'
+                    }`}
                 >
                   {todo.completed && (
                     <svg
-                      className="w-3.5 h-3.5 text-white"
+                      className="h-3.5 w-3.5 text-white"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -541,9 +549,10 @@ const TodoApp: React.FC<TodoAppProps> = ({ todoDB, clxdb }) => {
                 <button
                   type="button"
                   onClick={() => void deleteTodo(todo.id)}
-                  className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200"
+                  className="rounded-lg p-2 text-slate-400 opacity-0 transition-all duration-200
+                    group-hover:opacity-100 hover:bg-red-50 hover:text-red-500"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <title>Delete</title>
                     <path
                       strokeLinecap="round"
@@ -564,7 +573,7 @@ const TodoApp: React.FC<TodoAppProps> = ({ todoDB, clxdb }) => {
             <button
               type="button"
               onClick={() => void clearCompleted()}
-              className="text-sm text-slate-500 hover:text-red-500 transition-colors duration-200"
+              className="text-sm text-slate-500 transition-colors duration-200 hover:text-red-500"
             >
               Clear completed ({completedCount})
             </button>
@@ -597,11 +606,13 @@ const DirectorySelector: React.FC<{ onSelect: (handle: FileSystemDirectoryHandle
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="text-center">
-        <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-blue-50 flex items-center justify-center">
+        <div
+          className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-blue-50"
+        >
           <svg
-            className="w-10 h-10 text-blue-500"
+            className="h-10 w-10 text-blue-500"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -616,8 +627,8 @@ const DirectorySelector: React.FC<{ onSelect: (handle: FileSystemDirectoryHandle
           </svg>
         </div>
 
-        <h1 className="text-3xl font-light text-slate-800 mb-3">TODO App</h1>
-        <p className="text-slate-500 mb-8 max-w-sm">
+        <h1 className="mb-3 text-3xl font-light text-slate-800">TODO App</h1>
+        <p className="mb-8 max-w-sm text-slate-500">
           Select a folder to store your tasks. Your data will be synchronized to this location.
         </p>
 
@@ -625,11 +636,13 @@ const DirectorySelector: React.FC<{ onSelect: (handle: FileSystemDirectoryHandle
           type="button"
           onClick={selectDirectory}
           disabled={isLoading}
-          className="inline-flex items-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors duration-200"
+          className="inline-flex items-center gap-2 rounded-xl bg-blue-500 px-6 py-3 font-medium
+            text-white transition-colors duration-200 hover:bg-blue-600 disabled:cursor-not-allowed
+            disabled:bg-slate-300"
         >
           {isLoading ? (
             <>
-              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+              <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24">
                 <title>Loading</title>
                 <circle
                   className="opacity-25"
@@ -650,7 +663,7 @@ const DirectorySelector: React.FC<{ onSelect: (handle: FileSystemDirectoryHandle
             </>
           ) : (
             <>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <title>Select</title>
                 <path
                   strokeLinecap="round"
@@ -821,12 +834,15 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({
             : 'Unlock, Add Quick Password & Sync';
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-        <div className="text-center mb-6">
-          <div className="w-14 h-14 mx-auto mb-4 rounded-xl bg-emerald-50 flex items-center justify-center">
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-6 text-center">
+          <div
+            className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl
+              bg-emerald-50"
+          >
             <svg
-              className="w-7 h-7 text-emerald-600"
+              className="h-7 w-7 text-emerald-600"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -840,7 +856,7 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({
               />
             </svg>
           </div>
-          <h2 className="text-2xl font-light text-slate-800 mb-2">{title}</h2>
+          <h2 className="mb-2 text-2xl font-light text-slate-800">{title}</h2>
           <p className="text-sm text-slate-500">{description}</p>
         </div>
 
@@ -851,11 +867,12 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({
                 type="button"
                 onClick={() => setEncryptOnCreate(true)}
                 disabled={isLoading}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                  encryptOnCreate
-                    ? 'bg-white text-slate-700 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200
+                  ${
+                    encryptOnCreate
+                      ? 'bg-white text-slate-700 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
               >
                 Encrypt
               </button>
@@ -863,11 +880,12 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({
                 type="button"
                 onClick={() => setEncryptOnCreate(false)}
                 disabled={isLoading}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                  !encryptOnCreate
-                    ? 'bg-white text-slate-700 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200
+                  ${
+                    !encryptOnCreate
+                      ? 'bg-white text-slate-700 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
               >
                 No Encryption
               </button>
@@ -881,7 +899,8 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({
               onChange={event => setMasterPassword(event.target.value)}
               autoComplete="current-password"
               placeholder="Master password"
-              className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+              className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none
+                focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
             />
           )}
 
@@ -894,14 +913,15 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({
               onChange={event => setQuickUnlockPassword(event.target.value)}
               autoComplete="current-password"
               placeholder="Quick unlock password"
-              className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+              className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none
+                focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
             />
           )}
 
           {showRegisteredDevices && registeredDeviceKeys.length > 0 ? (
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                <p className="text-xs font-semibold tracking-wide text-slate-600 uppercase">
                   Registered Devices
                 </p>
                 <span className="text-xs text-slate-400">{registeredDeviceKeys.length}</span>
@@ -928,7 +948,9 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({
           <button
             type="submit"
             disabled={submitDisabled}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors duration-200"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl
+              bg-emerald-500 px-4 py-3 font-medium text-white transition-colors duration-200
+              hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             {isLoading ? 'Opening...' : submitLabel}
           </button>
@@ -938,7 +960,8 @@ const UnlockScreen: React.FC<UnlockScreenProps> = ({
           type="button"
           onClick={onChangeDirectory}
           disabled={isLoading || isInspecting}
-          className="w-full mt-3 text-sm text-slate-500 hover:text-slate-700 disabled:text-slate-400 transition-colors duration-200"
+          className="mt-3 w-full text-sm text-slate-500 transition-colors duration-200
+            hover:text-slate-700 disabled:text-slate-400"
         >
           Choose another folder
         </button>
