@@ -1,9 +1,8 @@
 import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ClxDB } from '../../src/core/clxdb';
-import { FileSystemBackend } from '../../src/storages/filesystem';
-import type { DatabaseBackend } from '../../src/types';
+import { createClxDB, createStorageBackend } from '@/index';
+import type { DatabaseBackend } from '@/types';
 
 declare global {
   interface Window {
@@ -34,50 +33,203 @@ type TodoInput = {
 };
 
 type TodoListener = (todos: Todo[]) => void;
+type ClxDBClient = ReturnType<typeof createClxDB>;
+
+const TODO_DB_NAME = 'clxdb_todo_example';
+const TODO_DB_VERSION = 1;
+const TODO_STORE_NAME = 'todos';
+const QUICK_UNLOCK_CACHE_KEY = 'clxdb_todo_quick_unlock';
 
 // ==================== Todo Database (React App Interface) ====================
 
 class TodoDatabase {
-  private todos: Map<string, TodoData> = new Map();
+  private dbPromise: Promise<IDBDatabase>;
   private listeners: Set<TodoListener> = new Set();
+  private replicationListeners: Set<() => void> = new Set();
+
+  constructor() {
+    this.dbPromise = this.openDatabase();
+  }
+
+  private requestToPromise = <T,>(request: IDBRequest<T>): Promise<T> =>
+    new Promise((resolve, reject) => {
+      request.onsuccess = () => {
+        resolve(request.result);
+      };
+      request.onerror = () => {
+        reject(request.error ?? new Error('IndexedDB request failed'));
+      };
+    });
+
+  private transactionToPromise = (transaction: IDBTransaction): Promise<void> =>
+    new Promise((resolve, reject) => {
+      transaction.oncomplete = () => {
+        resolve();
+      };
+      transaction.onerror = () => {
+        reject(transaction.error ?? new Error('IndexedDB transaction failed'));
+      };
+      transaction.onabort = () => {
+        reject(transaction.error ?? new Error('IndexedDB transaction aborted'));
+      };
+    });
+
+  private openDatabase(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+      if (typeof window === 'undefined' || !window.indexedDB) {
+        reject(new Error('IndexedDB is not available in this environment'));
+        return;
+      }
+
+      const request = window.indexedDB.open(TODO_DB_NAME, TODO_DB_VERSION);
+
+      request.onupgradeneeded = () => {
+        const database = request.result;
+        if (database.objectStoreNames.contains(TODO_STORE_NAME)) {
+          return;
+        }
+
+        const store = database.createObjectStore(TODO_STORE_NAME, { keyPath: 'id' });
+        store.createIndex('seq', 'seq', { unique: false });
+      };
+
+      request.onsuccess = () => {
+        const database = request.result;
+        database.onversionchange = () => {
+          database.close();
+        };
+        resolve(database);
+      };
+
+      request.onerror = () => {
+        reject(request.error ?? new Error('Failed to open IndexedDB'));
+      };
+    });
+  }
+
+  private async getRow(id: string): Promise<TodoData | null> {
+    const database = await this.dbPromise;
+    const transaction = database.transaction(TODO_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(TODO_STORE_NAME);
+    const request = store.get(id) as IDBRequest<TodoData | undefined>;
+    const row = await this.requestToPromise(request);
+    return row ?? null;
+  }
+
+  private async getRows(): Promise<TodoData[]> {
+    const database = await this.dbPromise;
+    const transaction = database.transaction(TODO_STORE_NAME, 'readonly');
+    const store = transaction.objectStore(TODO_STORE_NAME);
+    const request = store.getAll() as IDBRequest<TodoData[]>;
+    return this.requestToPromise(request);
+  }
+
+  private async putRow(row: TodoData): Promise<void> {
+    const database = await this.dbPromise;
+    const transaction = database.transaction(TODO_STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(TODO_STORE_NAME);
+    store.put(row);
+    await this.transactionToPromise(transaction);
+  }
+
+  private async deleteRows(ids: string[]): Promise<void> {
+    if (ids.length === 0) {
+      return;
+    }
+
+    const database = await this.dbPromise;
+    const transaction = database.transaction(TODO_STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(TODO_STORE_NAME);
+    ids.forEach(id => {
+      store.delete(id);
+    });
+    await this.transactionToPromise(transaction);
+  }
+
+  private emitReplicationUpdate(): void {
+    this.replicationListeners.forEach(listener => {
+      listener();
+    });
+  }
+
+  private async notify(): Promise<void> {
+    const todos = await this.getAll();
+    this.listeners.forEach(listener => {
+      listener(todos);
+    });
+  }
 
   // Get adapter for clxDB
   getClxDBAdapter(): DatabaseBackend {
-    /* eslint-disable @typescript-eslint/require-await */
     return {
-      read: async ids => ids.map(id => this.todos.get(id) ?? null),
-      readPendingIds: async () =>
-        this.todos
-          .values()
-          .filter(row => row.seq === null)
-          .map(row => row.id)
-          .toArray(),
+      read: async ids => {
+        const rows = await Promise.all(ids.map(id => this.getRow(id)));
+        return rows;
+      },
+
+      readPendingIds: async () => {
+        const rows = await this.getRows();
+        return rows.filter(row => row.seq === null).map(row => row.id);
+      },
 
       upsert: async docs => {
-        for (const doc of docs) {
+        const rowsToUpsert: TodoData[] = [];
+        const idsToDelete: string[] = [];
+
+        docs.forEach(doc => {
           if (doc.del) {
-            this.todos.delete(doc.id);
-          } else if (doc.data) {
-            this.todos.set(doc.id, doc as TodoData);
+            idsToDelete.push(doc.id);
+            return;
           }
+
+          const todo = doc.data as Todo | undefined;
+          if (!todo) {
+            return;
+          }
+
+          rowsToUpsert.push({
+            id: doc.id,
+            at: doc.at,
+            del: false,
+            seq: doc.seq,
+            data: todo,
+          });
+        });
+
+        if (rowsToUpsert.length > 0) {
+          const database = await this.dbPromise;
+          const transaction = database.transaction(TODO_STORE_NAME, 'readwrite');
+          const store = transaction.objectStore(TODO_STORE_NAME);
+          rowsToUpsert.forEach(row => {
+            store.put(row);
+          });
+          idsToDelete.forEach(id => {
+            store.delete(id);
+          });
+          await this.transactionToPromise(transaction);
+        } else {
+          await this.deleteRows(idsToDelete);
         }
-        this.notify();
+
+        await this.notify();
       },
 
       delete: async docs => {
-        for (const doc of docs) {
-          this.todos.delete(doc.id);
-        }
-        this.notify();
+        await this.deleteRows(docs.map(doc => doc.id));
+        await this.notify();
       },
 
-      replicate: onUpdate => this.subscribe(onUpdate),
+      replicate: onUpdate => {
+        this.replicationListeners.add(onUpdate);
+        return () => {
+          this.replicationListeners.delete(onUpdate);
+        };
+      },
     };
-    /* eslint-enable @typescript-eslint/require-await */
   }
 
   // Insert new todo (React app uses this)
-  insert(data: TodoInput): Todo {
+  async insert(data: TodoInput): Promise<Todo> {
     const id = crypto.randomUUID();
     const now = Date.now();
     const todo: Todo = {
@@ -87,14 +239,15 @@ class TodoDatabase {
       createdAt: now,
     };
 
-    this.todos.set(id, { id, at: now, del: false, data: todo, seq: null });
-    this.notify();
+    await this.putRow({ id, at: now, del: false, data: todo, seq: null });
+    await this.notify();
+    this.emitReplicationUpdate();
     return todo;
   }
 
   // Update existing todo (React app uses this)
-  update(id: string, data: Partial<TodoInput>): Todo | null {
-    const existing = this.todos.get(id)?.data;
+  async update(id: string, data: Partial<TodoInput>): Promise<Todo | null> {
+    const existing = await this.getById(id);
     if (!existing) {
       return null;
     }
@@ -104,48 +257,54 @@ class TodoDatabase {
       ...data,
     };
 
-    this.todos.set(id, { id, at: Date.now(), del: false, data: todo, seq: null });
-    this.notify();
+    await this.putRow({ id, at: Date.now(), del: false, data: todo, seq: null });
+    await this.notify();
+    this.emitReplicationUpdate();
     return todo;
   }
 
   // Delete todo (React app uses this)
-  delete(id: string): boolean {
-    const existed = this.todos.has(id);
+  async delete(id: string): Promise<boolean> {
+    const existing = await this.getRow(id);
+    const existed = !!existing;
     if (existed) {
-      this.todos.set(id, { id, at: Date.now(), del: true, seq: null });
-      this.notify();
+      await this.putRow({ id, at: Date.now(), del: true, seq: null });
+      await this.notify();
+      this.emitReplicationUpdate();
     }
     return existed;
   }
 
   // Get all todos
-  getAll(): Todo[] {
-    return Array.from(this.todos.values())
-      .map(({ data }) => data)
-      .filter(data => !!data)
+  async getAll(): Promise<Todo[]> {
+    const rows = await this.getRows();
+    return rows
+      .filter(row => !row.del && !!row.data)
+      .map(row => row.data)
+      .filter((data): data is Todo => !!data)
       .sort((a, b) => b.createdAt - a.createdAt);
   }
 
   // Get todo by id
-  getById(id: string): Todo | undefined {
-    return this.todos.get(id)?.data ?? undefined;
+  async getById(id: string): Promise<Todo | undefined> {
+    const row = await this.getRow(id);
+    if (!row || row.del || !row.data) {
+      return undefined;
+    }
+
+    return row.data;
   }
 
   // Subscribe to changes
   subscribe(listener: TodoListener): () => void {
     this.listeners.add(listener);
-    listener(this.getAll());
+    void this.getAll().then(todos => {
+      listener(todos);
+    });
+
     return () => {
       this.listeners.delete(listener);
     };
-  }
-
-  private notify(): void {
-    const todos = this.getAll();
-    this.listeners.forEach(listener => {
-      listener(todos);
-    });
   }
 }
 
@@ -153,7 +312,7 @@ class TodoDatabase {
 
 interface TodoAppProps {
   todoDB: TodoDatabase;
-  clxdb: ClxDB;
+  clxdb: ClxDBClient;
 }
 
 const TodoApp: React.FC<TodoAppProps> = ({ todoDB, clxdb }) => {
@@ -190,35 +349,56 @@ const TodoApp: React.FC<TodoAppProps> = ({ todoDB, clxdb }) => {
     };
   }, [clxdb]);
 
-  const addTodo = () => {
-    if (!inputValue.trim()) {
-      return;
-    }
+  const addTodo = async () => {
+    try {
+      if (!inputValue.trim()) {
+        return;
+      }
 
-    // Just insert - clxDB will detect changes via replicate and handle sync
-    todoDB.insert({ text: inputValue.trim(), completed: false });
-    setInputValue('');
-    inputRef.current?.focus();
+      // Just insert - clxDB will detect changes via replicate and handle sync
+      await todoDB.insert({ text: inputValue.trim(), completed: false });
+      setInputValue('');
+      inputRef.current?.focus();
+    } catch (error) {
+      console.error('Failed to add todo:', error);
+    }
   };
 
-  const toggleTodo = (id: string) => {
-    const todo = todoDB.getById(id);
-    if (!todo) {
-      return;
-    }
+  const toggleTodo = async (id: string) => {
+    try {
+      const todo = await todoDB.getById(id);
+      if (!todo) {
+        return;
+      }
 
-    // Just update - clxDB will detect changes via replicate
-    todoDB.update(id, { completed: !todo.completed });
+      // Just update - clxDB will detect changes via replicate
+      await todoDB.update(id, { completed: !todo.completed });
+    } catch (error) {
+      console.error('Failed to update todo:', error);
+    }
   };
 
-  const deleteTodo = (id: string) => {
-    // Just delete - clxDB will detect changes via replicate
-    todoDB.delete(id);
+  const deleteTodo = async (id: string) => {
+    try {
+      // Just delete - clxDB will detect changes via replicate
+      await todoDB.delete(id);
+    } catch (error) {
+      console.error('Failed to delete todo:', error);
+    }
+  };
+
+  const clearCompleted = async () => {
+    try {
+      const completedTodos = todos.filter(todo => todo.completed);
+      await Promise.all(completedTodos.map(todo => todoDB.delete(todo.id)));
+    } catch (error) {
+      console.error('Failed to clear completed todos:', error);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      addTodo();
+      void addTodo();
     }
   };
 
@@ -278,7 +458,7 @@ const TodoApp: React.FC<TodoAppProps> = ({ todoDB, clxdb }) => {
             />
             <button
               type="button"
-              onClick={addTodo}
+              onClick={() => void addTodo()}
               disabled={!inputValue.trim()}
               className="px-6 py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors duration-200"
             >
@@ -317,7 +497,7 @@ const TodoApp: React.FC<TodoAppProps> = ({ todoDB, clxdb }) => {
               >
                 <button
                   type="button"
-                  onClick={() => toggleTodo(todo.id)}
+                  onClick={() => void toggleTodo(todo.id)}
                   className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
                     todo.completed
                       ? 'bg-blue-500 border-blue-500'
@@ -352,7 +532,7 @@ const TodoApp: React.FC<TodoAppProps> = ({ todoDB, clxdb }) => {
 
                 <button
                   type="button"
-                  onClick={() => deleteTodo(todo.id)}
+                  onClick={() => void deleteTodo(todo.id)}
                   className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -375,12 +555,7 @@ const TodoApp: React.FC<TodoAppProps> = ({ todoDB, clxdb }) => {
           <div className="mt-6 text-center">
             <button
               type="button"
-              onClick={() => {
-                const completedTodos = todos.filter(t => t.completed);
-                for (const t of completedTodos) {
-                  todoDB.delete(t.id);
-                }
-              }}
+              onClick={() => void clearCompleted()}
               className="text-sm text-slate-500 hover:text-red-500 transition-colors duration-200"
             >
               Clear completed ({completedCount})
@@ -487,42 +662,204 @@ const DirectorySelector: React.FC<{ onSelect: (handle: FileSystemDirectoryHandle
 
 // ==================== Main App ====================
 
-const App: React.FC = () => {
-  const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
-  const [todoDB] = useState(() => new TodoDatabase());
-  const [clxdb, setClxdb] = useState<ClxDB | null>(null);
+interface QuickUnlockScreenProps {
+  directoryHandle: FileSystemDirectoryHandle;
+  onUnlock: (password: string) => Promise<void>;
+  onChangeDirectory: () => void;
+  isLoading: boolean;
+  error: string | null;
+}
 
-  useEffect(() => {
-    if (!directoryHandle) {
+const QuickUnlockScreen: React.FC<QuickUnlockScreenProps> = ({
+  directoryHandle,
+  onUnlock,
+  onChangeDirectory,
+  isLoading,
+  error,
+}) => {
+  const [password, setPassword] = useState('');
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!password || isLoading) {
       return;
     }
 
-    const storage = new FileSystemBackend(directoryHandle);
-    const client = new ClxDB({
-      database: todoDB.getClxDBAdapter(),
-      storage,
-      options: {
-        syncInterval: 5000,
-        gcOnStart: true,
-        gcGracePeriod: 1000,
-        vacuumOnStart: true,
-        cacheStorageKey: null,
-      },
-    });
+    void onUnlock(password);
+  };
 
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+      <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <div className="text-center mb-6">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-xl bg-emerald-50 flex items-center justify-center">
+            <svg
+              className="w-7 h-7 text-emerald-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <title>Quick unlock</title>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.8}
+                d="M12 11c1.657 0 3-1.343 3-3S13.657 5 12 5 9 6.343 9 8s1.343 3 3 3zm0 0v2m-6 6h12a2 2 0 002-2v-1a5 5 0 00-5-5H9a5 5 0 00-5 5v1a2 2 0 002 2z"
+              />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-light text-slate-800 mb-2">Quick Unlock</h2>
+          <p className="text-sm text-slate-500">
+            Enter a quick unlock password for <strong>{directoryHandle.name}</strong>
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="password"
+            value={password}
+            onChange={event => setPassword(event.target.value)}
+            autoComplete="current-password"
+            placeholder="Quick unlock password"
+            className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+          />
+
+          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+
+          <button
+            type="submit"
+            disabled={isLoading || !password}
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors duration-200"
+          >
+            {isLoading ? 'Unlocking...' : 'Unlock & Sync'}
+          </button>
+        </form>
+
+        <button
+          type="button"
+          onClick={onChangeDirectory}
+          disabled={isLoading}
+          className="w-full mt-3 text-sm text-slate-500 hover:text-slate-700 disabled:text-slate-400 transition-colors duration-200"
+        >
+          Choose another folder
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const App: React.FC = () => {
+  const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
+  const [todoDB] = useState(() => new TodoDatabase());
+  const [clxdb, setClxdb] = useState<ClxDBClient | null>(null);
+  const [isUnlocking, setIsUnlocking] = useState(false);
+  const [unlockError, setUnlockError] = useState<string | null>(null);
+  const clxdbRef = useRef<ClxDBClient | null>(null);
+  const unlockAttemptRef = useRef(0);
+
+  const replaceClient = (client: ClxDBClient | null) => {
+    if (clxdbRef.current && clxdbRef.current !== client) {
+      clxdbRef.current.destroy();
+    }
+
+    clxdbRef.current = client;
     setClxdb(client);
+  };
 
-    client.init().catch(err => {
-      console.error('Failed to initialize ClxDB:', err);
-    });
+  const handleDirectorySelect = (handle: FileSystemDirectoryHandle) => {
+    unlockAttemptRef.current += 1;
+    setUnlockError(null);
+    replaceClient(null);
+    setDirectoryHandle(handle);
+  };
 
-    return () => {
-      client.destroy();
-    };
-  }, [directoryHandle, todoDB]);
+  const handleChangeDirectory = () => {
+    unlockAttemptRef.current += 1;
+    setUnlockError(null);
+    replaceClient(null);
+    setDirectoryHandle(null);
+  };
 
-  if (!directoryHandle || !clxdb) {
-    return <DirectorySelector onSelect={setDirectoryHandle} />;
+  const unlockDatabase = async (password: string): Promise<void> => {
+    if (!directoryHandle || isUnlocking) {
+      return;
+    }
+
+    const attempt = ++unlockAttemptRef.current;
+    setIsUnlocking(true);
+    setUnlockError(null);
+
+    try {
+      const storage = createStorageBackend({
+        type: 'filesystem-access',
+        handle: directoryHandle,
+      });
+
+      if (attempt !== unlockAttemptRef.current) {
+        return;
+      }
+
+      const client = createClxDB({
+        database: todoDB.getClxDBAdapter(),
+        storage,
+        crypto: {
+          kind: 'quick-unlock',
+          password,
+        },
+        options: {
+          syncInterval: 5000,
+          gcOnStart: true,
+          gcGracePeriod: 1000,
+          vacuumOnStart: true,
+          cacheStorageKey: QUICK_UNLOCK_CACHE_KEY,
+        },
+      });
+
+      await client.init();
+      if (attempt !== unlockAttemptRef.current) {
+        client.destroy();
+        return;
+      }
+
+      replaceClient(client);
+    } catch (error) {
+      if (attempt === unlockAttemptRef.current) {
+        replaceClient(null);
+        setUnlockError(error instanceof Error ? error.message : 'Failed to unlock database');
+      }
+      console.error('Failed to initialize ClxDB:', error);
+    } finally {
+      if (attempt === unlockAttemptRef.current) {
+        setIsUnlocking(false);
+      }
+    }
+  };
+
+  useEffect(
+    () => () => {
+      unlockAttemptRef.current += 1;
+      if (clxdbRef.current) {
+        clxdbRef.current.destroy();
+      }
+      clxdbRef.current = null;
+    },
+    []
+  );
+
+  if (!directoryHandle) {
+    return <DirectorySelector onSelect={handleDirectorySelect} />;
+  }
+
+  if (!clxdb) {
+    return (
+      <QuickUnlockScreen
+        directoryHandle={directoryHandle}
+        onUnlock={unlockDatabase}
+        onChangeDirectory={handleChangeDirectory}
+        isLoading={isUnlocking}
+        error={unlockError}
+      />
+    );
   }
 
   return <TodoApp todoDB={todoDB} clxdb={clxdb} />;
