@@ -130,24 +130,16 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
       newPassword
     );
 
-    let commit: (() => Promise<void> | void) | undefined;
+    const { commit } = await this.update(async manifest => {
+      const {
+        manifest: { crypto },
+        commit,
+      } = await updateCrypto(manifest);
 
-    await this.manifestManager.updateManifest(
-      async manifest => {
-        const result = await updateCrypto(manifest);
-        commit = result.commit;
+      return { updatedFields: { crypto: crypto }, commit };
+    });
 
-        return {
-          updatedFields: {
-            crypto: result.manifest.crypto,
-          },
-          finalizeManifest: this.cryptoManager.finalizeManifest.bind(this.cryptoManager),
-        };
-      },
-      () => this.syncEngine.pull()
-    );
-
-    await commit?.();
+    commit();
   }
 
   async updateQuickUnlockPassword(
@@ -160,24 +152,16 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
       quickUnlockPassword
     );
 
-    let commit: (() => Promise<void> | void) | undefined;
+    const { commit } = await this.update(async manifest => {
+      const {
+        manifest: { crypto },
+        commit,
+      } = await updateCrypto(manifest);
 
-    await this.manifestManager.updateManifest(
-      async manifest => {
-        const result = await updateCrypto(manifest);
-        commit = result.commit;
+      return { updatedFields: { crypto: crypto }, commit };
+    });
 
-        return {
-          updatedFields: {
-            crypto: result.manifest.crypto,
-          },
-          finalizeManifest: this.cryptoManager.finalizeManifest.bind(this.cryptoManager),
-        };
-      },
-      () => this.syncEngine.pull()
-    );
-
-    await commit?.();
+    commit();
   }
 
   destroy() {
@@ -224,7 +208,9 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
     return this.syncPromise;
   }
 
-  private async update(onUpdate: (manifest: Manifest) => PossiblyPromise<UpdateDescriptor>) {
+  private async update<T extends UpdateDescriptor>(
+    onUpdate: (manifest: Manifest) => PossiblyPromise<T>
+  ): Promise<T> {
     const update = await this.manifestManager.updateManifest(
       async manifest => {
         const descriptor = await onUpdate(manifest);
