@@ -1,5 +1,6 @@
 import { deviceKeyStoreSchema } from '@/schemas';
 import { readIndexedDB, writeIndexedDB } from '@/utils/indexeddb';
+import { stableJSONSerialize } from '@/utils/json';
 import type { ManifestManager } from './manifest-manager';
 import type { Manifest, ClxDBCrypto, ClxDBOptions, DeviceKeyStore } from '@/types';
 
@@ -117,7 +118,7 @@ const deriveSigningKey = async (rootKey: CryptoKey) => {
 
 const getManifestForSign = (manifest: Manifest): Uint8Array<ArrayBuffer> => {
   const encoder = new TextEncoder();
-  const manifestForSign = JSON.stringify({
+  const manifestForSign = stableJSONSerialize({
     ...manifest,
     crypto: {
       ...manifest.crypto,
@@ -160,6 +161,22 @@ export class CryptoManager {
   constructor(crypto: ClxDBCrypto, options: ClxDBOptions) {
     this.crypto = crypto;
     this.options = options;
+  }
+
+  static async getStoredDeviceKey(options: ClxDBOptions): Promise<DeviceKeyStore | null> {
+    return readIndexedDB(DEVICE_KEY_STORE_KEY, options, deviceKeyStoreSchema);
+  }
+
+  static async hasUsableDeviceKey(
+    deviceKeyRegistry: Record<string, string>,
+    options: ClxDBOptions
+  ): Promise<boolean> {
+    const deviceKeyStore = await this.getStoredDeviceKey(options);
+    if (!deviceKeyStore) {
+      return false;
+    }
+
+    return !!deviceKeyRegistry[deviceKeyStore.deviceId];
   }
 
   async finalizeManifest(manifest: Manifest): Promise<Manifest> {
@@ -252,11 +269,7 @@ export class CryptoManager {
     }
 
     if (this.crypto.kind === 'quick-unlock') {
-      const deviceKeyStore = await readIndexedDB(
-        DEVICE_KEY_STORE_KEY,
-        this.options,
-        deviceKeyStoreSchema
-      );
+      const deviceKeyStore = await CryptoManager.getStoredDeviceKey(this.options);
 
       const deviceKeyRegistry = manifest.crypto.deviceKey;
       if (!deviceKeyStore || !deviceKeyRegistry[deviceKeyStore.deviceId]) {
@@ -340,11 +353,7 @@ export class CryptoManager {
         throw new Error('Attempting to open unencrypted database');
       }
 
-      const deviceKeyStore = await readIndexedDB(
-        DEVICE_KEY_STORE_KEY,
-        this.options,
-        deviceKeyStoreSchema
-      );
+      const deviceKeyStore = await CryptoManager.getStoredDeviceKey(this.options);
 
       const deviceId = deviceKeyStore?.deviceId ?? crypto.randomUUID();
       const deviceKeyRaw = crypto.getRandomValues(new Uint8Array(32));

@@ -1,9 +1,8 @@
-import { PROTOCOL_VERSION } from '@/constants';
+import { MANIFEST_PATH, PROTOCOL_VERSION } from '@/constants';
 import { manifestSchema } from '@/schemas';
 import { delayWithBackoff } from '@/utils/backoff';
 import type { StorageBackend, Manifest, ShardFileInfo, PossiblyPromise } from '@/types';
 
-const MANIFEST_PATH = 'manifest.json';
 const MAX_RETRIES = 10;
 
 export interface ManifestUpdateDescriptor {

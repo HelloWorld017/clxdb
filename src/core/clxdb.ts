@@ -7,7 +7,9 @@ import {
   DEFAULT_MAX_SHARD_LEVEL,
   DEFAULT_VACUUM_COUNT,
   DEFAULT_GC_GRACE_PERIOD,
+  MANIFEST_PATH,
 } from '@/constants';
+import { manifestSchema } from '@/schemas';
 import { EventEmitter } from '@/utils/event-emitter';
 import { createPromisePool } from '@/utils/promise-pool';
 import { CompactionEngine } from './engines/compaction-engine';
@@ -37,6 +39,13 @@ interface ClxDBParams {
   options: ClxDBClientOptions;
 }
 
+export interface ClxDBDatabaseStatus {
+  hasDatabase: boolean;
+  isEncrypted: boolean;
+  hasRegisteredDeviceKey: boolean;
+  hasUsableDeviceKey: boolean;
+}
+
 export class ClxDB extends EventEmitter<ClxDBEvents> {
   private database: DatabaseBackend;
   private storage: StorageBackend;
@@ -62,7 +71,7 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
     this.database = database;
     this.storage = storage;
     this.crypto = crypto;
-    this.options = this.normalizeOptions(options);
+    this.options = ClxDB.normalizeOptions(options);
     this.manifestManager = new ManifestManager(this.storage);
     this.cryptoManager = new CryptoManager(this.crypto, this.options);
     this.shardManager = new ShardManager(this.storage, this.options, this.cryptoManager);
@@ -85,7 +94,49 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
     this.vacuumEngine.bind(this);
   }
 
-  private normalizeOptions(options: ClxDBClientOptions): ClxDBOptions {
+  static async inspectDatabaseStatus(storage: StorageBackend): Promise<ClxDBDatabaseStatus> {
+    const stat = await storage.stat(MANIFEST_PATH);
+    if (!stat) {
+      return {
+        hasDatabase: false,
+        isEncrypted: false,
+        hasRegisteredDeviceKey: false,
+        hasUsableDeviceKey: false,
+      };
+    }
+
+    const content = await storage.read(MANIFEST_PATH);
+    const parsed = JSON.parse(new TextDecoder().decode(content)) as unknown;
+    const manifestResult = manifestSchema.safeParse(parsed);
+    if (!manifestResult.success) {
+      throw new Error(`Invalid manifest format: ${manifestResult.error.message}`);
+    }
+
+    const manifest = manifestResult.data;
+    if (!manifest.crypto) {
+      return {
+        hasDatabase: true,
+        isEncrypted: false,
+        hasRegisteredDeviceKey: false,
+        hasUsableDeviceKey: false,
+      };
+    }
+
+    const hasRegisteredDeviceKey = Object.keys(manifest.crypto.deviceKey).length > 0;
+    const hasUsableDeviceKey = await CryptoManager.hasUsableDeviceKey(
+      manifest.crypto.deviceKey,
+      ClxDB.normalizeOptions({})
+    );
+
+    return {
+      hasDatabase: true,
+      isEncrypted: true,
+      hasRegisteredDeviceKey,
+      hasUsableDeviceKey,
+    };
+  }
+
+  private static normalizeOptions(options: ClxDBClientOptions): ClxDBOptions {
     return {
       syncInterval: options.syncInterval ?? DEFAULT_SYNC_INTERVAL,
       compactionThreshold: options.compactionThreshold ?? DEFAULT_COMPACTION_THRESHOLD,
@@ -161,7 +212,7 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
       return { updatedFields: { crypto: crypto }, commit };
     });
 
-    commit();
+    await commit();
   }
 
   destroy() {
