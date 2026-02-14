@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { inspectClxDBStatus } from '@/core/utils/inspect';
+import { classes } from '@/utils/classes';
 import { DevicesTab } from './devices-tab';
 import { EncryptionTab } from './encryption-tab';
 import { ExportTab } from './export-tab';
 import { DevicesIcon, EncryptionIcon, ExportIcon, OverviewIcon } from './icons';
 import { OverviewTab } from './overview-tab';
-import { classes, getErrorMessage, getStorageOverview, resolveStorageMetadata } from './utils';
+import { getErrorMessage, getStorageOverview, resolveStorageMetadata } from './utils';
 import type { DatabaseSettingsProps, SettingsTab, TabOption } from './types';
 import type { ClxDBStatus } from '@/core/utils/inspect';
 
@@ -110,8 +111,8 @@ export function DatabaseSettings({
   return (
     <section
       className={classes(
-        `border-default-200 relative isolate mx-auto flex h-150 w-full max-w-4xl flex-col
-        overflow-hidden rounded-[2rem] border bg-white/85`,
+        `border-default-200 bg-default-50/85 relative isolate mx-auto flex h-150 w-full max-w-4xl
+        flex-col overflow-hidden rounded-[2rem] border`,
         className
       )}
     >
@@ -139,13 +140,16 @@ export function DatabaseSettings({
                     text-left font-medium transition-colors duration-200`,
                     isActive
                       ? 'border-default-100 bg-default-100 text-default-900'
-                      : 'text-default-700 hover:border-default-50 hover:bg-default-50'
+                      : `text-default-700 hover:border-default-50 hover:bg-default-100
+                        dark:hover:bg-default-50/30`
                   )}
                 >
                   <span
                     className={classes(
                       'flex flex-none rounded-md p-1.5 transition-colors duration-200',
-                      isActive ? 'bg-primary text-default-100' : 'bg-default-100/80'
+                      isActive
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-default-100 dark:bg-default-100/80'
                     )}
                   >
                     {option.icon}
@@ -159,8 +163,8 @@ export function DatabaseSettings({
 
         <div className="h-full min-h-0 p-4 pt-0">
           <div
-            className="border-default-200 h-full overflow-y-auto rounded-2xl border bg-white/85 p-5
-              sm:p-6"
+            className="border-default-200 bg-surface/85 h-full overflow-y-auto rounded-2xl border
+              p-5 sm:p-6"
           >
             {isInspecting && (
               <div

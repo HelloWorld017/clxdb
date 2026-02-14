@@ -182,8 +182,8 @@ export const EncryptionTab = ({
                   disabled={disabled || isUpdatingMasterPassword}
                   autoComplete="current-password"
                   className="border-default-300 text-default-800 focus:border-default-500
-                    disabled:border-default-200 disabled:bg-default-100 mt-2 w-full rounded-xl
-                    border bg-white px-3 py-2.5 text-sm font-normal transition-colors duration-200
+                    disabled:border-default-200 disabled:bg-default-100 bg-surface mt-2 w-full
+                    rounded-xl border px-3 py-2.5 text-sm font-normal transition-colors duration-200
                     outline-none disabled:cursor-not-allowed"
                 />
               </label>
@@ -202,9 +202,9 @@ export const EncryptionTab = ({
                     disabled={disabled || isUpdatingMasterPassword}
                     autoComplete="new-password"
                     className="border-default-300 text-default-800 focus:border-default-500
-                      disabled:border-default-200 disabled:bg-default-100 mt-2 w-full rounded-xl
-                      border bg-white px-3 py-2.5 text-sm font-normal transition-colors duration-200
-                      outline-none disabled:cursor-not-allowed"
+                      disabled:border-default-200 disabled:bg-default-100 bg-surface mt-2 w-full
+                      rounded-xl border px-3 py-2.5 text-sm font-normal transition-colors
+                      duration-200 outline-none disabled:cursor-not-allowed"
                   />
                 </label>
 
@@ -221,9 +221,9 @@ export const EncryptionTab = ({
                     disabled={disabled || isUpdatingMasterPassword}
                     autoComplete="new-password"
                     className="border-default-300 text-default-800 focus:border-default-500
-                      disabled:border-default-200 disabled:bg-default-100 mt-2 w-full rounded-xl
-                      border bg-white px-3 py-2.5 text-sm font-normal transition-colors duration-200
-                      outline-none disabled:cursor-not-allowed"
+                      disabled:border-default-200 disabled:bg-default-100 bg-surface mt-2 w-full
+                      rounded-xl border px-3 py-2.5 text-sm font-normal transition-colors
+                      duration-200 outline-none disabled:cursor-not-allowed"
                   />
                 </label>
               </div>
@@ -250,9 +250,10 @@ export const EncryptionTab = ({
             <button
               type="submit"
               disabled={disabled || isUpdatingMasterPassword}
-              className="bg-primary text-default-100 hover:bg-primary-hover disabled:bg-default-300
-                mt-4 inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm
-                font-semibold transition-colors duration-200 disabled:cursor-not-allowed"
+              className="bg-primary text-primary-foreground hover:bg-primary-hover
+                disabled:bg-default-300 mt-4 inline-flex items-center justify-center rounded-xl px-4
+                py-2.5 text-sm font-semibold transition-colors duration-200
+                disabled:cursor-not-allowed"
             >
               {isUpdatingMasterPassword ? 'Updating...' : 'Update master password'}
             </button>
@@ -282,8 +283,8 @@ export const EncryptionTab = ({
                 disabled={disabled || isUpdatingPin}
                 autoComplete="current-password"
                 className="border-default-300 text-default-800 focus:border-default-500
-                  disabled:border-default-200 disabled:bg-default-100 mt-2 w-full rounded-xl border
-                  bg-white px-3 py-2.5 text-sm font-normal transition-colors duration-200
+                  disabled:border-default-200 disabled:bg-default-100 bg-surface mt-2 w-full
+                  rounded-xl border px-3 py-2.5 text-sm font-normal transition-colors duration-200
                   outline-none disabled:cursor-not-allowed"
               />
             </label>
@@ -329,9 +330,10 @@ export const EncryptionTab = ({
             <button
               type="submit"
               disabled={disabled || isUpdatingPin}
-              className="bg-primary text-default-100 hover:bg-primary-hover disabled:bg-default-300
-                mt-4 inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm
-                font-semibold transition-colors duration-200 disabled:cursor-not-allowed"
+              className="bg-primary text-primary-foreground hover:bg-primary-hover
+                disabled:bg-default-300 mt-4 inline-flex items-center justify-center rounded-xl px-4
+                py-2.5 text-sm font-semibold transition-colors duration-200
+                disabled:cursor-not-allowed"
             >
               {isUpdatingPin ? 'Updating...' : 'Update quick unlock PIN'}
             </button>

@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useState } from 'react';
+import { classes } from '@/utils/classes';
 import type { SubmitEvent } from 'react';
 
 export type StoragePickerBackendType = 'filesystem-access' | 'opfs' | 'webdav';
@@ -39,9 +40,6 @@ export interface StoragePickerProps {
 type IconProps = {
   className?: string;
 };
-
-const classes = (...values: Array<string | null | undefined | false>) =>
-  values.filter(Boolean).join(' ');
 
 const normalizeWebDavUrl = (value: string) => {
   const parsed = new URL(value.trim());
@@ -310,9 +308,8 @@ export function StoragePicker({
   return (
     <section
       className={classes(
-        `border-default-200 bg-default-50/80 relative isolate mx-auto w-full max-w-4xl
-        overflow-hidden rounded-[2rem] border p-6 shadow-[0_34px_70px_-48px_rgba(24,24,27,0.45)]
-        backdrop-blur-sm sm:p-8`,
+        `border-default-200 bg-default-50/85 shadow-ui-soft relative isolate mx-auto w-full
+        max-w-4xl overflow-hidden rounded-[2rem] border p-6 backdrop-blur-sm sm:p-8`,
         className
       )}
     >
@@ -321,8 +318,8 @@ export function StoragePicker({
           rounded-full blur-3xl"
       />
       <div
-        className="pointer-events-none absolute -right-20 -bottom-28 h-56 w-56 rounded-full
-          bg-stone-300/35 blur-3xl"
+        className="bg-default-300/35 pointer-events-none absolute -right-20 -bottom-28 h-56 w-56
+          rounded-full blur-3xl"
       />
 
       <div className="relative">
@@ -351,9 +348,10 @@ export function StoragePicker({
                   className={classes(
                     'group relative rounded-2xl border p-4 text-left transition-all duration-200',
                     active
-                      ? 'border-primary bg-primary text-default-100 shadow-default-900/25 shadow-md'
-                      : `border-default-200 text-default-700 hover:border-default-400 bg-white/70
-                        hover:bg-white`,
+                      ? `border-primary bg-primary text-primary-foreground shadow-primary/25
+                        shadow-md`
+                      : `border-default-200 text-default-700 hover:border-default-400 bg-surface/70
+                        hover:bg-surface/90`,
                     isDisabled &&
                       'border-default-200 bg-default-100/80 text-default-400 cursor-not-allowed'
                   )}
@@ -372,7 +370,7 @@ export function StoragePicker({
                     <option.icon
                       className={classes(
                         'h-5 w-5 transition-colors duration-200',
-                        active ? 'text-default-100' : 'text-default-500',
+                        active ? 'text-primary-foreground' : 'text-default-500',
                         isDisabled && 'text-default-400'
                       )}
                     />
@@ -390,7 +388,7 @@ export function StoragePicker({
                   <p
                     className={classes(
                       'mt-1 text-xs leading-relaxed',
-                      active ? 'text-default-300' : 'text-default-500',
+                      active ? 'text-primary-foreground-muted' : 'text-default-500',
                       isDisabled && 'text-default-400'
                     )}
                   >
@@ -411,7 +409,7 @@ export function StoragePicker({
           </div>
 
           {selectedType === 'filesystem-access' && (
-            <div className="border-default-200 rounded-2xl border bg-white/80 p-4 sm:p-5">
+            <div className="border-default-200 bg-surface/80 rounded-2xl border p-4 sm:p-5">
               <div className="flex justify-between gap-2">
                 <div className="flex flex-col gap-1">
                   <p className="text-default-800 text-sm font-semibold">FileSystem Access API</p>
@@ -425,10 +423,10 @@ export function StoragePicker({
                   type="button"
                   onClick={pickDirectory}
                   disabled={controlsLocked || isPickingDirectory}
-                  className="border-default-300 bg-primary text-default-100 hover:bg-primary-hover
-                    disabled:border-default-200 disabled:bg-default-300 inline-flex items-center
-                    gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors
-                    duration-200 disabled:cursor-not-allowed"
+                  className="border-default-300 bg-primary text-primary-foreground
+                    hover:bg-primary-hover disabled:border-default-200 disabled:bg-default-300
+                    inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium
+                    transition-colors duration-200 disabled:cursor-not-allowed"
                 >
                   {isPickingDirectory ? 'Opening...' : 'Select Folder'}
                 </button>
@@ -441,7 +439,7 @@ export function StoragePicker({
           )}
 
           {selectedType === 'opfs' && (
-            <div className="border-default-200 rounded-2xl border bg-white/80 p-4 sm:p-5">
+            <div className="border-default-200 bg-surface/80 rounded-2xl border p-4 sm:p-5">
               <p className="text-default-800 text-sm font-semibold">
                 Origin Private File System (OPFS)
               </p>
@@ -452,7 +450,7 @@ export function StoragePicker({
           )}
 
           {selectedType === 'webdav' && (
-            <div className="border-default-200 rounded-2xl border bg-white/80 p-4 sm:p-5">
+            <div className="border-default-200 bg-surface/80 rounded-2xl border p-4 sm:p-5">
               <div className="grid gap-4">
                 <label className="text-default-800 text-sm font-semibold" htmlFor={webDavUrlId}>
                   WebDAV Endpoint
@@ -465,9 +463,9 @@ export function StoragePicker({
                     placeholder="https://cloud.example.com/remote.php/dav/files/user"
                     className="border-default-300 bg-default-50 text-default-800
                       placeholder:text-default-400 focus:border-default-500
-                      disabled:border-default-200 disabled:bg-default-100 mt-2 w-full rounded-xl
-                      border px-3 py-2.5 text-sm font-normal transition-colors duration-200
-                      outline-none focus:bg-white disabled:cursor-not-allowed"
+                      disabled:border-default-200 disabled:bg-default-100 focus:bg-surface mt-2
+                      w-full rounded-xl border px-3 py-2.5 text-sm font-normal transition-colors
+                      duration-200 outline-none disabled:cursor-not-allowed"
                   />
                 </label>
 
@@ -484,9 +482,9 @@ export function StoragePicker({
                       placeholder="my-user"
                       className="border-default-300 bg-default-50 text-default-800
                         placeholder:text-default-400 focus:border-default-500
-                        disabled:border-default-200 disabled:bg-default-100 mt-2 w-full rounded-xl
-                        border px-3 py-2.5 text-sm font-normal transition-colors duration-200
-                        outline-none focus:bg-white disabled:cursor-not-allowed"
+                        disabled:border-default-200 disabled:bg-default-100 focus:bg-surface mt-2
+                        w-full rounded-xl border px-3 py-2.5 text-sm font-normal transition-colors
+                        duration-200 outline-none disabled:cursor-not-allowed"
                     />
                   </label>
 
@@ -502,9 +500,9 @@ export function StoragePicker({
                       placeholder="••••••••"
                       className="border-default-300 bg-default-50 text-default-800
                         placeholder:text-default-400 focus:border-default-500
-                        disabled:border-default-200 disabled:bg-default-100 mt-2 w-full rounded-xl
-                        border px-3 py-2.5 text-sm font-normal transition-colors duration-200
-                        outline-none focus:bg-white disabled:cursor-not-allowed"
+                        disabled:border-default-200 disabled:bg-default-100 focus:bg-surface mt-2
+                        w-full rounded-xl border px-3 py-2.5 text-sm font-normal transition-colors
+                        duration-200 outline-none disabled:cursor-not-allowed"
                     />
                   </label>
                 </div>
@@ -526,8 +524,8 @@ export function StoragePicker({
                 disabled={controlsLocked}
                 className="border-default-300 text-default-700 hover:border-default-400
                   hover:bg-default-100 disabled:border-default-200 disabled:bg-default-100
-                  disabled:text-default-400 inline-flex items-center justify-center rounded-xl
-                  border bg-white px-4 py-2.5 text-sm font-medium transition-colors duration-200
+                  disabled:text-default-400 bg-surface inline-flex items-center justify-center
+                  rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors duration-200
                   disabled:cursor-not-allowed"
               >
                 Cancel
@@ -537,9 +535,10 @@ export function StoragePicker({
             <button
               type="submit"
               disabled={controlsLocked}
-              className="bg-primary text-default-100 hover:bg-primary-hover disabled:bg-default-300
-                inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-semibold
-                transition-colors duration-200 disabled:cursor-not-allowed"
+              className="bg-primary text-primary-foreground hover:bg-primary-hover
+                disabled:bg-default-300 inline-flex items-center justify-center rounded-xl px-5
+                py-2.5 text-sm font-semibold transition-colors duration-200
+                disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Applying...' : submitLabel}
             </button>

@@ -32,7 +32,7 @@ export const OverviewTab = ({
           {storageOverview.description}
         </p>
 
-        <div className="border-default-200 mt-4 rounded-xl border bg-white px-3 py-2.5">
+        <div className="border-default-200 bg-surface mt-4 rounded-xl border px-3 py-2.5">
           <p className="text-default-500 text-xs">{storageOverview.detailLabel}</p>
           <p
             className="text-default-800 mt-1 font-[ui-monospace,monospace] text-sm font-medium
@@ -50,7 +50,8 @@ export const OverviewTab = ({
 
         <div className="mt-3 space-y-2 text-sm">
           <div
-            className="border-default-200 flex flex-col gap-1 rounded-lg border bg-white px-3 py-2"
+            className="border-default-200 bg-surface flex flex-col gap-1 rounded-lg border px-3
+              py-2"
           >
             <span className="text-default-500 text-xs">UUID</span>
             <span
@@ -62,7 +63,8 @@ export const OverviewTab = ({
             </span>
           </div>
           <div
-            className="border-default-200 flex flex-col gap-1 rounded-lg border bg-white px-3 py-2"
+            className="border-default-200 bg-surface flex flex-col gap-1 rounded-lg border px-3
+              py-2"
           >
             <span className="text-default-500 text-xs">Encryption</span>
             <span className="text-default-800 font-medium">
@@ -70,7 +72,8 @@ export const OverviewTab = ({
             </span>
           </div>
           <div
-            className="border-default-200 flex flex-col gap-1 rounded-lg border bg-white px-3 py-2"
+            className="border-default-200 bg-surface flex flex-col gap-1 rounded-lg border px-3
+              py-2"
           >
             <span className="text-default-500 text-xs">Registered devices</span>
             <span className="text-default-800 font-medium">{registeredDeviceCount}</span>

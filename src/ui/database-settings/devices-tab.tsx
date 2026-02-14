@@ -121,11 +121,10 @@ export const DevicesTab = ({
                           onClick={() => void handleRemoveDevice(device.deviceId)}
                           disabled={disabled || isRemoving || isCurrentDevice}
                           className="border-default-300 text-default-700 disabled:border-default-200
-                            disabled:bg-default-100 disabled:text-default-400 inline-flex
-                            items-center justify-center rounded-lg border bg-white px-3 py-1.5
-                            text-xs font-semibold transition-colors duration-200
-                            hover:border-red-300 hover:bg-red-50 hover:text-red-700
-                            disabled:cursor-not-allowed"
+                            disabled:bg-default-100 disabled:text-default-400 bg-surface inline-flex
+                            items-center justify-center rounded-lg border px-3 py-1.5 text-xs
+                            font-semibold transition-colors duration-200 hover:border-red-300
+                            hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed"
                         >
                           {isRemoving ? 'Removing...' : 'Remove'}
                         </button>

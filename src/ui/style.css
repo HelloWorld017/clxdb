@@ -1,8 +1,12 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
   --color-primary: #0080ff;
   --color-primary-hover: #198dff;
+  --color-primary-foreground: oklch(0.968 0.007 247.896);
+  --color-primary-foreground-muted: oklch(0.869 0.022 252.894);
+  --color-surface: #ffffff;
+
   --color-default-50: oklch(0.984 0.003 247.858);
   --color-default-100: oklch(0.968 0.007 247.896);
   --color-default-200: oklch(0.929 0.013 255.508);
@@ -14,4 +18,10 @@
   --color-default-800: oklch(0.279 0.041 260.031);
   --color-default-900: oklch(0.208 0.042 265.755);
   --color-default-950: oklch(0.129 0.042 264.695);
+
+  --shadow-ui-soft: 0 34px 70px -48px rgba(24, 24, 27, 0.45);
+  --shadow-ui-medium: 0 24px 45px -36px rgba(24, 24, 27, 0.7);
+  --shadow-ui-strong: 0 14px 30px -22px rgba(24, 24, 27, 0.95);
 }
+
+@custom-variant dark (&:where(.dark, .dark *));

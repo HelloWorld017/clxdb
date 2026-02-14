@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { classes } from '@/utils/classes';
 import type { ClipboardEvent, KeyboardEvent } from 'react';
 
 export interface PinInputProps {
@@ -13,9 +14,6 @@ export interface PinInputProps {
 
 export const PIN_LENGTH = 6;
 const PIN_SLOT_KEYS = ['d1', 'd2', 'd3', 'd4', 'd5', 'd6'] as const;
-
-const classes = (...values: Array<string | null | undefined | false>) =>
-  values.filter(Boolean).join(' ');
 
 export const createEmptyPin = () => Array.from({ length: PIN_LENGTH }, () => '');
 
@@ -126,9 +124,9 @@ export const PinInput = ({
             onKeyDown={event => handleKeyDown(event, index)}
             onPaste={event => handlePaste(event, index)}
             className="border-default-300 bg-default-50 text-default-900 focus:border-default-500
-              disabled:border-default-200 disabled:bg-default-100 disabled:text-default-400 h-12
-              w-11 rounded-xl border text-center text-lg font-semibold tracking-[0.08em]
-              transition-colors duration-200 outline-none focus:bg-white
+              disabled:border-default-200 disabled:bg-default-100 disabled:text-default-400
+              focus:bg-surface h-12 w-11 rounded-xl border text-center text-lg font-semibold
+              tracking-[0.08em] transition-colors duration-200 outline-none
               disabled:cursor-not-allowed"
           />
         ))}

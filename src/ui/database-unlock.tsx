@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { inspectClxDBStatus } from '@/core/utils/inspect';
+import { classes } from '@/utils/classes';
 import {
   PIN_LENGTH,
   PinInput,
@@ -46,9 +47,6 @@ type UnlockMode =
   | 'master-recovery'
   | 'unsupported'
   | 'inspection-error';
-
-const classes = (...values: Array<string | null | undefined | false>) =>
-  values.filter(Boolean).join(' ');
 
 const getInspectErrorMessage = (error: unknown) => {
   const fallback = 'Unable to inspect storage metadata. Check connectivity and try again.';
@@ -279,9 +277,8 @@ export function DatabaseUnlock({
   return (
     <section
       className={classes(
-        `border-default-200 bg-default-50/85 relative isolate mx-auto w-full max-w-4xl
-        overflow-hidden rounded-[2rem] border p-6 shadow-[0_34px_70px_-48px_rgba(24,24,27,0.45)]
-        backdrop-blur-sm sm:p-8`,
+        `border-default-200 bg-default-50/85 shadow-ui-soft relative isolate mx-auto w-full
+        max-w-4xl overflow-hidden rounded-[2rem] border p-6 backdrop-blur-sm sm:p-8`,
         className
       )}
     >
@@ -290,8 +287,8 @@ export function DatabaseUnlock({
           rounded-full blur-3xl"
       />
       <div
-        className="pointer-events-none absolute -right-24 -bottom-20 h-56 w-56 rounded-full
-          bg-stone-300/35 blur-3xl"
+        className="bg-default-300/35 pointer-events-none absolute -right-24 -bottom-20 h-56 w-56
+          rounded-full blur-3xl"
       />
 
       <div className="relative">
@@ -312,9 +309,9 @@ export function DatabaseUnlock({
             disabled={controlsLocked}
             className="border-default-300 text-default-700 hover:border-default-400
               hover:bg-default-100 disabled:border-default-200 disabled:bg-default-100
-              disabled:text-default-400 inline-flex items-center justify-center rounded-xl border
-              bg-white px-3.5 py-2 text-xs font-semibold tracking-wide uppercase transition-colors
-              duration-200 disabled:cursor-not-allowed"
+              disabled:text-default-400 bg-surface inline-flex items-center justify-center
+              rounded-xl border px-3.5 py-2 text-xs font-semibold tracking-wide uppercase
+              transition-colors duration-200 disabled:cursor-not-allowed"
           >
             Re-scan
           </button>
@@ -348,8 +345,8 @@ export function DatabaseUnlock({
         {formVisible && (
           <form
             onSubmit={handleSubmit}
-            className="border-default-300 mt-7 space-y-5 rounded-2xl border bg-white/90 p-5 pt-1
-              shadow-[0_24px_45px_-36px_rgba(24,24,27,0.7)] sm:p-6 sm:pt-2"
+            className="border-default-300 bg-surface/90 shadow-ui-medium mt-7 space-y-5 rounded-2xl
+              border p-5 pt-1 sm:p-6 sm:pt-2"
           >
             {requiresMaster && (
               <label
@@ -368,9 +365,9 @@ export function DatabaseUnlock({
                   placeholder="Enter your master password"
                   className="border-default-300 bg-default-50 text-default-800
                     placeholder:text-default-400 focus:border-default-500
-                    disabled:border-default-200 disabled:bg-default-100 mt-6 w-[324px] rounded-xl
-                    border px-3 py-2.5 text-sm font-normal transition-colors duration-200
-                    outline-none focus:bg-white disabled:cursor-not-allowed"
+                    disabled:border-default-200 disabled:bg-default-100 focus:bg-surface mt-6
+                    w-[324px] rounded-xl border px-3 py-2.5 text-sm font-normal transition-colors
+                    duration-200 outline-none disabled:cursor-not-allowed"
                 />
               </label>
             )}
@@ -398,9 +395,9 @@ export function DatabaseUnlock({
             <button
               type="submit"
               disabled={controlsLocked}
-              className="bg-primary text-default-100 hover:bg-primary-hover disabled:bg-default-300
-                inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm
-                font-semibold shadow-[0_14px_30px_-22px_rgba(24,24,27,0.95)] transition-colors
+              className="bg-primary text-primary-foreground hover:bg-primary-hover
+                disabled:bg-default-300 shadow-ui-strong inline-flex w-full items-center
+                justify-center rounded-xl px-4 py-3 text-sm font-semibold transition-colors
                 duration-200 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Applying...' : submitLabel}

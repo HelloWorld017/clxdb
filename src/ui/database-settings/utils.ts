@@ -1,9 +1,6 @@
 import type { StorageOverview } from './types';
 import type { StorageBackend, StorageBackendMetadata } from '@/types';
 
-export const classes = (...values: Array<string | null | undefined | false>) =>
-  values.filter(Boolean).join(' ');
-
 export const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
 
