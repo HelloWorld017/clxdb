@@ -110,8 +110,8 @@ export function DatabaseSettings({
   return (
     <section
       className={classes(
-        `relative isolate mx-auto flex h-150 w-full max-w-4xl flex-col overflow-hidden
-        rounded-[2rem] border border-zinc-200 bg-white/85`,
+        `border-default-200 relative isolate mx-auto flex h-150 w-full max-w-4xl flex-col
+        overflow-hidden rounded-[2rem] border bg-white/85`,
         className
       )}
     >
@@ -119,14 +119,14 @@ export function DatabaseSettings({
         className="mb-3 flex flex-none flex-wrap items-start justify-between gap-4 px-8 py-6
           sm:mb-4"
       >
-        <p className="text-xs font-semibold tracking-[0.2em] text-zinc-500 uppercase">
+        <p className="text-default-500 text-xs font-semibold tracking-[0.2em] uppercase">
           Database Settings
         </p>
       </header>
 
       <div className="grid min-h-0 flex-1 gap-1 md:grid-cols-[13rem_minmax(0,1fr)]">
         <aside className="p-4 pt-0">
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-1">
+          <div className="grid grid-cols-2 md:grid-cols-1">
             {TAB_OPTIONS.map(option => {
               const isActive = activeTab === option.id;
               return (
@@ -138,14 +138,14 @@ export function DatabaseSettings({
                     `flex items-center gap-3 rounded-xl border border-transparent px-3 py-2
                     text-left font-medium transition-colors duration-200`,
                     isActive
-                      ? 'border-zinc-100 bg-zinc-100 text-zinc-900'
-                      : 'text-zinc-700 hover:border-zinc-50 hover:bg-zinc-50'
+                      ? 'border-default-100 bg-default-100 text-default-900'
+                      : 'text-default-700 hover:border-default-50 hover:bg-default-50'
                   )}
                 >
                   <span
                     className={classes(
                       'flex flex-none rounded-md p-1.5 transition-colors duration-200',
-                      isActive ? 'bg-zinc-700 text-zinc-100' : 'bg-zinc-100/80'
+                      isActive ? 'bg-primary text-default-100' : 'bg-default-100/80'
                     )}
                   >
                     {option.icon}
@@ -159,15 +159,15 @@ export function DatabaseSettings({
 
         <div className="h-full min-h-0 p-4 pt-0">
           <div
-            className="h-full overflow-y-auto rounded-2xl border border-zinc-200 bg-white/85 p-5
+            className="border-default-200 h-full overflow-y-auto rounded-2xl border bg-white/85 p-5
               sm:p-6"
           >
             {isInspecting && (
               <div
-                className="mb-4 inline-flex items-center gap-2 rounded-lg border border-zinc-200
-                  bg-zinc-100 px-3 py-2 text-sm text-zinc-600"
+                className="border-default-200 bg-default-100 text-default-600 mb-4 inline-flex
+                  items-center gap-2 rounded-lg border px-3 py-2 text-sm"
               >
-                <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-zinc-500" />
+                <span className="bg-default-500 h-2.5 w-2.5 animate-pulse rounded-full" />
                 Refreshing database metadata...
               </div>
             )}

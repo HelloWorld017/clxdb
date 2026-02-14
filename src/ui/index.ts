@@ -1,3 +1,5 @@
+import './style.css';
+
 export { DatabaseSettings } from './database-settings';
 export { DatabaseUnlock } from './database-unlock';
 export { StoragePicker } from './storage-picker';

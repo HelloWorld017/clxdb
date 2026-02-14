@@ -279,15 +279,15 @@ export function DatabaseUnlock({
   return (
     <section
       className={classes(
-        `relative isolate mx-auto w-full max-w-4xl overflow-hidden rounded-[2rem] border
-        border-zinc-200 bg-zinc-50/85 p-6 shadow-[0_34px_70px_-48px_rgba(24,24,27,0.45)]
+        `border-default-200 bg-default-50/85 relative isolate mx-auto w-full max-w-4xl
+        overflow-hidden rounded-[2rem] border p-6 shadow-[0_34px_70px_-48px_rgba(24,24,27,0.45)]
         backdrop-blur-sm sm:p-8`,
         className
       )}
     >
       <div
-        className="pointer-events-none absolute -top-20 -left-20 h-52 w-52 rounded-full
-          bg-zinc-300/40 blur-3xl"
+        className="bg-default-300/40 pointer-events-none absolute -top-20 -left-20 h-52 w-52
+          rounded-full blur-3xl"
       />
       <div
         className="pointer-events-none absolute -right-24 -bottom-20 h-56 w-56 rounded-full
@@ -297,24 +297,24 @@ export function DatabaseUnlock({
       <div className="relative">
         <header className="mb-6 flex flex-wrap items-start justify-between gap-4 sm:mb-7">
           <div className="max-w-2xl space-y-2">
-            <p className="text-xs font-semibold tracking-[0.2em] text-zinc-500 uppercase">
+            <p className="text-default-500 text-xs font-semibold tracking-[0.2em] uppercase">
               Database Encryption
             </p>
-            <h2 className="text-2xl font-semibold tracking-tight text-zinc-900 sm:text-3xl">
+            <h2 className="text-default-900 text-2xl font-semibold tracking-tight sm:text-3xl">
               {modeTitle}
             </h2>
-            <p className="text-sm leading-relaxed text-zinc-600">{modeDescription}</p>
+            <p className="text-default-600 text-sm leading-relaxed">{modeDescription}</p>
           </div>
 
           <button
             type="button"
             onClick={handleRefresh}
             disabled={controlsLocked}
-            className="inline-flex items-center justify-center rounded-xl border border-zinc-300
-              bg-white px-3.5 py-2 text-xs font-semibold tracking-wide text-zinc-700 uppercase
-              transition-colors duration-200 hover:border-zinc-400 hover:bg-zinc-100
-              disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100
-              disabled:text-zinc-400"
+            className="border-default-300 text-default-700 hover:border-default-400
+              hover:bg-default-100 disabled:border-default-200 disabled:bg-default-100
+              disabled:text-default-400 inline-flex items-center justify-center rounded-xl border
+              bg-white px-3.5 py-2 text-xs font-semibold tracking-wide uppercase transition-colors
+              duration-200 disabled:cursor-not-allowed"
           >
             Re-scan
           </button>
@@ -322,10 +322,10 @@ export function DatabaseUnlock({
 
         {mode === 'inspecting' && (
           <div
-            className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-100
-              px-3 py-2 text-sm text-zinc-600"
+            className="border-default-200 bg-default-100 text-default-600 inline-flex items-center
+              gap-2 rounded-lg border px-3 py-2 text-sm"
           >
-            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-zinc-500" />
+            <span className="bg-default-500 h-2.5 w-2.5 animate-pulse rounded-full" />
             Inspecting storage state...
           </div>
         )}
@@ -348,13 +348,13 @@ export function DatabaseUnlock({
         {formVisible && (
           <form
             onSubmit={handleSubmit}
-            className="mt-7 space-y-5 rounded-2xl border border-zinc-300 bg-white/90 p-5 pt-1
+            className="border-default-300 mt-7 space-y-5 rounded-2xl border bg-white/90 p-5 pt-1
               shadow-[0_24px_45px_-36px_rgba(24,24,27,0.7)] sm:p-6 sm:pt-2"
           >
             {requiresMaster && (
               <label
-                className="text-md my-12 block flex flex-col items-center space-y-2 font-semibold
-                  text-zinc-800"
+                className="text-md text-default-800 my-12 block flex flex-col items-center space-y-2
+                  font-semibold"
                 htmlFor={`${baseId}-master`}
               >
                 <span>Master Password</span>
@@ -366,10 +366,11 @@ export function DatabaseUnlock({
                   autoComplete={mode === 'create' ? 'new-password' : 'current-password'}
                   disabled={controlsLocked}
                   placeholder="Enter your master password"
-                  className="mt-6 w-[324px] rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2.5
-                    text-sm font-normal text-zinc-800 transition-colors duration-200 outline-none
-                    placeholder:text-zinc-400 focus:border-zinc-500 focus:bg-white
-                    disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100"
+                  className="border-default-300 bg-default-50 text-default-800
+                    placeholder:text-default-400 focus:border-default-500
+                    disabled:border-default-200 disabled:bg-default-100 mt-6 w-[324px] rounded-xl
+                    border px-3 py-2.5 text-sm font-normal transition-colors duration-200
+                    outline-none focus:bg-white disabled:cursor-not-allowed"
                 />
               </label>
             )}
@@ -397,10 +398,10 @@ export function DatabaseUnlock({
             <button
               type="submit"
               disabled={controlsLocked}
-              className="inline-flex w-full items-center justify-center rounded-xl bg-zinc-900 px-4
-                py-3 text-sm font-semibold text-zinc-100
-                shadow-[0_14px_30px_-22px_rgba(24,24,27,0.95)] transition-colors duration-200
-                hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+              className="bg-primary text-default-100 hover:bg-primary-hover disabled:bg-default-300
+                inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm
+                font-semibold shadow-[0_14px_30px_-22px_rgba(24,24,27,0.95)] transition-colors
+                duration-200 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Applying...' : submitLabel}
             </button>

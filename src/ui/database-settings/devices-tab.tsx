@@ -51,14 +51,17 @@ export const DevicesTab = ({
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-lg font-semibold text-zinc-900">Trusted devices</h3>
-        <p className="mt-1 text-sm text-zinc-600">
+        <h3 className="text-default-900 text-lg font-semibold">Trusted devices</h3>
+        <p className="text-default-600 mt-1 text-sm">
           Remove device keys that should no longer unlock this database.
         </p>
       </div>
 
       {!status?.hasDatabase ? (
-        <p className="rounded-xl border border-zinc-300 bg-zinc-100 px-3 py-2 text-sm text-zinc-700">
+        <p
+          className="border-default-300 bg-default-100 text-default-700 rounded-xl border px-3 py-2
+            text-sm"
+        >
           No database detected for this storage backend yet.
         </p>
       ) : status.isEncrypted ? (
@@ -71,8 +74,8 @@ export const DevicesTab = ({
 
           {registeredDevices.length === 0 ? (
             <p
-              className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-3 py-4
-                text-sm text-zinc-500"
+              className="border-default-300 bg-default-50 text-default-500 rounded-xl border
+                border-dashed px-3 py-4 text-sm"
             >
               No registered quick-unlock devices yet.
             </p>
@@ -85,18 +88,20 @@ export const DevicesTab = ({
                 return (
                   <article
                     key={device.deviceId}
-                    className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-4"
+                    className="border-default-200 bg-default-50/70 rounded-xl border p-4"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-zinc-900">{device.deviceName}</p>
+                        <p className="text-default-900 text-sm font-semibold">
+                          {device.deviceName}
+                        </p>
                         <p
-                          className="mt-1 font-['IBM_Plex_Mono','ui-monospace','monospace'] text-xs
-                            text-zinc-500"
+                          className="text-default-500 mt-1
+                            font-['IBM_Plex_Mono','ui-monospace','monospace'] text-xs"
                         >
                           ID: {formatDeviceId(device.deviceId)}
                         </p>
-                        <p className="mt-1 text-xs text-zinc-500">
+                        <p className="text-default-500 mt-1 text-xs">
                           Last used: {formatLastUsedAt(device.lastUsedAt)}
                         </p>
                       </div>
@@ -115,11 +120,12 @@ export const DevicesTab = ({
                           type="button"
                           onClick={() => void handleRemoveDevice(device.deviceId)}
                           disabled={disabled || isRemoving || isCurrentDevice}
-                          className="inline-flex items-center justify-center rounded-lg border
-                            border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700
-                            transition-colors duration-200 hover:border-red-300 hover:bg-red-50
-                            hover:text-red-700 disabled:cursor-not-allowed disabled:border-zinc-200
-                            disabled:bg-zinc-100 disabled:text-zinc-400"
+                          className="border-default-300 text-default-700 disabled:border-default-200
+                            disabled:bg-default-100 disabled:text-default-400 inline-flex
+                            items-center justify-center rounded-lg border bg-white px-3 py-1.5
+                            text-xs font-semibold transition-colors duration-200
+                            hover:border-red-300 hover:bg-red-50 hover:text-red-700
+                            disabled:cursor-not-allowed"
                         >
                           {isRemoving ? 'Removing...' : 'Remove'}
                         </button>

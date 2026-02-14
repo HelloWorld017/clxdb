@@ -101,7 +101,7 @@ export const PinInput = ({
   return (
     <div className={classes('my-12 flex flex-col items-center space-y-2', className)}>
       <div className="flex items-center justify-between">
-        <label className="text-md font-semibold text-zinc-800" htmlFor={`${idPrefix}-0`}>
+        <label className="text-md text-default-800 font-semibold" htmlFor={`${idPrefix}-0`}>
           {label}
         </label>
       </div>
@@ -125,15 +125,16 @@ export const PinInput = ({
             onChange={event => handleChange(index, event.target.value)}
             onKeyDown={event => handleKeyDown(event, index)}
             onPaste={event => handlePaste(event, index)}
-            className="h-12 w-11 rounded-xl border border-zinc-300 bg-zinc-50 text-center text-lg
-              font-semibold tracking-[0.08em] text-zinc-900 transition-colors duration-200
-              outline-none focus:border-zinc-500 focus:bg-white disabled:cursor-not-allowed
-              disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400"
+            className="border-default-300 bg-default-50 text-default-900 focus:border-default-500
+              disabled:border-default-200 disabled:bg-default-100 disabled:text-default-400 h-12
+              w-11 rounded-xl border text-center text-lg font-semibold tracking-[0.08em]
+              transition-colors duration-200 outline-none focus:bg-white
+              disabled:cursor-not-allowed"
           />
         ))}
       </div>
 
-      <p className="max-w-[324px] text-center text-xs text-zinc-500">{hint}</p>
+      <p className="text-default-500 max-w-[324px] text-center text-xs">{hint}</p>
     </div>
   );
 };
