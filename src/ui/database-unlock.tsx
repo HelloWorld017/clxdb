@@ -7,6 +7,7 @@ import {
   isCompletePin,
   pinToString,
 } from './common/pin-input';
+import { ThemeBoundary } from './theme-provider';
 import type { ClxDBStatus } from '@/core/utils/inspect';
 import type { ClxDBClientOptions, StorageBackend } from '@/types';
 import type { SubmitEvent } from 'react';
@@ -277,136 +278,154 @@ export function DatabaseUnlock({
   };
 
   return (
-    <section
-      className={classes(
-        `relative isolate mx-auto w-full max-w-4xl overflow-hidden rounded-[2rem] border
-        border-zinc-200 bg-zinc-50/85 p-6 shadow-[0_34px_70px_-48px_rgba(24,24,27,0.45)]
-        backdrop-blur-sm sm:p-8`,
-        className
-      )}
-    >
-      <div
-        className="pointer-events-none absolute -top-20 -left-20 h-52 w-52 rounded-full
-          bg-zinc-300/40 blur-3xl"
-      />
-      <div
-        className="pointer-events-none absolute -right-24 -bottom-20 h-56 w-56 rounded-full
-          bg-stone-300/35 blur-3xl"
-      />
-
-      <div className="relative">
-        <header className="mb-6 flex flex-wrap items-start justify-between gap-4 sm:mb-7">
-          <div className="max-w-2xl space-y-2">
-            <p className="text-xs font-semibold tracking-[0.2em] text-zinc-500 uppercase">
-              Database Encryption
-            </p>
-            <h2 className="text-2xl font-semibold tracking-tight text-zinc-900 sm:text-3xl">
-              {modeTitle}
-            </h2>
-            <p className="text-sm leading-relaxed text-zinc-600">{modeDescription}</p>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={controlsLocked}
-            className="inline-flex items-center justify-center rounded-xl border border-zinc-300
-              bg-white px-3.5 py-2 text-xs font-semibold tracking-wide text-zinc-700 uppercase
-              transition-colors duration-200 hover:border-zinc-400 hover:bg-zinc-100
-              disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100
-              disabled:text-zinc-400"
-          >
-            Re-scan
-          </button>
-        </header>
-
-        {mode === 'inspecting' && (
-          <div
-            className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-100
-              px-3 py-2 text-sm text-zinc-600"
-          >
-            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-zinc-500" />
-            Inspecting storage state...
-          </div>
+    <ThemeBoundary>
+      <section
+        className={classes(
+          `relative isolate mx-auto w-full max-w-4xl overflow-hidden rounded-[2rem] border
+          border-[var(--clxdb-color-200)] bg-[var(--clxdb-color-50)]/85 p-6
+          shadow-[0_34px_70px_-48px_rgba(24,24,27,0.45)] backdrop-blur-sm sm:p-8`,
+          className
         )}
+      >
+        <div
+          className="pointer-events-none absolute -top-20 -left-20 h-52 w-52 rounded-full
+            bg-[var(--clxdb-color-300)]/40 blur-3xl"
+        />
+        <div
+          className="pointer-events-none absolute -right-24 -bottom-20 h-56 w-56 rounded-full
+            bg-[var(--clxdb-color-accent-300)]/35 blur-3xl"
+        />
 
-        {mode === 'inspection-error' && inspectError && (
-          <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {inspectError}
-          </p>
-        )}
-
-        {mode === 'unsupported' && (
-          <p
-            className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm
-              text-amber-800"
-          >
-            This backend appears to host an unencrypted database.
-          </p>
-        )}
-
-        {formVisible && (
-          <form
-            onSubmit={handleSubmit}
-            className="mt-7 space-y-5 rounded-2xl border border-zinc-300 bg-white/90 p-5 pt-1
-              shadow-[0_24px_45px_-36px_rgba(24,24,27,0.7)] sm:p-6 sm:pt-2"
-          >
-            {requiresMaster && (
-              <label
-                className="text-md my-12 block flex flex-col items-center space-y-2 font-semibold
-                  text-zinc-800"
-                htmlFor={`${baseId}-master`}
-              >
-                <span>Master Password</span>
-                <input
-                  id={`${baseId}-master`}
-                  type="password"
-                  value={masterPassword}
-                  onChange={event => setMasterPassword(event.target.value)}
-                  autoComplete={mode === 'create' ? 'new-password' : 'current-password'}
-                  disabled={controlsLocked}
-                  placeholder="Enter your master password"
-                  className="mt-6 w-[324px] rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2.5
-                    text-sm font-normal text-zinc-800 transition-colors duration-200 outline-none
-                    placeholder:text-zinc-400 focus:border-zinc-500 focus:bg-white
-                    disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100"
-                />
-              </label>
-            )}
-
-            {requiresPin && (
-              <PinInput
-                idPrefix={`${baseId}-pin`}
-                label={mode === 'master-recovery' ? 'New Quick Unlock PIN' : 'Quick Unlock PIN'}
-                hint="PIN is local to this device and unlocks your database without re-entering the master password."
-                digits={quickUnlockPinDigits}
-                disabled={controlsLocked}
-                onChange={setQuickUnlockPinDigits}
-              />
-            )}
-
-            {submitError && (
+        <div className="relative">
+          <header className="mb-6 flex flex-wrap items-start justify-between gap-4 sm:mb-7">
+            <div className="max-w-2xl space-y-2">
               <p
-                className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm
-                  text-red-700"
+                className="text-xs font-semibold tracking-[0.2em] text-[var(--clxdb-color-500)]
+                  uppercase"
               >
-                {submitError}
+                Database Encryption
               </p>
-            )}
+              <h2
+                className="text-2xl font-semibold tracking-tight text-[var(--clxdb-color-900)]
+                  sm:text-3xl"
+              >
+                {modeTitle}
+              </h2>
+              <p className="text-sm leading-relaxed text-[var(--clxdb-color-600)]">
+                {modeDescription}
+              </p>
+            </div>
 
             <button
-              type="submit"
+              type="button"
+              onClick={handleRefresh}
               disabled={controlsLocked}
-              className="inline-flex w-full items-center justify-center rounded-xl bg-zinc-900 px-4
-                py-3 text-sm font-semibold text-zinc-100
-                shadow-[0_14px_30px_-22px_rgba(24,24,27,0.95)] transition-colors duration-200
-                hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+              className="inline-flex items-center justify-center rounded-xl border
+                border-[var(--clxdb-color-300)] bg-[var(--clxdb-color-surface)] px-3.5 py-2 text-xs
+                font-semibold tracking-wide text-[var(--clxdb-color-700)] uppercase
+                transition-colors duration-200 hover:border-[var(--clxdb-color-400)]
+                hover:bg-[var(--clxdb-color-100)] disabled:cursor-not-allowed
+                disabled:border-[var(--clxdb-color-200)] disabled:bg-[var(--clxdb-color-100)]
+                disabled:text-[var(--clxdb-color-400)]"
             >
-              {isSubmitting ? 'Applying...' : submitLabel}
+              Re-scan
             </button>
-          </form>
-        )}
-      </div>
-    </section>
+          </header>
+
+          {mode === 'inspecting' && (
+            <div
+              className="inline-flex items-center gap-2 rounded-lg border
+                border-[var(--clxdb-color-200)] bg-[var(--clxdb-color-100)] px-3 py-2 text-sm
+                text-[var(--clxdb-color-600)]"
+            >
+              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[var(--clxdb-color-500)]" />
+              Inspecting storage state...
+            </div>
+          )}
+
+          {mode === 'inspection-error' && inspectError && (
+            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {inspectError}
+            </p>
+          )}
+
+          {mode === 'unsupported' && (
+            <p
+              className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm
+                text-amber-800"
+            >
+              This backend appears to host an unencrypted database.
+            </p>
+          )}
+
+          {formVisible && (
+            <form
+              onSubmit={handleSubmit}
+              className="mt-7 space-y-5 rounded-2xl border border-[var(--clxdb-color-300)]
+                bg-[var(--clxdb-color-surface)]/90 p-5 pt-1
+                shadow-[0_24px_45px_-36px_rgba(24,24,27,0.7)] sm:p-6 sm:pt-2"
+            >
+              {requiresMaster && (
+                <label
+                  className="text-md my-12 block flex flex-col items-center space-y-2 font-semibold
+                    text-[var(--clxdb-color-800)]"
+                  htmlFor={`${baseId}-master`}
+                >
+                  <span>Master Password</span>
+                  <input
+                    id={`${baseId}-master`}
+                    type="password"
+                    value={masterPassword}
+                    onChange={event => setMasterPassword(event.target.value)}
+                    autoComplete={mode === 'create' ? 'new-password' : 'current-password'}
+                    disabled={controlsLocked}
+                    placeholder="Enter your master password"
+                    className="mt-6 w-[324px] rounded-xl border border-[var(--clxdb-color-300)]
+                      bg-[var(--clxdb-color-50)] px-3 py-2.5 text-sm font-normal
+                      text-[var(--clxdb-color-800)] transition-colors duration-200 outline-none
+                      placeholder:text-[var(--clxdb-color-400)]
+                      focus:border-[var(--clxdb-color-500)] focus:bg-[var(--clxdb-color-surface)]
+                      disabled:cursor-not-allowed disabled:border-[var(--clxdb-color-200)]
+                      disabled:bg-[var(--clxdb-color-100)]"
+                  />
+                </label>
+              )}
+
+              {requiresPin && (
+                <PinInput
+                  idPrefix={`${baseId}-pin`}
+                  label={mode === 'master-recovery' ? 'New Quick Unlock PIN' : 'Quick Unlock PIN'}
+                  hint="PIN is local to this device and unlocks your database without re-entering the master password."
+                  digits={quickUnlockPinDigits}
+                  disabled={controlsLocked}
+                  onChange={setQuickUnlockPinDigits}
+                />
+              )}
+
+              {submitError && (
+                <p
+                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm
+                    text-red-700"
+                >
+                  {submitError}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={controlsLocked}
+                className="inline-flex w-full items-center justify-center rounded-xl
+                  bg-[var(--clxdb-color-900)] px-4 py-3 text-sm font-semibold
+                  text-[var(--clxdb-color-100)] shadow-[0_14px_30px_-22px_rgba(24,24,27,0.95)]
+                  transition-colors duration-200 hover:bg-[var(--clxdb-color-800)]
+                  disabled:cursor-not-allowed disabled:bg-[var(--clxdb-color-300)]"
+              >
+                {isSubmitting ? 'Applying...' : submitLabel}
+              </button>
+            </form>
+          )}
+        </div>
+      </section>
+    </ThemeBoundary>
   );
 }

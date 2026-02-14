@@ -101,7 +101,10 @@ export const PinInput = ({
   return (
     <div className={classes('my-12 flex flex-col items-center space-y-2', className)}>
       <div className="flex items-center justify-between">
-        <label className="text-md font-semibold text-zinc-800" htmlFor={`${idPrefix}-0`}>
+        <label
+          className="text-md font-semibold text-[var(--clxdb-color-800)]"
+          htmlFor={`${idPrefix}-0`}
+        >
           {label}
         </label>
       </div>
@@ -125,15 +128,17 @@ export const PinInput = ({
             onChange={event => handleChange(index, event.target.value)}
             onKeyDown={event => handleKeyDown(event, index)}
             onPaste={event => handlePaste(event, index)}
-            className="h-12 w-11 rounded-xl border border-zinc-300 bg-zinc-50 text-center text-lg
-              font-semibold tracking-[0.08em] text-zinc-900 transition-colors duration-200
-              outline-none focus:border-zinc-500 focus:bg-white disabled:cursor-not-allowed
-              disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400"
+            className="h-12 w-11 rounded-xl border border-[var(--clxdb-color-300)]
+              bg-[var(--clxdb-color-50)] text-center text-lg font-semibold tracking-[0.08em]
+              text-[var(--clxdb-color-900)] transition-colors duration-200 outline-none
+              focus:border-[var(--clxdb-color-500)] focus:bg-[var(--clxdb-color-surface)]
+              disabled:cursor-not-allowed disabled:border-[var(--clxdb-color-200)]
+              disabled:bg-[var(--clxdb-color-100)] disabled:text-[var(--clxdb-color-400)]"
           />
         ))}
       </div>
 
-      <p className="max-w-[324px] text-center text-xs text-zinc-500">{hint}</p>
+      <p className="max-w-[324px] text-center text-xs text-[var(--clxdb-color-500)]">{hint}</p>
     </div>
   );
 };
