@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { inspectClxDBStatus } from '@/core/utils/inspect';
-import { ThemeBoundary } from '../theme-provider';
 import { DevicesTab } from './devices-tab';
 import { EncryptionTab } from './encryption-tab';
 import { ExportTab } from './export-tab';
@@ -109,122 +108,110 @@ export function DatabaseSettings({
   const registeredDeviceCount = status?.registeredDeviceKeys.length ?? 0;
 
   return (
-    <ThemeBoundary>
-      <section
-        className={classes(
-          `relative isolate mx-auto flex h-150 w-full max-w-4xl flex-col overflow-hidden
-          rounded-[2rem] border border-[var(--clxdb-color-200)] bg-[var(--clxdb-color-surface)]/85`,
-          className
-        )}
+    <section
+      className={classes(
+        `relative isolate mx-auto flex h-150 w-full max-w-4xl flex-col overflow-hidden
+        rounded-[2rem] border border-zinc-200 bg-white/85`,
+        className
+      )}
+    >
+      <header
+        className="mb-3 flex flex-none flex-wrap items-start justify-between gap-4 px-8 py-6
+          sm:mb-4"
       >
-        <header
-          className="mb-3 flex flex-none flex-wrap items-start justify-between gap-4 px-8 py-6
-            sm:mb-4"
-        >
-          <p
-            className="text-xs font-semibold tracking-[0.2em] text-[var(--clxdb-color-500)]
-              uppercase"
-          >
-            Database Settings
-          </p>
-        </header>
+        <p className="text-xs font-semibold tracking-[0.2em] text-zinc-500 uppercase">
+          Database Settings
+        </p>
+      </header>
 
-        <div className="grid min-h-0 flex-1 gap-1 md:grid-cols-[13rem_minmax(0,1fr)]">
-          <aside className="p-4 pt-0">
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-1">
-              {TAB_OPTIONS.map(option => {
-                const isActive = activeTab === option.id;
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => setActiveTab(option.id)}
-                    className={classes(
-                      `flex items-center gap-3 rounded-xl border border-transparent px-3 py-2
-                      text-left font-medium transition-colors duration-200`,
-                      isActive
-                        ? `border-[var(--clxdb-color-100)] bg-[var(--clxdb-color-100)]
-                          text-[var(--clxdb-color-900)]`
-                        : `text-[var(--clxdb-color-700)] hover:border-[var(--clxdb-color-50)]
-                          hover:bg-[var(--clxdb-color-50)]`
-                    )}
-                  >
-                    <span
-                      className={classes(
-                        'flex flex-none rounded-md p-1.5 transition-colors duration-200',
-                        isActive
-                          ? 'bg-[var(--clxdb-color-700)] text-[var(--clxdb-color-100)]'
-                          : 'bg-[var(--clxdb-color-100)]/80'
-                      )}
-                    >
-                      {option.icon}
-                    </span>
-                    <p className="text-sm">{option.label}</p>
-                  </button>
-                );
-              })}
-            </div>
-          </aside>
-
-          <div className="h-full min-h-0 p-4 pt-0">
-            <div
-              className="h-full overflow-y-auto rounded-2xl border border-[var(--clxdb-color-200)]
-                bg-[var(--clxdb-color-surface)]/85 p-5 sm:p-6"
-            >
-              {isInspecting && (
-                <div
-                  className="mb-4 inline-flex items-center gap-2 rounded-lg border
-                    border-[var(--clxdb-color-200)] bg-[var(--clxdb-color-100)] px-3 py-2 text-sm
-                    text-[var(--clxdb-color-600)]"
+      <div className="grid min-h-0 flex-1 gap-1 md:grid-cols-[13rem_minmax(0,1fr)]">
+        <aside className="p-4 pt-0">
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-1">
+            {TAB_OPTIONS.map(option => {
+              const isActive = activeTab === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setActiveTab(option.id)}
+                  className={classes(
+                    `flex items-center gap-3 rounded-xl border border-transparent px-3 py-2
+                    text-left font-medium transition-colors duration-200`,
+                    isActive
+                      ? 'border-zinc-100 bg-zinc-100 text-zinc-900'
+                      : 'text-zinc-700 hover:border-zinc-50 hover:bg-zinc-50'
+                  )}
                 >
                   <span
-                    className="h-2.5 w-2.5 animate-pulse rounded-full bg-[var(--clxdb-color-500)]"
-                  />
-                  Refreshing database metadata...
-                </div>
-              )}
+                    className={classes(
+                      'flex flex-none rounded-md p-1.5 transition-colors duration-200',
+                      isActive ? 'bg-zinc-700 text-zinc-100' : 'bg-zinc-100/80'
+                    )}
+                  >
+                    {option.icon}
+                  </span>
+                  <p className="text-sm">{option.label}</p>
+                </button>
+              );
+            })}
+          </div>
+        </aside>
 
-              {inspectError && (
-                <p
-                  className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm
-                    text-red-700"
-                >
-                  {inspectError}
-                </p>
-              )}
+        <div className="h-full min-h-0 p-4 pt-0">
+          <div
+            className="h-full overflow-y-auto rounded-2xl border border-zinc-200 bg-white/85 p-5
+              sm:p-6"
+          >
+            {isInspecting && (
+              <div
+                className="mb-4 inline-flex items-center gap-2 rounded-lg border border-zinc-200
+                  bg-zinc-100 px-3 py-2 text-sm text-zinc-600"
+              >
+                <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-zinc-500" />
+                Refreshing database metadata...
+              </div>
+            )}
 
-              {activeTab === 'overview' && (
-                <OverviewTab
-                  status={status}
-                  registeredDeviceCount={registeredDeviceCount}
-                  storageOverview={storageOverview}
-                />
-              )}
+            {inspectError && (
+              <p
+                className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm
+                  text-red-700"
+              >
+                {inspectError}
+              </p>
+            )}
 
-              {activeTab === 'encryption' && (
-                <EncryptionTab
-                  status={status}
-                  disabled={controlsLocked}
-                  onUpdateMasterPassword={handleUpdateMasterPassword}
-                  onUpdateQuickUnlockPin={handleUpdateQuickUnlockPin}
-                />
-              )}
+            {activeTab === 'overview' && (
+              <OverviewTab
+                status={status}
+                registeredDeviceCount={registeredDeviceCount}
+                storageOverview={storageOverview}
+              />
+            )}
 
-              {activeTab === 'devices' && (
-                <DevicesTab
-                  status={status}
-                  currentDeviceId={currentDeviceId}
-                  disabled={controlsLocked}
-                  onRemoveDevice={handleRemoveDevice}
-                />
-              )}
+            {activeTab === 'encryption' && (
+              <EncryptionTab
+                status={status}
+                disabled={controlsLocked}
+                onUpdateMasterPassword={handleUpdateMasterPassword}
+                onUpdateQuickUnlockPin={handleUpdateQuickUnlockPin}
+              />
+            )}
 
-              {activeTab === 'export' && <ExportTab />}
-            </div>
+            {activeTab === 'devices' && (
+              <DevicesTab
+                status={status}
+                currentDeviceId={currentDeviceId}
+                disabled={controlsLocked}
+                onRemoveDevice={handleRemoveDevice}
+              />
+            )}
+
+            {activeTab === 'export' && <ExportTab />}
           </div>
         </div>
-      </section>
-    </ThemeBoundary>
+      </div>
+    </section>
   );
 }
 

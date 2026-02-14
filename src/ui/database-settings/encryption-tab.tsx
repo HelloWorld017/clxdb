@@ -142,41 +142,32 @@ export const EncryptionTab = ({
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-lg font-semibold text-[var(--clxdb-color-900)]">
-          Encryption credentials
-        </h3>
-        <p className="mt-1 text-sm text-[var(--clxdb-color-600)]">
+        <h3 className="text-lg font-semibold text-zinc-900">Encryption credentials</h3>
+        <p className="mt-1 text-sm text-zinc-600">
           Rotate your master password and refresh this device PIN without recreating the database.
         </p>
       </div>
 
       {!status?.hasDatabase ? (
-        <p
-          className="rounded-xl border border-[var(--clxdb-color-300)] bg-[var(--clxdb-color-100)]
-            px-3 py-2 text-sm text-[var(--clxdb-color-700)]"
-        >
+        <p className="rounded-xl border border-zinc-300 bg-zinc-100 px-3 py-2 text-sm text-zinc-700">
           No database detected for this storage backend yet.
         </p>
       ) : status.isEncrypted ? (
         <>
           <form
             onSubmit={handleMasterPasswordSubmit}
-            className="rounded-2xl border border-[var(--clxdb-color-200)]
-              bg-[var(--clxdb-color-50)]/70 p-4"
+            className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4"
           >
             <div className="mb-3">
-              <p className="text-sm font-semibold text-[var(--clxdb-color-900)]">
-                Change master password
-              </p>
-              <p className="mt-1 text-xs leading-relaxed text-[var(--clxdb-color-500)]">
+              <p className="text-sm font-semibold text-zinc-900">Change master password</p>
+              <p className="mt-1 text-xs leading-relaxed text-zinc-500">
                 This updates the encryption key wrapping metadata for all devices.
               </p>
             </div>
 
             <div className="grid gap-3">
               <label
-                className="text-xs font-semibold tracking-wide text-[var(--clxdb-color-600)]
-                  uppercase"
+                className="text-xs font-semibold tracking-wide text-zinc-600 uppercase"
                 htmlFor={`${baseId}-current-master-password`}
               >
                 Current master password
@@ -187,18 +178,16 @@ export const EncryptionTab = ({
                   onChange={event => setCurrentMasterPassword(event.target.value)}
                   disabled={disabled || isUpdatingMasterPassword}
                   autoComplete="current-password"
-                  className="mt-2 w-full rounded-xl border border-[var(--clxdb-color-300)]
-                    bg-[var(--clxdb-color-surface)] px-3 py-2.5 text-sm font-normal
-                    text-[var(--clxdb-color-800)] transition-colors duration-200 outline-none
-                    focus:border-[var(--clxdb-color-500)] disabled:cursor-not-allowed
-                    disabled:border-[var(--clxdb-color-200)] disabled:bg-[var(--clxdb-color-100)]"
+                  className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5
+                    text-sm font-normal text-zinc-800 transition-colors duration-200 outline-none
+                    focus:border-zinc-500 disabled:cursor-not-allowed disabled:border-zinc-200
+                    disabled:bg-zinc-100"
                 />
               </label>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <label
-                  className="text-xs font-semibold tracking-wide text-[var(--clxdb-color-600)]
-                    uppercase"
+                  className="text-xs font-semibold tracking-wide text-zinc-600 uppercase"
                   htmlFor={`${baseId}-new-master-password`}
                 >
                   New master password
@@ -209,17 +198,15 @@ export const EncryptionTab = ({
                     onChange={event => setNewMasterPassword(event.target.value)}
                     disabled={disabled || isUpdatingMasterPassword}
                     autoComplete="new-password"
-                    className="mt-2 w-full rounded-xl border border-[var(--clxdb-color-300)]
-                      bg-[var(--clxdb-color-surface)] px-3 py-2.5 text-sm font-normal
-                      text-[var(--clxdb-color-800)] transition-colors duration-200 outline-none
-                      focus:border-[var(--clxdb-color-500)] disabled:cursor-not-allowed
-                      disabled:border-[var(--clxdb-color-200)] disabled:bg-[var(--clxdb-color-100)]"
+                    className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5
+                      text-sm font-normal text-zinc-800 transition-colors duration-200 outline-none
+                      focus:border-zinc-500 disabled:cursor-not-allowed disabled:border-zinc-200
+                      disabled:bg-zinc-100"
                   />
                 </label>
 
                 <label
-                  className="text-xs font-semibold tracking-wide text-[var(--clxdb-color-600)]
-                    uppercase"
+                  className="text-xs font-semibold tracking-wide text-zinc-600 uppercase"
                   htmlFor={`${baseId}-confirm-master-password`}
                 >
                   Confirm new password
@@ -230,11 +217,10 @@ export const EncryptionTab = ({
                     onChange={event => setConfirmMasterPassword(event.target.value)}
                     disabled={disabled || isUpdatingMasterPassword}
                     autoComplete="new-password"
-                    className="mt-2 w-full rounded-xl border border-[var(--clxdb-color-300)]
-                      bg-[var(--clxdb-color-surface)] px-3 py-2.5 text-sm font-normal
-                      text-[var(--clxdb-color-800)] transition-colors duration-200 outline-none
-                      focus:border-[var(--clxdb-color-500)] disabled:cursor-not-allowed
-                      disabled:border-[var(--clxdb-color-200)] disabled:bg-[var(--clxdb-color-100)]"
+                    className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5
+                      text-sm font-normal text-zinc-800 transition-colors duration-200 outline-none
+                      focus:border-zinc-500 disabled:cursor-not-allowed disabled:border-zinc-200
+                      disabled:bg-zinc-100"
                   />
                 </label>
               </div>
@@ -261,11 +247,9 @@ export const EncryptionTab = ({
             <button
               type="submit"
               disabled={disabled || isUpdatingMasterPassword}
-              className="mt-4 inline-flex items-center justify-center rounded-xl
-                bg-[var(--clxdb-color-900)] px-4 py-2.5 text-sm font-semibold
-                text-[var(--clxdb-color-100)] transition-colors duration-200
-                hover:bg-[var(--clxdb-color-800)] disabled:cursor-not-allowed
-                disabled:bg-[var(--clxdb-color-300)]"
+              className="mt-4 inline-flex items-center justify-center rounded-xl bg-zinc-900 px-4
+                py-2.5 text-sm font-semibold text-zinc-100 transition-colors duration-200
+                hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
             >
               {isUpdatingMasterPassword ? 'Updating...' : 'Update master password'}
             </button>
@@ -273,21 +257,17 @@ export const EncryptionTab = ({
 
           <form
             onSubmit={handlePinSubmit}
-            className="rounded-2xl border border-[var(--clxdb-color-200)]
-              bg-[var(--clxdb-color-50)]/70 p-4"
+            className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4"
           >
             <div className="mb-2">
-              <p className="text-sm font-semibold text-[var(--clxdb-color-900)]">
-                Change quick unlock PIN
-              </p>
-              <p className="mt-1 text-xs leading-relaxed text-[var(--clxdb-color-500)]">
+              <p className="text-sm font-semibold text-zinc-900">Change quick unlock PIN</p>
+              <p className="mt-1 text-xs leading-relaxed text-zinc-500">
                 This updates local quick-unlock credentials for this device.
               </p>
             </div>
 
             <label
-              className="text-xs font-semibold tracking-wide text-[var(--clxdb-color-600)]
-                uppercase"
+              className="text-xs font-semibold tracking-wide text-zinc-600 uppercase"
               htmlFor={`${baseId}-pin-master-password`}
             >
               Master password
@@ -298,11 +278,10 @@ export const EncryptionTab = ({
                 onChange={event => setPinMasterPassword(event.target.value)}
                 disabled={disabled || isUpdatingPin}
                 autoComplete="current-password"
-                className="mt-2 w-full rounded-xl border border-[var(--clxdb-color-300)]
-                  bg-[var(--clxdb-color-surface)] px-3 py-2.5 text-sm font-normal
-                  text-[var(--clxdb-color-800)] transition-colors duration-200 outline-none
-                  focus:border-[var(--clxdb-color-500)] disabled:cursor-not-allowed
-                  disabled:border-[var(--clxdb-color-200)] disabled:bg-[var(--clxdb-color-100)]"
+                className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5
+                  text-sm font-normal text-zinc-800 transition-colors duration-200 outline-none
+                  focus:border-zinc-500 disabled:cursor-not-allowed disabled:border-zinc-200
+                  disabled:bg-zinc-100"
               />
             </label>
 
@@ -347,11 +326,9 @@ export const EncryptionTab = ({
             <button
               type="submit"
               disabled={disabled || isUpdatingPin}
-              className="mt-4 inline-flex items-center justify-center rounded-xl
-                bg-[var(--clxdb-color-900)] px-4 py-2.5 text-sm font-semibold
-                text-[var(--clxdb-color-100)] transition-colors duration-200
-                hover:bg-[var(--clxdb-color-800)] disabled:cursor-not-allowed
-                disabled:bg-[var(--clxdb-color-300)]"
+              className="mt-4 inline-flex items-center justify-center rounded-xl bg-zinc-900 px-4
+                py-2.5 text-sm font-semibold text-zinc-100 transition-colors duration-200
+                hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
             >
               {isUpdatingPin ? 'Updating...' : 'Update quick unlock PIN'}
             </button>
