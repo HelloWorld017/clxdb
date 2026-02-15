@@ -148,7 +148,7 @@ export function ThemeProvider({
   );
 
   return (
-    <div data-clxdb-theme={resolvedMode} className={classes(className, resolvedMode)} style={style}>
+    <div className={classes(className, resolvedMode)} style={style}>
       {children}
     </div>
   );
