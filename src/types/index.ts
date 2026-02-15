@@ -116,16 +116,8 @@ export interface ClxDBEvents {
 }
 
 export interface ClxUIOptions {
-  position?: 'bottom-left' | 'bottom-right';
-  theme?: 'light' | 'dark' | 'auto';
-  labels?: {
-    selectStorage: string;
-    webdavUrl: string;
-    webdavUser: string;
-    webdavPass: string;
-    connect: string;
-    cancel: string;
-  };
+  position?: ['top' | 'bottom', 'left' | 'center' | 'right'];
+  theme?: 'light' | 'dark' | 'system';
 }
 
 export type * from '@/schemas';

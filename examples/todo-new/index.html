@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="./index.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Todo Example</title>
+    <style>
+      * {
+        /* Test the style isolation */
+        background: #202020 !important;
+        color: #ffffff !important;
+      }
+
+      button {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #0080ff !important;
+        padding: 8px 12px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="app"></div>
+    <div id="clxui"></div>
+    <script type="module" src="./index.tsx"></script>
+  </body>
+</html>

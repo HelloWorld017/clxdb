@@ -339,10 +339,10 @@ export function DatabaseUnlock({
       />
 
       <div className="relative">
-        <header className="mb-6 flex flex-wrap items-start justify-between gap-4 sm:mb-7">
+        <header className="mb-6 flex flex-wrap items-center justify-between gap-4 sm:mb-7">
           <div className="max-w-2xl space-y-2">
             <p className="text-default-500 text-xs font-semibold tracking-[0.2em] uppercase">
-              Database Encryption
+              Open Database
             </p>
             <h2 className="text-default-900 text-2xl font-semibold tracking-tight sm:text-3xl">
               {modeTitle}

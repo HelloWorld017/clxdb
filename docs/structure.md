@@ -372,15 +372,6 @@ export function migrateBlobs(params: {
 ### UI Plugin
 
 ```typescript
-export interface ClxUIOptions {
-  position?: 'bottom-left' | 'bottom-right'; // Default: bottom-left
-  theme?: 'light' | 'dark' | 'auto';
-  labels?: {
-    selectStorage: string;
-    // ... other labels
-  };
-}
-
 /** Vanilla JS implementation for DOM/Event management */
 export class ClxUI {
   /** Renders UI to DOM. Indicator shows immediately; dialog remains hidden. */

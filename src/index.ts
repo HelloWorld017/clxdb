@@ -6,6 +6,7 @@ export { inspectClxDBStatus } from '@/core/utils/inspect';
 
 export { createStorageBackend } from '@/storages';
 export {
+  createClxUI,
   DatabaseSettings,
   DatabaseUnlock,
   StoragePicker,
@@ -14,6 +15,7 @@ export {
 } from '@/ui';
 export type { ClxDBStatus } from '@/core/utils/inspect';
 export type {
+  ClxUIOptions,
   DatabaseBackend,
   StorageBackend,
   ClxDBCrypto,
@@ -21,12 +23,18 @@ export type {
   ClxDBOptions,
 } from '@/types';
 export type {
+  ClxUI,
+  ClxUIDialogCloseResult,
   DatabaseSettingsClient,
   DatabaseSettingsProps,
   DatabaseUnlockProps,
   DatabaseUnlockSubmission,
   FileSystemAccessStorageSelection,
+  OpenDatabaseSettingsOptions,
+  OpenDatabaseUnlockOptions,
+  OpenStoragePickerOptions,
   OpfsStorageSelection,
+  ShowSyncIndicatorOptions,
   StoragePickerBackendType,
   StoragePickerSelection,
   SyncIndicatorClient,
