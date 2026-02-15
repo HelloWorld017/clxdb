@@ -5,7 +5,13 @@ export { generateNewClxDB } from '@/core/utils/generate';
 export { inspectClxDBStatus } from '@/core/utils/inspect';
 
 export { createStorageBackend } from '@/storages';
-export { DatabaseSettings, DatabaseUnlock, StoragePicker, ThemeProvider } from '@/ui';
+export {
+  DatabaseSettings,
+  DatabaseUnlock,
+  StoragePicker,
+  SyncIndicator,
+  ThemeProvider,
+} from '@/ui';
 export type { ClxDBStatus } from '@/core/utils/inspect';
 export type {
   DatabaseBackend,
@@ -23,8 +29,11 @@ export type {
   OpfsStorageSelection,
   StoragePickerBackendType,
   StoragePickerSelection,
+  SyncIndicatorClient,
+  SyncIndicatorHorizontalPosition,
+  SyncIndicatorProps,
+  SyncIndicatorVerticalPosition,
   ThemeMode,
-  ThemePalette,
   ThemeProviderProps,
   WebDAVStorageSelection,
 } from '@/ui';
