@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { classes } from '@/utils/classes';
+import { Presence } from './common/presence';
 import type { ClxDBEvents, SyncState } from '@/types';
 
 type SyncIndicatorEvents = Pick<
@@ -8,11 +9,12 @@ type SyncIndicatorEvents = Pick<
 >;
 
 type SyncIndicatorPhase = 'hidden' | 'pending' | 'syncing' | 'success' | 'error';
+type VisibleSyncIndicatorPhase = Exclude<SyncIndicatorPhase, 'hidden'>;
 
 const DEFAULT_SYNC_ERROR_TEXT = 'Sync failed. Please try again.';
 
 export type SyncIndicatorVerticalPosition = 'top' | 'bottom';
-export type SyncIndicatorHorizontalPosition = 'left' | 'right';
+export type SyncIndicatorHorizontalPosition = 'left' | 'center' | 'right';
 
 export interface SyncIndicatorClient {
   getState: () => SyncState;
@@ -118,7 +120,7 @@ const ErrorIcon = () => (
   </svg>
 );
 
-const getIndicatorLabel = (phase: Exclude<SyncIndicatorPhase, 'hidden'>) => {
+const getIndicatorLabel = (phase: VisibleSyncIndicatorPhase) => {
   if (phase === 'pending') {
     return 'Sync pending';
   }
@@ -134,7 +136,7 @@ const getIndicatorLabel = (phase: Exclude<SyncIndicatorPhase, 'hidden'>) => {
   return 'Sync failed. Click for details.';
 };
 
-const getIndicatorToneClasses = (phase: Exclude<SyncIndicatorPhase, 'hidden'>) => {
+const getIndicatorToneClasses = (phase: VisibleSyncIndicatorPhase) => {
   if (phase === 'pending') {
     return 'bg-amber-950 text-amber-500';
   }
@@ -150,7 +152,7 @@ const getIndicatorToneClasses = (phase: Exclude<SyncIndicatorPhase, 'hidden'>) =
   return 'bg-red-950 text-red-500';
 };
 
-const IndicatorIcon = ({ phase }: { phase: Exclude<SyncIndicatorPhase, 'hidden'> }) => {
+const IndicatorIcon = ({ phase }: { phase: VisibleSyncIndicatorPhase }) => {
   if (phase === 'pending') {
     return <PendingIcon />;
   }
@@ -176,6 +178,10 @@ export function SyncIndicator({
   const [phase, setPhase] = useState<SyncIndicatorPhase>(() =>
     resolveInitialPhase(client.getState())
   );
+  const [displayPhase, setDisplayPhase] = useState<VisibleSyncIndicatorPhase>(() => {
+    const resolved = resolveInitialPhase(client.getState());
+    return resolved === 'hidden' ? 'pending' : resolved;
+  });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isErrorOpen, setIsErrorOpen] = useState(false);
   const phaseRef = useRef(phase);
@@ -184,6 +190,12 @@ export function SyncIndicator({
 
   useEffect(() => {
     phaseRef.current = phase;
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== 'hidden') {
+      setDisplayPhase(phase);
+    }
   }, [phase]);
 
   useEffect(() => {
@@ -271,74 +283,96 @@ export function SyncIndicator({
     };
   }, [phase, successDuration]);
 
-  if (phase === 'hidden') {
-    return null;
-  }
-
-  const label = getIndicatorLabel(phase);
+  const isVisible = phase !== 'hidden';
+  const label = getIndicatorLabel(displayPhase);
   const positionClasses = classes(
     'fixed z-50',
     vertical === 'top' ? 'top-4 sm:top-5' : 'bottom-4 sm:bottom-5',
-    horizontal === 'left' ? 'left-4 sm:left-5' : 'right-4 sm:right-5'
+    horizontal === 'left'
+      ? 'left-4 sm:left-5'
+      : horizontal === 'center'
+        ? 'left-1/2 -translate-x-1/2'
+        : 'right-4 sm:right-5'
   );
+  const directionClasses =
+    vertical === 'top' ? 'clx-sync-indicator-origin-top' : 'clx-sync-indicator-origin-bottom';
 
   const indicatorClasses = classes(
     `text-default-700 shadow-ui-strong inline-flex h-11 w-11 items-center justify-center rounded-xl
     border border-[color-mix(in_srgb,_currentColor_30%,_transparent)] text-2xl backdrop-blur
     transition-all duration-500`,
-    getIndicatorToneClasses(phase),
-    phase === 'error' && isErrorOpen && 'ring-2 ring-red-300/70'
+    getIndicatorToneClasses(displayPhase),
+    displayPhase === 'error' && isErrorOpen && 'ring-2 ring-red-300/70'
   );
 
   const messageClasses = classes(
-    `border-default-200 bg-surface text-default-800 shadow-ui-medium
-    clx-sync-indicator-message-enter absolute max-w-[16rem] min-w-[12rem] rounded-xl border px-3
-    py-2 text-xs leading-relaxed`,
+    `border-default-200 bg-surface text-default-800 shadow-ui-medium absolute max-w-[16rem]
+    min-w-[12rem] rounded-xl border px-3 py-2 text-xs leading-relaxed`,
     vertical === 'top' ? 'top-full mt-4' : 'bottom-full mb-4',
     horizontal === 'left'
       ? vertical === 'top'
         ? 'left-0 origin-top-left'
         : 'left-0 origin-bottom-left'
-      : vertical === 'top'
-        ? 'right-0 origin-top-right'
-        : 'right-0 origin-bottom-right'
+      : horizontal === 'center'
+        ? vertical === 'top'
+          ? 'left-1/2 origin-top -translate-x-1/2'
+          : 'left-1/2 origin-bottom -translate-x-1/2'
+        : vertical === 'top'
+          ? 'right-0 origin-top-right'
+          : 'right-0 origin-bottom-right'
   );
 
-  if (phase === 'error') {
-    return (
-      <div className={classes('pointer-events-none', positionClasses, className)}>
-        <div className="pointer-events-auto relative">
-          <button
-            type="button"
-            className={indicatorClasses}
-            onClick={() => setIsErrorOpen(currentOpen => !currentOpen)}
-            aria-label={label}
-            aria-expanded={isErrorOpen}
-            aria-controls={errorPanelId}
-          >
-            <span key={phase} className="clx-sync-indicator-icon-enter inline-flex">
-              <IndicatorIcon phase={phase} />
-            </span>
-          </button>
-
-          {isErrorOpen && (
-            <p id={errorPanelId} className={messageClasses} role="alert">
-              {errorMessage ?? DEFAULT_SYNC_ERROR_TEXT}
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className={classes('pointer-events-none', positionClasses, className)}>
-      <div className={indicatorClasses} aria-live="polite">
-        <span className="sr-only">{label}</span>
-        <span key={phase} className="clx-sync-indicator-icon-enter inline-flex">
-          <IndicatorIcon phase={phase} />
-        </span>
-      </div>
-    </div>
+    <Presence
+      exitDuration={240}
+      enterClassName="clx-sync-indicator-presence-enter"
+      exitClassName="clx-sync-indicator-presence-exit"
+    >
+      {isVisible ? (
+        displayPhase === 'error' ? (
+          <div
+            className={classes('pointer-events-none', positionClasses, directionClasses, className)}
+          >
+            <div className="pointer-events-auto relative">
+              <button
+                type="button"
+                className={indicatorClasses}
+                onClick={() => setIsErrorOpen(currentOpen => !currentOpen)}
+                aria-label={label}
+                aria-expanded={isErrorOpen}
+                aria-controls={errorPanelId}
+              >
+                <span key={displayPhase} className="clx-sync-indicator-icon-enter inline-flex">
+                  <IndicatorIcon phase={displayPhase} />
+                </span>
+              </button>
+
+              <Presence
+                exitDuration={180}
+                enterClassName="clx-sync-indicator-message-enter"
+                exitClassName="clx-sync-indicator-message-exit"
+              >
+                {isErrorOpen ? (
+                  <p id={errorPanelId} className={messageClasses} role="alert">
+                    {errorMessage ?? DEFAULT_SYNC_ERROR_TEXT}
+                  </p>
+                ) : null}
+              </Presence>
+            </div>
+          </div>
+        ) : (
+          <div
+            className={classes('pointer-events-none', positionClasses, directionClasses, className)}
+          >
+            <div className={indicatorClasses} aria-live="polite">
+              <span className="sr-only">{label}</span>
+              <span key={displayPhase} className="clx-sync-indicator-icon-enter inline-flex">
+                <IndicatorIcon phase={displayPhase} />
+              </span>
+            </div>
+          </div>
+        )
+      ) : null}
+    </Presence>
   );
 }

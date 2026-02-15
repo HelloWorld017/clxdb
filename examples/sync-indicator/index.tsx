@@ -357,6 +357,7 @@ function SyncIndicatorExampleApp() {
                       bg-gray-50 px-3 text-sm text-gray-800 outline-none focus:border-gray-500"
                   >
                     <option value="left">Left</option>
+                    <option value="center">Center</option>
                     <option value="right">Right</option>
                   </select>
                 </label>
