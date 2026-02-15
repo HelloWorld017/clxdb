@@ -107,6 +107,9 @@ export function DatabaseSettings({
 
   const controlsLocked = disabled || isInspecting;
   const registeredDeviceCount = status?.registeredDeviceKeys.length ?? 0;
+  const registeredCurrentDevice = !!status?.registeredDeviceKeys.find(
+    ({ deviceId }) => deviceId === currentDeviceId
+  );
 
   return (
     <section
@@ -189,6 +192,7 @@ export function DatabaseSettings({
               <OverviewTab
                 status={status}
                 registeredDeviceCount={registeredDeviceCount}
+                registeredCurrentDevice={registeredCurrentDevice}
                 storageOverview={storageOverview}
               />
             )}

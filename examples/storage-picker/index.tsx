@@ -122,6 +122,21 @@ const toUnlockPreview = (submission: DatabaseUnlockSubmission): PanelPreview => 
     };
   }
 
+  if (submission.mode === 'create-no-crypto') {
+    return {
+      title: 'create-no-crypto',
+      rows: [{ label: 'Flow', value: 'Create DB without password' }],
+      json: JSON.stringify(
+        {
+          mode: submission.mode,
+          status: statusSnapshot,
+        },
+        null,
+        2
+      ),
+    };
+  }
+
   if (submission.mode === 'quick-unlock') {
     return {
       title: 'quick-unlock',
@@ -133,6 +148,25 @@ const toUnlockPreview = (submission: DatabaseUnlockSubmission): PanelPreview => 
         {
           mode: submission.mode,
           quickUnlockPin: maskSecret(submission.quickUnlockPin),
+          status: statusSnapshot,
+        },
+        null,
+        2
+      ),
+    };
+  }
+
+  if (submission.mode === 'master-unlock') {
+    return {
+      title: 'master-unlock',
+      rows: [
+        { label: 'Flow', value: 'Master password unlock only' },
+        { label: 'Master password', value: maskSecret(submission.masterPassword) },
+      ],
+      json: JSON.stringify(
+        {
+          mode: submission.mode,
+          masterPassword: maskSecret(submission.masterPassword),
           status: statusSnapshot,
         },
         null,
@@ -340,7 +374,7 @@ function StoragePickerExampleApp() {
   };
 
   return (
-    <ThemeProvider mode="dark" primaryColor="#0080ff">
+    <ThemeProvider mode="light" primaryColor="#0080ff">
       <main className="min-h-screen px-4 py-8 sm:px-8 sm:py-12">
         <div className="mx-auto grid w-full max-w-7xl gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="space-y-6">

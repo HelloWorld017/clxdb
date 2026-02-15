@@ -20,8 +20,17 @@ export type DatabaseUnlockSubmission =
       status: ClxDBStatus;
     }
   | {
+      mode: 'create-no-crypto';
+      status: ClxDBStatus;
+    }
+  | {
       mode: 'quick-unlock';
       quickUnlockPin: string;
+      status: ClxDBStatus;
+    }
+  | {
+      mode: 'master-unlock';
+      masterPassword: string;
       status: ClxDBStatus;
     }
   | {
@@ -107,6 +116,7 @@ export function DatabaseUnlock({
   const [quickUnlockPinDigits, setQuickUnlockPinDigits] = useState<string[]>(() =>
     createEmptyPin()
   );
+  const [saveDeviceKeyOnRecovery, setSaveDeviceKeyOnRecovery] = useState(true);
 
   const inspectionSequenceRef = useRef(0);
   const baseId = useId();
@@ -131,6 +141,7 @@ export function DatabaseUnlock({
       setStatus(nextStatus);
       setMasterPassword('');
       setQuickUnlockPinDigits(createEmptyPin());
+      setSaveDeviceKeyOnRecovery(true);
       onStatusChange?.(nextStatus);
     } catch (error) {
       if (sequence !== inspectionSequenceRef.current) {
@@ -140,6 +151,7 @@ export function DatabaseUnlock({
       setStatus(null);
       setMasterPassword('');
       setQuickUnlockPinDigits(createEmptyPin());
+      setSaveDeviceKeyOnRecovery(true);
       setInspectError(getInspectErrorMessage(error));
     } finally {
       if (sequence === inspectionSequenceRef.current) {
@@ -156,15 +168,16 @@ export function DatabaseUnlock({
   }, [inspect]);
 
   const formVisible = mode === 'create' || mode === 'quick-unlock' || mode === 'master-recovery';
+  const recoveryWithDeviceKey = mode === 'master-recovery' && saveDeviceKeyOnRecovery;
   const requiresMaster = mode === 'create' || mode === 'master-recovery';
-  const requiresPin = formVisible;
+  const requiresPin = mode === 'quick-unlock' || mode === 'create' || recoveryWithDeviceKey;
   const controlsLocked = disabled || isSubmitting || isInspecting;
 
   const modeTitle =
     mode === 'inspecting'
       ? 'Checking this storage backend'
       : mode === 'create'
-        ? 'Create your encrypted database'
+        ? 'Create your database'
         : mode === 'quick-unlock'
           ? 'Enter your quick unlock PIN'
           : mode === 'master-recovery'
@@ -177,22 +190,24 @@ export function DatabaseUnlock({
     mode === 'inspecting'
       ? 'Reading storage metadata to pick the correct unlock flow.'
       : mode === 'create'
-        ? 'Set one master password and one 6-digit PIN to start using this storage.'
+        ? 'Set master password and PIN, or create a passwordless database for this storage.'
         : mode === 'quick-unlock'
           ? 'Enter the 6-digit PIN for this device.'
           : mode === 'master-recovery'
-            ? 'Enter master password once, then set a new 6-digit PIN for this device.'
+            ? 'Unlock with master password. You can optionally register a new quick unlock PIN.'
             : mode === 'unsupported'
               ? 'This backend contains an unencrypted database. This screen supports encrypted flows only.'
               : 'Storage inspection failed. Try re-scanning after checking storage settings.';
 
   const submitLabel =
     mode === 'create'
-      ? 'Create Database'
+      ? 'Create Encrypted Database'
       : mode === 'quick-unlock'
         ? 'Unlock Database'
         : mode === 'master-recovery'
-          ? 'Unlock and Save PIN'
+          ? recoveryWithDeviceKey
+            ? 'Unlock and Save PIN'
+            : 'Unlock with Master Password'
           : 'Continue';
 
   const validateForm = () => {
@@ -219,6 +234,30 @@ export function DatabaseUnlock({
     void inspect();
   };
 
+  const handleCreateWithoutPassword = async () => {
+    if (controlsLocked || !status || mode !== 'create') {
+      return;
+    }
+
+    setSubmitError(null);
+    setIsSubmitting(true);
+
+    try {
+      await onSubmit({
+        mode: 'create-no-crypto',
+        status,
+      });
+
+      setMasterPassword('');
+      setQuickUnlockPinDigits(createEmptyPin());
+      await inspect();
+    } catch (error) {
+      setSubmitError(getSubmitErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -232,7 +271,7 @@ export function DatabaseUnlock({
       return;
     }
 
-    const pinValue = pinToString(quickUnlockPinDigits);
+    const pinValue = requiresPin ? pinToString(quickUnlockPinDigits) : null;
 
     setSubmitError(null);
     setIsSubmitting(true);
@@ -242,7 +281,7 @@ export function DatabaseUnlock({
         await onSubmit({
           mode,
           masterPassword,
-          quickUnlockPin: pinValue,
+          quickUnlockPin: pinValue ?? '',
           status,
         });
       }
@@ -250,18 +289,26 @@ export function DatabaseUnlock({
       if (mode === 'quick-unlock') {
         await onSubmit({
           mode,
-          quickUnlockPin: pinValue,
+          quickUnlockPin: pinValue ?? '',
           status,
         });
       }
 
       if (mode === 'master-recovery') {
-        await onSubmit({
-          mode,
-          masterPassword,
-          quickUnlockPin: pinValue,
-          status,
-        });
+        if (recoveryWithDeviceKey) {
+          await onSubmit({
+            mode,
+            masterPassword,
+            quickUnlockPin: pinValue ?? '',
+            status,
+          });
+        } else {
+          await onSubmit({
+            mode: 'master-unlock',
+            masterPassword,
+            status,
+          });
+        }
       }
 
       setMasterPassword('');
@@ -348,6 +395,57 @@ export function DatabaseUnlock({
             className="border-default-300 bg-surface/90 shadow-ui-medium mt-7 space-y-5 rounded-2xl
               border p-5 pt-1 sm:p-6 sm:pt-2"
           >
+            {mode === 'master-recovery' && (
+              <div className="flex flex-col">
+                <p
+                  className="text-default-600 mt-2 mb-3 ml-1 text-xs font-semibold tracking-[0.14em]
+                    uppercase"
+                >
+                  Unlock Mode
+                </p>
+                <div
+                  className="bg-default-100 border-default-200 grid grid-cols-2 gap-1 rounded-xl
+                    border p-1"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setSaveDeviceKeyOnRecovery(false)}
+                    disabled={controlsLocked}
+                    className={classes(
+                      `rounded-lg px-3 py-2 text-xs font-semibold tracking-wide uppercase
+                      transition-colors duration-200 disabled:cursor-not-allowed`,
+                      !saveDeviceKeyOnRecovery
+                        ? 'bg-surface text-default-900 shadow-ui-soft'
+                        : `text-default-500 hover:bg-surface/70 hover:text-default-800
+                          disabled:hover:text-default-500 disabled:hover:bg-transparent`
+                    )}
+                  >
+                    Unlock Only
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSaveDeviceKeyOnRecovery(true)}
+                    disabled={controlsLocked}
+                    className={classes(
+                      `rounded-lg px-3 py-2 text-xs font-semibold tracking-wide uppercase
+                      transition-colors duration-200 disabled:cursor-not-allowed`,
+                      saveDeviceKeyOnRecovery
+                        ? 'bg-surface text-default-900 shadow-ui-soft'
+                        : `text-default-500 hover:bg-surface/70 hover:text-default-800
+                          disabled:hover:text-default-500 disabled:hover:bg-transparent`
+                    )}
+                  >
+                    Save PIN
+                  </button>
+                </div>
+                <p className="text-default-500 mt-1 ml-1 text-xs leading-relaxed">
+                  {saveDeviceKeyOnRecovery
+                    ? 'Adds a new device key so next unlock can use quick unlock PIN.'
+                    : 'Unlocks with master password only and keeps device key registry unchanged.'}
+                </p>
+              </div>
+            )}
+
             {requiresMaster && (
               <label
                 className="text-md text-default-800 my-12 block flex flex-col items-center space-y-2
@@ -402,6 +500,34 @@ export function DatabaseUnlock({
             >
               {isSubmitting ? 'Applying...' : submitLabel}
             </button>
+
+            {mode === 'create' && (
+              <>
+                <div className="flex items-center gap-3">
+                  <span className="bg-default-200 h-px flex-1" />
+                  <span
+                    className="text-default-500 text-[11px] font-semibold tracking-[0.2em]
+                      uppercase"
+                  >
+                    Or
+                  </span>
+                  <span className="bg-default-200 h-px flex-1" />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCreateWithoutPassword}
+                  disabled={controlsLocked}
+                  className="border-default-300 text-default-700 hover:border-default-400
+                    hover:bg-default-100 disabled:border-default-200 disabled:bg-default-100
+                    disabled:text-default-400 bg-surface inline-flex w-full items-center
+                    justify-center rounded-xl border px-4 py-3 text-sm font-semibold
+                    transition-colors duration-200 disabled:cursor-not-allowed"
+                >
+                  Create Database Without Password
+                </button>
+              </>
+            )}
           </form>
         )}
       </div>

@@ -32,7 +32,6 @@ export const EncryptionTab = ({
 
   const [pinMasterPassword, setPinMasterPassword] = useState('');
   const [newPinDigits, setNewPinDigits] = useState<string[]>(() => createEmptyPin());
-  const [confirmPinDigits, setConfirmPinDigits] = useState<string[]>(() => createEmptyPin());
   const [isUpdatingPin, setIsUpdatingPin] = useState(false);
   const [pinError, setPinError] = useState<string | null>(null);
   const [pinSuccess, setPinSuccess] = useState<string | null>(null);
@@ -64,12 +63,8 @@ export const EncryptionTab = ({
       return 'Enter your master password to change quick unlock PIN.';
     }
 
-    if (!isCompletePin(newPinDigits) || !isCompletePin(confirmPinDigits)) {
+    if (!isCompletePin(newPinDigits)) {
       return `Enter all ${PIN_LENGTH} digits for both PIN fields.`;
-    }
-
-    if (pinToString(newPinDigits) !== pinToString(confirmPinDigits)) {
-      return 'PIN confirmation does not match.';
     }
 
     return null;
@@ -130,7 +125,6 @@ export const EncryptionTab = ({
       await onUpdateQuickUnlockPin(pinMasterPassword, pinToString(newPinDigits));
       setPinMasterPassword('');
       setNewPinDigits(createEmptyPin());
-      setConfirmPinDigits(createEmptyPin());
       setPinSuccess('Quick unlock PIN updated for this device.');
     } catch (error) {
       setPinError(getErrorMessage(error, 'Unable to update quick unlock PIN. Please try again.'));
@@ -170,7 +164,7 @@ export const EncryptionTab = ({
 
             <div className="grid gap-3">
               <label
-                className="text-default-600 text-xs font-semibold tracking-wide uppercase"
+                className="text-default-600 text-xs font-semibold tracking-wide"
                 htmlFor={`${baseId}-current-master-password`}
               >
                 Current master password
@@ -190,7 +184,7 @@ export const EncryptionTab = ({
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <label
-                  className="text-default-600 text-xs font-semibold tracking-wide uppercase"
+                  className="text-default-600 text-xs font-semibold tracking-wide"
                   htmlFor={`${baseId}-new-master-password`}
                 >
                   New master password
@@ -209,7 +203,7 @@ export const EncryptionTab = ({
                 </label>
 
                 <label
-                  className="text-default-600 text-xs font-semibold tracking-wide uppercase"
+                  className="text-default-600 text-xs font-semibold tracking-wide"
                   htmlFor={`${baseId}-confirm-master-password`}
                 >
                   Confirm new password
@@ -264,14 +258,14 @@ export const EncryptionTab = ({
             className="border-default-200 bg-default-50/70 rounded-2xl border p-4"
           >
             <div className="mb-2">
-              <p className="text-default-900 text-sm font-semibold">Change quick unlock PIN</p>
+              <p className="text-default-900 text-sm font-semibold">Update quick unlock PIN</p>
               <p className="text-default-500 mt-1 text-xs leading-relaxed">
                 This updates local quick-unlock credentials for this device.
               </p>
             </div>
 
             <label
-              className="text-default-600 text-xs font-semibold tracking-wide uppercase"
+              className="text-default-600 text-xs font-semibold tracking-wide"
               htmlFor={`${baseId}-pin-master-password`}
             >
               Master password
@@ -297,16 +291,6 @@ export const EncryptionTab = ({
               disabled={disabled || isUpdatingPin}
               className="my-5"
               onChange={setNewPinDigits}
-            />
-
-            <PinInput
-              idPrefix={`${baseId}-confirm-pin`}
-              label="Confirm quick unlock PIN"
-              hint="Enter the same 6-digit PIN again."
-              digits={confirmPinDigits}
-              disabled={disabled || isUpdatingPin}
-              className="my-5"
-              onChange={setConfirmPinDigits}
             />
 
             {pinError && (

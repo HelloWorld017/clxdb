@@ -4,12 +4,14 @@ import type { ClxDBStatus } from '@/core/utils/inspect';
 export interface OverviewTabProps {
   status: ClxDBStatus | null;
   registeredDeviceCount: number;
+  registeredCurrentDevice: boolean;
   storageOverview: StorageOverview;
 }
 
 export const OverviewTab = ({
   status,
   registeredDeviceCount,
+  registeredCurrentDevice,
   storageOverview,
 }: OverviewTabProps) => (
   <div className="space-y-4">
@@ -20,7 +22,7 @@ export const OverviewTab = ({
       </p>
     </div>
 
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid items-start gap-4 lg:grid-cols-2">
       <article className="border-default-200 bg-default-50/80 rounded-2xl border p-4">
         <p className="text-default-500 text-[11px] font-semibold tracking-[0.16em] uppercase">
           Storage Backend
@@ -55,16 +57,15 @@ export const OverviewTab = ({
           >
             <span className="text-default-500 text-xs">UUID</span>
             <span
-              className="text-default-800 max-w-[55%] truncate font-[ui-monospace,monospace]
-                font-medium"
+              className="text-default-800 truncate font-[ui-monospace,monospace] font-medium"
               title={status?.uuid ?? 'Not available'}
             >
               {status?.uuid ?? 'Not available'}
             </span>
           </div>
           <div
-            className="border-default-200 bg-surface flex flex-col gap-1 rounded-lg border px-3
-              py-2"
+            className="border-default-200 bg-surface flex items-center justify-between gap-1
+              rounded-lg border px-3 py-2"
           >
             <span className="text-default-500 text-xs">Encryption</span>
             <span className="text-default-800 font-medium">
@@ -72,8 +73,17 @@ export const OverviewTab = ({
             </span>
           </div>
           <div
-            className="border-default-200 bg-surface flex flex-col gap-1 rounded-lg border px-3
-              py-2"
+            className="border-default-200 bg-surface flex items-center justify-between gap-1
+              rounded-lg border px-3 py-2"
+          >
+            <span className="text-default-500 text-xs">This device</span>
+            <span className="text-default-800 font-medium">
+              {registeredCurrentDevice ? 'Registered' : 'Not Registered'}
+            </span>
+          </div>
+          <div
+            className="border-default-200 bg-surface flex items-center justify-between gap-1
+              rounded-lg border px-3 py-2"
           >
             <span className="text-default-500 text-xs">Registered devices</span>
             <span className="text-default-800 font-medium">{registeredDeviceCount}</span>

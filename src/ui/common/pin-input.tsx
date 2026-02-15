@@ -142,7 +142,7 @@ export const PinInput = ({
         </label>
       </div>
 
-      <div className="mt-6 mb-4">
+      <div className="relative mt-6 mb-4">
         <input
           ref={inputRef}
           id={`${idPrefix}-input`}
@@ -185,7 +185,7 @@ export const PinInput = ({
                 'border-default-300 bg-default-50 text-default-900 h-12 w-11 rounded-xl border',
                 'flex items-center justify-center text-center text-lg font-semibold',
                 'tracking-[0.08em] transition-colors duration-200',
-                isFocused && activeIndex === index && 'border-default-500 bg-surface',
+                isFocused && activeIndex === index && 'border-primary/50 bg-surface',
                 'disabled:border-default-200 disabled:bg-default-100 disabled:text-default-400',
                 'disabled:cursor-not-allowed'
               )}

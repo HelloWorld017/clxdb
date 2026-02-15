@@ -6,7 +6,7 @@ export { StoragePicker } from './storage-picker';
 export { ThemeProvider } from './theme-provider';
 export type { DatabaseSettingsClient, DatabaseSettingsProps } from './database-settings';
 export type { DatabaseUnlockProps, DatabaseUnlockSubmission } from './database-unlock';
-export type { ThemeMode, ThemePalette, ThemeProviderProps } from './theme-provider';
+export type { ThemeMode, ThemeProviderProps } from './theme-provider';
 export type {
   FileSystemAccessStorageSelection,
   OpfsStorageSelection,
