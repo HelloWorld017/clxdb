@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { classes } from '@/utils/classes';
 import type { ChangeEvent, KeyboardEvent, SyntheticEvent } from 'react';
 
@@ -44,9 +44,55 @@ const toPinDigits = (value: string) => {
   return next;
 };
 
-const HiddenIcon = () => (
-  <svg viewBox="0 0 10 10" width="1em" height="1em" xmlns="http://www.w3.org/2000/svg">
+const HiddenDigitIcon = () => (
+  <svg
+    viewBox="0 0 10 10"
+    width="1em"
+    height="1em"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+    focusable="false"
+  >
     <circle cx="5" cy="5" r="3" fill="currentColor" />
+  </svg>
+);
+
+const ShowIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="1em"
+    height="1em"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <title>Show</title>
+    <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+const HideIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="1em"
+    height="1em"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <title>Hide</title>
+    <path d="m15 18-.722-3.25" />
+    <path d="M2 8a10.645 10.645 0 0 0 20 0" />
+    <path d="m20 15-1.726-2.05" />
+    <path d="m4 15 1.726-2.05" />
+    <path d="m9 18 .722-3.25" />
   </svg>
 );
 
@@ -62,7 +108,12 @@ export const PinInput = ({
 }: PinInputProps) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isFocused, setIsFocused] = useState(false);
+  const [isHidden, setIsHidden] = useState(hidden);
   const [selectionIndex, setSelectionIndex] = useState(0);
+
+  useEffect(() => {
+    setIsHidden(hidden);
+  }, [hidden]);
 
   const pinValue = sanitizePinValue(pinToString(digits));
   const clampedSelectionIndex = Math.min(selectionIndex, pinValue.length);
@@ -136,10 +187,25 @@ export const PinInput = ({
 
   return (
     <div className={classes('my-12 flex flex-col items-center space-y-2', className)}>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-3">
         <label className="text-md text-default-800 font-semibold" htmlFor={`${idPrefix}-input`}>
           {label}
         </label>
+
+        <button
+          type="button"
+          onMouseDown={event => {
+            event.preventDefault();
+          }}
+          onClick={() => setIsHidden(value => !value)}
+          aria-label={isHidden ? 'Show PIN digits' : 'Hide PIN digits'}
+          aria-pressed={!isHidden}
+          className="text-default-500 hover:text-default-700 focus-visible:ring-primary/40
+            rounded-md px-1 py-0.5 font-semibold transition-colors duration-200 focus-visible:ring-2
+            focus-visible:outline-none"
+        >
+          {isHidden ? <HideIcon /> : <ShowIcon />}
+        </button>
       </div>
 
       <div className="relative mt-6 mb-4">
@@ -182,15 +248,15 @@ export const PinInput = ({
                 setCaretIndex(index);
               }}
               className={classes(
-                'border-default-300 bg-default-50 text-default-900 h-12 w-11 rounded-xl border',
-                'flex items-center justify-center text-center text-lg font-semibold',
-                'tracking-[0.08em] transition-colors duration-200',
+                `border-default-300 bg-default-50 text-default-900 flex h-12 w-11 cursor-text
+                items-center justify-center rounded-xl border text-center text-lg font-semibold
+                tracking-[0.08em] transition-colors duration-200`,
                 isFocused && activeIndex === index && 'border-primary/50 bg-surface',
-                'disabled:border-default-200 disabled:bg-default-100 disabled:text-default-400',
-                'disabled:cursor-not-allowed'
+                `disabled:border-default-200 disabled:bg-default-100 disabled:text-default-400
+                disabled:cursor-not-allowed`
               )}
             >
-              {hidden ? digits[index] ? <HiddenIcon /> : '' : digits[index]}
+              {isHidden ? digits[index] ? <HiddenDigitIcon /> : '' : digits[index]}
             </button>
           ))}
         </div>

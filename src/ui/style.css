@@ -25,3 +25,14 @@
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  button,
+  [role="button"] {
+    cursor: pointer;
+  }
+
+  :disabled {
+    cursor: default;
+  }
+}

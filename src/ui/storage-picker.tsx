@@ -351,7 +351,7 @@ export function StoragePicker({
                       ? `border-primary bg-primary text-primary-foreground shadow-primary/25
                         shadow-md`
                       : `border-default-200 text-default-700 hover:border-default-400 bg-surface/70
-                        hover:bg-surface/90`,
+                        hover:bg-surface/90 cursor-pointer`,
                     isDisabled &&
                       'border-default-200 bg-default-100/80 text-default-400 cursor-not-allowed'
                   )}
