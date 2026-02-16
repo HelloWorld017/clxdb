@@ -300,7 +300,7 @@ export function SyncIndicator({
   const indicatorClasses = classes(
     `inline-flex h-11 w-11 items-center justify-center rounded-xl border
     border-[color-mix(in_srgb,_currentColor_30%,_transparent)] text-2xl text-default-700
-    shadow-ui-strong backdrop-blur transition-all duration-500`,
+    shadow-ui-strong transition-all duration-500`,
     getIndicatorToneClasses(displayPhase),
     displayPhase === 'error' && isErrorOpen && 'ring-2 ring-red-300/70'
   );
@@ -324,7 +324,6 @@ export function SyncIndicator({
 
   return (
     <Presence
-      exitDuration={240}
       enterClassName="clx-sync-indicator-presence-enter"
       exitClassName="clx-sync-indicator-presence-exit"
     >
@@ -348,7 +347,6 @@ export function SyncIndicator({
               </button>
 
               <Presence
-                exitDuration={180}
                 enterClassName="clx-sync-indicator-message-enter"
                 exitClassName="clx-sync-indicator-message-exit"
               >

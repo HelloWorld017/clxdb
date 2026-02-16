@@ -1,4 +1,4 @@
-import { cloneElement, isValidElement, useEffect, useRef, useState } from 'react';
+import { cloneElement, isValidElement, useEffect, useEffectEvent, useRef, useState } from 'react';
 import { classes } from '@/utils/classes';
 import type { AnimationEventHandler, ReactElement, TransitionEventHandler } from 'react';
 
@@ -15,10 +15,10 @@ type PresenceChild = ReactElement | false | null | undefined;
 
 interface PresenceProps {
   children: PresenceChild;
-  exitDuration?: number;
   maxExitDuration?: number;
   enterClassName?: string;
   exitClassName?: string;
+  onExit?: () => void;
 }
 
 const resolveElement = (child: PresenceChild): ReactElement<PresenceElementProps> | null => {
@@ -31,18 +31,18 @@ const resolveElement = (child: PresenceChild): ReactElement<PresenceElementProps
 
 export function Presence({
   children,
-  exitDuration = 200,
-  maxExitDuration,
+  maxExitDuration = 5000,
   enterClassName,
   exitClassName,
+  onExit,
 }: PresenceProps) {
-  const resolvedMaxExitDuration = maxExitDuration ?? exitDuration;
   const [mountedChild, setMountedChild] = useState<ReactElement<PresenceElementProps> | null>(() =>
     resolveElement(children)
   );
   const [state, setState] = useState<PresenceState>(() => (children ? 'enter' : 'exit'));
   const finishExitRef = useRef<(() => void) | null>(null);
 
+  const onExitEvent = useEffectEvent(onExit ?? (() => {}));
   useEffect(() => {
     const element = resolveElement(children);
 
@@ -57,6 +57,7 @@ export function Presence({
       return;
     }
 
+    console.log('goes exit');
     setState('exit');
 
     let settled = false;
@@ -68,10 +69,11 @@ export function Presence({
       settled = true;
       finishExitRef.current = null;
       setMountedChild(null);
+      onExitEvent();
     };
 
     finishExitRef.current = finishExit;
-    const timeoutId = window.setTimeout(finishExit, resolvedMaxExitDuration);
+    const timeoutId = window.setTimeout(finishExit, maxExitDuration);
 
     return () => {
       window.clearTimeout(timeoutId);
@@ -79,7 +81,7 @@ export function Presence({
         finishExitRef.current = null;
       }
     };
-  }, [children, mountedChild, resolvedMaxExitDuration]);
+  }, [children, mountedChild, maxExitDuration]);
 
   if (!mountedChild) {
     return null;
@@ -97,6 +99,7 @@ export function Presence({
 
   const handleAnimationEnd: AnimationEventHandler<HTMLElement> = event => {
     child.props.onAnimationEnd?.(event);
+    console.log('complete exit', event.target, event.currentTarget);
     if (event.target === event.currentTarget) {
       completeExit();
     }

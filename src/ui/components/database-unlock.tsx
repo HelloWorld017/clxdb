@@ -226,14 +226,6 @@ export function DatabaseUnlock({
     return null;
   };
 
-  const handleRefresh = () => {
-    if (controlsLocked) {
-      return;
-    }
-
-    void inspect();
-  };
-
   const handleCreateWithoutPassword = async () => {
     if (controlsLocked || !status || mode !== 'create') {
       return;
@@ -321,11 +313,15 @@ export function DatabaseUnlock({
     }
   };
 
+  if (mode === 'inspecting') {
+    return null;
+  }
+
   return (
     <section
       className={classes(
         `relative isolate mx-auto w-full max-w-4xl overflow-hidden rounded-[2rem] border
-        border-default-200 bg-default-100 p-6 shadow-ui-soft backdrop-blur-sm sm:p-8`,
+        border-default-200 bg-default-100 p-6 shadow-ui-soft sm:p-8`,
         className
       )}
     >
@@ -339,7 +335,7 @@ export function DatabaseUnlock({
       />
 
       <div className="relative">
-        <header className="mb-6 flex flex-wrap items-center justify-between gap-4 sm:mb-7">
+        <header className="mb-6 flex flex-wrap items-center gap-4 sm:mb-7">
           <div className="max-w-2xl space-y-2">
             <p className="text-xs font-semibold tracking-[0.2em] text-default-500 uppercase">
               Open Database
@@ -349,30 +345,7 @@ export function DatabaseUnlock({
             </h2>
             <p className="text-sm leading-relaxed text-default-600">{modeDescription}</p>
           </div>
-
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={controlsLocked}
-            className="inline-flex items-center justify-center rounded-xl border border-default-300
-              bg-surface px-3.5 py-2 text-xs font-semibold tracking-wide text-default-700 uppercase
-              transition-colors duration-200 hover:border-default-400 hover:bg-default-100
-              disabled:cursor-not-allowed disabled:border-default-200 disabled:bg-default-100
-              disabled:text-default-400"
-          >
-            Re-scan
-          </button>
         </header>
-
-        {mode === 'inspecting' && (
-          <div
-            className="inline-flex items-center gap-2 rounded-lg border border-default-200
-              bg-default-100 px-3 py-2 text-sm text-default-600"
-          >
-            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-default-500" />
-            Inspecting storage state...
-          </div>
-        )}
 
         {mode === 'inspection-error' && inspectError && (
           <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

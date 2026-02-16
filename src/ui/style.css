@@ -52,6 +52,50 @@
   }
 }
 
+@keyframes clx-dialog-enter {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes clx-dialog-exit {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes clx-dialog-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes clx-dialog-panel-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
 @keyframes clx-sync-presence-enter {
   from {
     opacity: 0;
@@ -126,6 +170,22 @@
 }
 
 @layer components {
+  .clx-dialog-enter {
+    animation: clx-dialog-enter 400ms ease-out both;
+
+    & .clx-dialog-panel {
+      animation: clx-dialog-panel-enter 200ms ease-in both;
+    }
+  }
+
+  .clx-dialog-exit {
+    animation: clx-dialog-exit 320ms ease-in both;
+
+    & .clx-dialog-panel {
+      animation: clx-dialog-panel-exit 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    }
+  }
+
   .clx-sync-indicator-origin-top {
     --clx-sync-presence-y: -8px;
     --clx-sync-message-y: -4px;
@@ -174,6 +234,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .clx-dialog-enter .clx-dialog-backdrop,
+  .clx-dialog-exit .clx-dialog-backdrop,
+  .clx-dialog-enter .clx-dialog-panel,
+  .clx-dialog-exit .clx-dialog-panel,
   .clx-sync-indicator-presence-enter,
   .clx-sync-indicator-presence-exit,
   .clx-sync-indicator-icon-enter,
