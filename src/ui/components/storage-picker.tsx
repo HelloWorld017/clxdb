@@ -99,9 +99,9 @@ const LinkIcon = ({ className }: IconProps) => (
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    stroke-width="1.5"
-    stroke-linecap="round"
-    stroke-linejoin="round"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
     aria-hidden
   >
     <title>WebDAV</title>
@@ -309,11 +309,11 @@ export function StoragePicker({
     <section
       className={classes(
         `relative isolate mx-auto h-150 w-full max-w-4xl overflow-hidden rounded-[2rem] border
-        border-default-200 bg-default-100 px-2 py-6 shadow-ui-soft backdrop-blur-sm sm:py-8`,
+        border-default-200 bg-default-100 px-2 py-2 shadow-ui-soft`,
         className
       )}
     >
-      <div className="absolute top-0 left-0 h-full w-full overflow-hidden">
+      <div className="absolute top-0 left-0 z-[-1] h-full w-full overflow-hidden">
         <div
           className="pointer-events-none absolute -top-24 -left-24 h-56 w-56 rounded-full
             bg-default-300/45 blur-3xl"
@@ -324,7 +324,7 @@ export function StoragePicker({
         />
       </div>
 
-      <div className="relative flex h-full flex-col overflow-auto px-4 sm:px-6">
+      <div className="flex h-full flex-col overflow-auto p-4 sm:p-6">
         <header className="mb-8 space-y-2">
           <p className="text-xs font-semibold tracking-[0.2em] text-default-500 uppercase">
             Storage Backend
@@ -519,10 +519,8 @@ export function StoragePicker({
           )}
 
           <div className="flex-1" />
-          <div
-            className="sticky bottom-0 mt-auto flex flex-col-reverse gap-2 sm:flex-row
-              sm:justify-end"
-          >
+          <div className="sticky bottom-0 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <div className="absolute inset-0 z-[-1] bg-linear-to-t from-default-100 to-transparent" />
             {onCancel && (
               <button
                 type="button"
@@ -530,9 +528,9 @@ export function StoragePicker({
                 disabled={controlsLocked}
                 className="inline-flex items-center justify-center rounded-xl border
                   border-default-300 bg-surface px-4 py-2.5 text-sm font-medium text-default-700
-                  transition-colors duration-200 hover:border-default-400 hover:bg-default-100
-                  disabled:cursor-not-allowed disabled:border-default-200 disabled:bg-default-100
-                  disabled:text-default-400"
+                  shadow-xs transition-colors duration-200 hover:border-default-400
+                  hover:bg-default-100 disabled:cursor-not-allowed disabled:border-default-200
+                  disabled:bg-default-100 disabled:text-default-400"
               >
                 Cancel
               </button>
@@ -542,8 +540,9 @@ export function StoragePicker({
               type="submit"
               disabled={controlsLocked}
               className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2.5
-                text-sm font-semibold text-primary-foreground transition-colors duration-200
-                hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-default-300"
+                text-sm font-semibold text-primary-foreground shadow-md transition-colors
+                duration-200 hover:bg-primary-hover disabled:cursor-not-allowed
+                disabled:bg-default-300"
             >
               {isSubmitting ? 'Applying...' : submitLabel}
             </button>

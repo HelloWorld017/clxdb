@@ -65,9 +65,9 @@ const ShowIcon = () => (
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    stroke-width="1.5"
-    stroke-linecap="round"
-    stroke-linejoin="round"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
   >
     <title>Show</title>
     <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
@@ -83,9 +83,9 @@ const HideIcon = () => (
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    stroke-width="1.5"
-    stroke-linecap="round"
-    stroke-linejoin="round"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
   >
     <title>Hide</title>
     <path d="m15 18-.722-3.25" />
@@ -200,6 +200,7 @@ export const PinInput = ({
           onClick={() => setIsHidden(value => !value)}
           aria-label={isHidden ? 'Show PIN digits' : 'Hide PIN digits'}
           aria-pressed={!isHidden}
+          tabIndex={-1}
           className="rounded-md px-1 py-0.5 font-semibold text-default-500 transition-colors
             duration-200 hover:text-default-700 focus-visible:ring-2 focus-visible:ring-primary/40
             focus-visible:outline-none"

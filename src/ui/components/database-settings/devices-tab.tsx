@@ -95,10 +95,7 @@ export const DevicesTab = ({
                         <p className="text-sm font-semibold text-default-900">
                           {device.deviceName}
                         </p>
-                        <p
-                          className="mt-1 font-['IBM_Plex_Mono','ui-monospace','monospace'] text-xs
-                            text-default-500"
-                        >
+                        <p className="font-monospace mt-1 text-xs text-default-500">
                           ID: {formatDeviceId(device.deviceId)}
                         </p>
                         <p className="mt-1 text-xs text-default-500">

@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createClxUI } from '@/index';
+import { createClxUI, createStorageBackend } from '@/index';
 
 const TodoExampleApp = () => {
   const clxUI = useMemo(
@@ -13,11 +13,21 @@ const TodoExampleApp = () => {
   );
 
   useEffect(() => {
-    clxUI.mount(document.querySelector('#clxui')!);
+    clxUI.mount();
     return () => clxUI.unmount();
   }, []);
 
-  return <button onClick={() => clxUI.openStoragePicker()}>Open DB</button>;
+  const startInitFlow = async () => {
+    const storageSettings = await clxUI.openStoragePicker();
+    if (storageSettings === null) {
+      return;
+    }
+
+    const storage = createStorageBackend(storageSettings);
+    const databaseSettings = await clxUI.openDatabaseUnlock({ storage });
+  };
+
+  return <button onClick={startInitFlow}>Open DB</button>;
 };
 
 const container = document.getElementById('app');

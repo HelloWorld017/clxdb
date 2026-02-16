@@ -22,6 +22,9 @@
   --shadow-ui-soft: 0 34px 70px -48px rgba(24, 24, 27, 0.45);
   --shadow-ui-medium: 0 24px 45px -36px rgba(24, 24, 27, 0.7);
   --shadow-ui-strong: 0 14px 30px -22px rgba(24, 24, 27, 0.95);
+
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --font-monospace: ui-monospace, monospace;
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
