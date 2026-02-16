@@ -308,21 +308,23 @@ export function StoragePicker({
   return (
     <section
       className={classes(
-        `border-default-200 bg-default-50/85 shadow-ui-soft relative isolate mx-auto w-full
-        max-w-4xl overflow-hidden rounded-[2rem] border p-6 backdrop-blur-sm sm:p-8`,
+        `border-default-200 bg-default-50/85 shadow-ui-soft relative isolate mx-auto h-150 w-full
+        max-w-4xl overflow-auto rounded-[2rem] border p-6 backdrop-blur-sm sm:p-8`,
         className
       )}
     >
-      <div
-        className="bg-default-300/45 pointer-events-none absolute -top-24 -left-24 h-56 w-56
-          rounded-full blur-3xl"
-      />
-      <div
-        className="bg-default-300/35 pointer-events-none absolute -right-20 -bottom-28 h-56 w-56
-          rounded-full blur-3xl"
-      />
+      <div className="absolute top-0 left-0 h-full w-full overflow-hidden">
+        <div
+          className="bg-default-300/45 pointer-events-none absolute -top-24 -left-24 h-56 w-56
+            rounded-full blur-3xl"
+        />
+        <div
+          className="bg-default-300/35 pointer-events-none absolute -right-20 -bottom-28 h-56 w-56
+            rounded-full blur-3xl"
+        />
+      </div>
 
-      <div className="relative">
+      <div className="relative flex h-full flex-col">
         <header className="mb-8 space-y-2">
           <p className="text-default-500 text-xs font-semibold tracking-[0.2em] uppercase">
             Storage Backend
@@ -335,7 +337,7 @@ export function StoragePicker({
           </p>
         </header>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="flex flex-1 flex-col space-y-6">
           <div className="grid gap-3 sm:grid-cols-3">
             {storageOptions.map(option => {
               const active = selectedType === option.type;
@@ -516,7 +518,11 @@ export function StoragePicker({
             </p>
           )}
 
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <div className="flex-1" />
+          <div
+            className="from-default-50 sticky bottom-0 mt-auto flex flex-col-reverse gap-2
+              bg-linear-to-b to-transparent sm:flex-row sm:justify-end"
+          >
             {onCancel && (
               <button
                 type="button"

@@ -26,12 +26,9 @@ const SHADOW_ROOT_RESET_CSS = `
 }
 `;
 
-const DIALOG_Z_INDEX = 2147483000;
-
 const dialogLayerStyle: CSSProperties = {
   position: 'fixed',
   inset: 0,
-  zIndex: DIALOG_Z_INDEX,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -41,15 +38,14 @@ const dialogLayerStyle: CSSProperties = {
 const dialogBackdropStyle: CSSProperties = {
   position: 'absolute',
   inset: 0,
-  background: 'rgba(15, 23, 42, 0.45)',
-  backdropFilter: 'blur(2px)',
+  background: 'rgba(0, 0, 0, 0.1)',
+  backdropFilter: 'blur(8px)',
   border: 'none',
   padding: 0,
 };
 
 const dialogPanelStyle: CSSProperties = {
   position: 'relative',
-  width: 'min(100%, 72rem)',
   maxHeight: 'calc(100vh - 2rem)',
   overflow: 'auto',
 };
@@ -88,6 +84,7 @@ interface DialogFrameProps {
   children: ReactNode;
   onClose: () => void;
   theme: ThemeMode;
+  zIndex?: number;
 }
 
 interface OpenDialogParams<TResult> {
@@ -157,7 +154,7 @@ function CloseIcon() {
   );
 }
 
-function DialogFrame({ children, onClose, theme }: DialogFrameProps) {
+function DialogFrame({ children, onClose, theme, zIndex }: DialogFrameProps) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') {
@@ -177,7 +174,7 @@ function DialogFrame({ children, onClose, theme }: DialogFrameProps) {
 
   return (
     <ThemeProvider mode={theme}>
-      <div style={dialogLayerStyle} role="presentation">
+      <div style={{ ...dialogLayerStyle, zIndex }} role="presentation">
         <button
           type="button"
           style={dialogBackdropStyle}
