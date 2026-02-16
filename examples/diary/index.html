@@ -1,0 +1,1144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ClxDB Diary Example</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    />
+    <script type="module">
+      import 'https://esm.sh/@tailwindcss/browser@4.1.18/';
+    </script>
+    <style type="text/tailwindcss">
+      @theme {
+        --color-sunrise-50: #fff9f3;
+        --color-sunrise-100: #fdeedb;
+        --color-sunrise-200: #f9d9bc;
+        --color-sunrise-300: #f2bc91;
+        --color-sunrise-400: #e89f67;
+        --color-sunrise-500: #d67f3f;
+        --color-sunrise-600: #b6632d;
+        --color-sunrise-700: #8f4923;
+        --color-sunrise-800: #69331b;
+        --color-sunrise-900: #432115;
+      }
+    </style>
+    <style>
+      [x-cloak] {
+        display: none !important;
+      }
+
+      :root {
+        font-family: 'Plus Jakarta Sans', 'Noto Sans', sans-serif;
+      }
+
+      .ink {
+        --ink-color: #4d2d17;
+        --ink-font-family: 'Plus Jakarta Sans', 'Noto Sans', sans-serif;
+        --ink-border-radius: 0.95rem;
+        --ink-block-background-color: #fff5eb;
+        --ink-block-background-color-on-hover: #ffe9d3;
+        --ink-syntax-heading-color: #6f3a1f;
+        --ink-syntax-keyword-color: #bd5a2d;
+        --ink-syntax-string-color: #1e6d6a;
+        --ink-syntax-link-color: #85552d;
+      }
+
+      .line-clamp-1 {
+        display: -webkit-box;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 1;
+      }
+
+      .line-clamp-2 {
+        display: -webkit-box;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+      }
+    </style>
+  </head>
+  <body
+    class="text-sunrise-900 min-h-screen bg-gradient-to-br from-orange-100 via-amber-50 to-rose-100"
+  >
+    <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+      <div class="absolute -top-24 -left-28 h-72 w-72 rounded-full bg-orange-200/65 blur-3xl"></div>
+      <div class="absolute top-10 right-8 h-56 w-56 rounded-full bg-amber-200/55 blur-3xl"></div>
+      <div
+        class="absolute bottom-0 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-rose-200/45
+          blur-3xl"
+      ></div>
+    </div>
+
+    <main
+      x-data="diaryApp()"
+      x-init="init()"
+      x-cloak
+      class="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-5 px-4 py-6 sm:px-6 lg:px-10
+        lg:py-10"
+    >
+      <header
+        class="rounded-3xl border border-white/65 bg-white/75 p-5 shadow-sm backdrop-blur md:p-6"
+      >
+        <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p class="text-sunrise-500 text-xs font-semibold tracking-[0.22em] uppercase">
+              diary at your finger tip
+            </p>
+            <h1 class="text-sunrise-900 mt-1 text-3xl font-semibold tracking-tight">Warm Diary</h1>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              class="border-sunrise-300 text-sunrise-800 hover:bg-sunrise-100 rounded-xl border
+                bg-white/85 px-4 py-2 text-sm font-semibold transition"
+              @click="createEntry()"
+              :disabled="isBooting"
+            >
+              New Entry
+            </button>
+            <button
+              type="button"
+              class="from-sunrise-500 hover:from-sunrise-600 rounded-xl bg-gradient-to-r
+                to-orange-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition
+                hover:to-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+              @click="syncNow()"
+              :disabled="manualSyncing || isBooting"
+              x-text="manualSyncing ? 'Syncing...' : 'Sync now'"
+            ></button>
+          </div>
+        </div>
+
+        <p
+          x-show="infoMessage"
+          x-text="infoMessage"
+          class="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm
+            text-emerald-700"
+        ></p>
+        <p
+          x-show="errorMessage"
+          x-text="errorMessage"
+          class="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+        ></p>
+      </header>
+
+      <section class="grid flex-1 gap-5 md:grid-cols-[20rem_minmax(0,1fr)]">
+        <aside class="rounded-3xl border border-white/65 bg-white/80 p-4 shadow-sm backdrop-blur">
+          <label
+            class="text-sunrise-500 block text-xs font-semibold tracking-[0.16em] uppercase"
+            for="search"
+          >
+            Search
+          </label>
+          <input
+            id="search"
+            type="search"
+            x-model.trim="searchQuery"
+            class="border-sunrise-200 text-sunrise-900 ring-sunrise-300 mt-2 w-full rounded-xl
+              border bg-white px-3 py-2 text-sm transition outline-none focus:ring"
+            placeholder="Title or text"
+          />
+
+          <label class="text-sunrise-800 mt-3 inline-flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              x-model="showArchivedOnly"
+              class="border-sunrise-300 text-sunrise-600 focus:ring-sunrise-500 h-4 w-4 rounded"
+            />
+            Show archived only
+          </label>
+
+          <div class="bg-sunrise-100 mt-4 h-[1px]"></div>
+
+          <template x-if="visibleEntries().length === 0">
+            <p
+              class="border-sunrise-200 bg-sunrise-50 text-sunrise-700 mt-4 rounded-xl border
+                border-dashed px-3 py-6 text-sm"
+            >
+              No entries in this view. Create a new diary note to get started.
+            </p>
+          </template>
+
+          <ul class="mt-4 flex max-h-[65vh] flex-col gap-2 overflow-y-auto pr-1">
+            <template x-for="entry in visibleEntries()" :key="entry.id">
+              <li>
+                <button
+                  type="button"
+                  class="w-full rounded-2xl border p-3 text-left transition"
+                  :class="selectedId === entry.id
+                    ? 'border-sunrise-300 bg-gradient-to-r from-sunrise-100 to-orange-50 shadow-sm'
+                    : 'border-sunrise-100 bg-white hover:border-sunrise-200 hover:bg-sunrise-50'"
+                  @click="selectEntry(entry.id)"
+                >
+                  <div class="flex items-start justify-between gap-3">
+                    <h2
+                      class="text-sunrise-900 line-clamp-1 text-sm font-semibold"
+                      x-text="entry.title"
+                    ></h2>
+                    <span
+                      x-show="entry.seq === null"
+                      class="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px]
+                        font-semibold tracking-wide text-amber-700 uppercase"
+                    >
+                      pending
+                    </span>
+                  </div>
+                  <p
+                    class="text-sunrise-700 mt-1 line-clamp-2 text-xs leading-relaxed"
+                    x-text="entryPreview(entry)"
+                  ></p>
+                  <div class="text-sunrise-500 mt-3 flex items-center justify-between text-[11px]">
+                    <span x-text="entry.deletedAt ? 'archived' : 'active'"></span>
+                    <time x-text="formatDate(entry.updatedAt)"></time>
+                  </div>
+                </button>
+              </li>
+            </template>
+          </ul>
+        </aside>
+
+        <section
+          class="rounded-3xl border border-white/65 bg-white/80 p-4 shadow-sm backdrop-blur md:p-5"
+        >
+          <div class="mb-4 flex flex-wrap items-center gap-2" x-show="selectedEntry()">
+            <button
+              type="button"
+              class="border-sunrise-300 text-sunrise-800 hover:bg-sunrise-100 rounded-xl border
+                bg-white px-3 py-1.5 text-xs font-semibold transition"
+              x-show="selectedEntry() && !selectedEntry().deletedAt"
+              @click="archiveSelected()"
+            >
+              Archive
+            </button>
+            <button
+              type="button"
+              class="border-sunrise-300 text-sunrise-800 hover:bg-sunrise-100 rounded-xl border
+                bg-white px-3 py-1.5 text-xs font-semibold transition"
+              x-show="selectedEntry() && selectedEntry().deletedAt"
+              @click="restoreSelected()"
+            >
+              Restore
+            </button>
+          </div>
+
+          <template x-if="selectedEntry()">
+            <div>
+              <input
+                type="text"
+                x-model="draftTitle"
+                @input="scheduleAutosave()"
+                class="border-sunrise-200 text-sunrise-900 ring-sunrise-300 w-full rounded-2xl
+                  border bg-white px-4 py-3 text-lg font-semibold transition outline-none
+                  focus:ring"
+                placeholder="Untitled entry"
+              />
+            </div>
+          </template>
+
+          <div
+            class="border-sunrise-200 relative mt-4 overflow-hidden rounded-2xl border bg-white/85"
+          >
+            <div x-ref="editor" class="min-h-[24rem] p-3"></div>
+            <div
+              x-show="!selectedEntry()"
+              class="to-sunrise-50/85 absolute inset-0 flex items-center justify-center
+                bg-gradient-to-b from-white/70"
+            >
+              <p class="text-sunrise-700 max-w-sm px-4 text-center text-sm">
+                Select an entry from the left, or create a new one. Your markdown is saved locally
+                first and synced by ClxDB.
+              </p>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script type="module">
+      import Alpine from 'https://esm.sh/alpinejs@3.15.8/';
+      import Dexie from 'https://esm.sh/dexie@4.3.0/';
+      import { defineOptions, ink } from 'https://esm.sh/ink-mde@0.22.0';
+      import {
+        createClxDB,
+        createStorageBackend,
+        generateNewClxDB,
+      } from '@/index';
+      import { createClxUI } from '@/ui';
+
+      const DIARY_DB_NAME_PREFIX = 'clxdb_diary_example_';
+      const DIARY_DB_VERSION = 1;
+      const DIARY_STORE_NAME = 'entries';
+      const DIARY_OPFS_DIRECTORY = 'clxdb-diary-example';
+      const AUTOSAVE_DELAY = 650;
+
+      const createId = () => {
+        if (typeof window.crypto.randomUUID === 'function') {
+          return window.crypto.randomUUID();
+        }
+
+        return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      };
+
+      const normalizeString = value => {
+        return typeof value === 'string' ? value : '';
+      };
+
+      const normalizeNumber = (value, fallback) => {
+        return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+      };
+
+      const normalizeNullableNumber = (value, fallback = null) => {
+        if (value === null) {
+          return null;
+        }
+
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          return value;
+        }
+
+        return fallback;
+      };
+
+      const formatError = (error, fallback) => {
+        return error instanceof Error ? error.message : fallback;
+      };
+
+      const toPayload = entry => ({
+        title: entry.title,
+        body: entry.body,
+        createdAt: entry.createdAt,
+        updatedAt: entry.updatedAt,
+        deletedAt: entry.deletedAt,
+      });
+
+      const toDatabaseDocument = entry => ({
+        id: entry.id,
+        at: entry.at,
+        seq: entry.seq,
+        del: false,
+        data: toPayload(entry),
+      });
+
+      const fromShardDocument = (document, fallback) => {
+        const source = document.data && typeof document.data === 'object' ? document.data : {};
+        const createdAt = normalizeNumber(source.createdAt, fallback?.createdAt ?? document.at);
+        const updatedAt = normalizeNumber(source.updatedAt, fallback?.updatedAt ?? document.at);
+        const deletedAt = normalizeNullableNumber(source.deletedAt, fallback?.deletedAt ?? null);
+        const parsedTitle = normalizeString(source.title).trim();
+
+        return {
+          id: document.id,
+          at: document.at,
+          seq: document.seq,
+          title: parsedTitle || fallback?.title || 'Untitled entry',
+          body: normalizeString(source.body),
+          createdAt,
+          updatedAt,
+          deletedAt,
+        };
+      };
+
+      class DiaryDatabase {
+        constructor() {
+          this.database = null;
+          this.uuid = null;
+          this.listeners = new Set();
+        }
+
+        async initialize(uuid) {
+          if (this.database && this.uuid === uuid) {
+            return;
+          }
+
+          this.destroy();
+
+          const database = new Dexie(`${DIARY_DB_NAME_PREFIX}${uuid}`);
+          database.version(DIARY_DB_VERSION).stores({
+            [DIARY_STORE_NAME]: 'id, seq, updatedAt, deletedAt, createdAt',
+          });
+
+          await database.open();
+
+          this.database = database;
+          this.uuid = uuid;
+        }
+
+        async read(ids) {
+          if (!ids.length) {
+            return [];
+          }
+
+          const rows = await this.table().bulkGet(ids);
+          return rows.map(row => {
+            return row ? toDatabaseDocument(row) : null;
+          });
+        }
+
+        async readPendingIds() {
+          const rows = await this.table().toArray();
+          return rows.filter(row => row.seq === null).map(row => row.id);
+        }
+
+        async upsert(data) {
+          if (!data.length) {
+            return;
+          }
+
+          const rows = await this.table().bulkGet(data.map(document => document.id));
+          const existingById = new Map();
+
+          rows.forEach(row => {
+            if (row) {
+              existingById.set(row.id, row);
+            }
+          });
+
+          const toWrite = [];
+
+          data.forEach(document => {
+            const current = existingById.get(document.id);
+
+            if (document.del) {
+              if (!current) {
+                return;
+              }
+
+              toWrite.push({
+                ...current,
+                at: document.at,
+                seq: document.seq,
+                updatedAt: document.at,
+                deletedAt: document.at,
+              });
+
+              return;
+            }
+
+            toWrite.push(fromShardDocument(document, current));
+          });
+
+          if (!toWrite.length) {
+            return;
+          }
+
+          await this.table().bulkPut(toWrite);
+        }
+
+        async delete(data) {
+          if (!data.length) {
+            return;
+          }
+
+          const rows = await this.table().bulkGet(data.map(document => document.id));
+          const existingById = new Map();
+
+          rows.forEach(row => {
+            if (row) {
+              existingById.set(row.id, row);
+            }
+          });
+
+          const toWrite = [];
+
+          data.forEach(document => {
+            const current = existingById.get(document.id);
+            if (!current) {
+              return;
+            }
+
+            toWrite.push({
+              ...current,
+              at: document.at,
+              seq: document.seq,
+              updatedAt: document.at,
+              deletedAt: document.at,
+            });
+          });
+
+          if (!toWrite.length) {
+            return;
+          }
+
+          await this.table().bulkPut(toWrite);
+        }
+
+        replicate(onUpdate) {
+          this.listeners.add(onUpdate);
+
+          return () => {
+            this.listeners.delete(onUpdate);
+          };
+        }
+
+        async listEntries() {
+          const rows = await this.table().orderBy('updatedAt').reverse().toArray();
+          return rows.map(row => ({ ...row }));
+        }
+
+        async createEntry({ title, body }) {
+          const now = Date.now();
+          const entry = {
+            id: createId(),
+            at: now,
+            seq: null,
+            title: normalizeString(title).trim() || 'Untitled entry',
+            body: normalizeString(body),
+            createdAt: now,
+            updatedAt: now,
+            deletedAt: null,
+          };
+
+          await this.table().put(entry);
+          this.emitUpdate();
+
+          return entry;
+        }
+
+        async updateEntry(id, patch) {
+          const current = await this.table().get(id);
+          if (!current) {
+            return null;
+          }
+
+          const now = Date.now();
+          const nextTitle =
+            patch && Object.hasOwn(patch, 'title')
+              ? normalizeString(patch.title).trim() || 'Untitled entry'
+              : current.title;
+          const nextBody =
+            patch && Object.hasOwn(patch, 'body') ? normalizeString(patch.body) : current.body;
+
+          const next = {
+            ...current,
+            at: now,
+            seq: null,
+            title: nextTitle,
+            body: nextBody,
+            updatedAt: now,
+          };
+
+          await this.table().put(next);
+          this.emitUpdate();
+
+          return next;
+        }
+
+        async softDeleteEntry(id) {
+          const current = await this.table().get(id);
+          if (!current || current.deletedAt) {
+            return null;
+          }
+
+          const now = Date.now();
+          const next = {
+            ...current,
+            at: now,
+            seq: null,
+            updatedAt: now,
+            deletedAt: now,
+          };
+
+          await this.table().put(next);
+          this.emitUpdate();
+
+          return next;
+        }
+
+        async restoreEntry(id) {
+          const current = await this.table().get(id);
+          if (!current || !current.deletedAt) {
+            return null;
+          }
+
+          const now = Date.now();
+          const next = {
+            ...current,
+            at: now,
+            seq: null,
+            updatedAt: now,
+            deletedAt: null,
+          };
+
+          await this.table().put(next);
+          this.emitUpdate();
+
+          return next;
+        }
+
+        destroy() {
+          if (this.database) {
+            this.database.close();
+          }
+
+          this.database = null;
+          this.uuid = null;
+          this.listeners.clear();
+        }
+
+        emitUpdate() {
+          this.listeners.forEach(listener => {
+            listener();
+          });
+        }
+
+        table() {
+          if (!this.database) {
+            throw new Error('Diary database is not initialized yet.');
+          }
+
+          return this.database.table(DIARY_STORE_NAME);
+        }
+      }
+
+      const diaryApp = () => ({
+        client: null,
+        database: null,
+        editor: null,
+        entries: [],
+        selectedId: null,
+        draftTitle: '',
+        draftBody: '',
+        searchQuery: '',
+        showArchivedOnly: false,
+        syncState: 'idle',
+        isBooting: true,
+        isUnlocking: false,
+        manualSyncing: false,
+        isSaving: false,
+        saveQueued: false,
+        autosaveTimer: null,
+        isHydratingEditor: false,
+        lastSavedSignature: '',
+        infoMessage: '',
+        errorMessage: '',
+        infoTimer: null,
+        clientUnsubscribers: [],
+        formatter: new Intl.DateTimeFormat(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+
+        async init() {
+          this.isBooting = true;
+          this.errorMessage = '';
+
+          try {
+            this.mountEditor();
+            await this.initializeClient();
+            await this.refreshEntries();
+
+            if (!this.selectedId && this.entries.length) {
+              const first = this.entries.find(entry => !entry.deletedAt) ?? this.entries[0];
+              this.selectedId = first.id;
+              this.hydrateDraft(first);
+            }
+          } catch (error) {
+            this.errorMessage = formatError(error, 'Could not initialize this diary example.');
+          } finally {
+            this.isBooting = false;
+          }
+
+          window.addEventListener('beforeunload', () => {
+            this.teardown();
+          });
+        },
+
+        mountEditor() {
+          if (this.editor || !this.$refs.editor) {
+            return;
+          }
+
+          const options = defineOptions({
+            doc: '',
+            placeholder: 'Write your note in markdown...',
+            readability: true,
+            interface: {
+              appearance: 'light',
+              attribution: false,
+              toolbar: true,
+              lists: true,
+              spellcheck: true,
+            },
+            hooks: {
+              afterUpdate: doc => {
+                if (this.isHydratingEditor) {
+                  return;
+                }
+
+                this.draftBody = doc;
+                this.scheduleAutosave();
+              },
+            },
+          });
+
+          this.editor = ink(this.$refs.editor, options);
+        },
+
+        async initializeClient() {
+          if (this.isUnlocking) {
+            return;
+          }
+
+          this.isUnlocking = true;
+
+          const clxUI = createClxUI({
+            position: ['bottom', 'left'],
+            theme: 'light',
+            style: {
+              palette: '#ff6900',
+              fontFamily: 'Plus Jakarta Sans',
+            },
+          });
+
+          const storageSettings = await clxUI.openStoragePicker({ submitLabel: 'Connect storage' });
+          if (!storageSettings) {
+            throw new Error('Storage Picker Canceled');
+          }
+
+          const storage = createStorageBackend(storageSettings);
+          const unlockSettings = await clxUI.openDatabaseUnlock({ storage });
+          if (!unlockSettings) {
+            throw new Error('Unlock Canceled');
+          }
+
+          const nextDatabase = new DiaryDatabase();
+          const nextClient = unlockSettings.mode === 'open'
+            ? createClxDB({
+                database: nextDatabase,
+                storage,
+                crypto: unlockSettings.crypto,
+                options: { syncInterval: 45_000 },
+              })
+            : await generateNewClxDB({
+                database: nextDatabase,
+                storage,
+                crypto: unlockSettings.crypto,
+                options: { syncInterval: 45_000 },
+              });
+
+          try {
+            await nextClient.init();
+          } catch (error) {
+            nextClient.destroy();
+            nextDatabase.destroy();
+            throw error;
+          }
+
+          if (unlockSettings.update) {
+            await unlockSettings.update(nextClient);
+          }
+
+          this.database = nextDatabase;
+          this.client = nextClient;
+          this.syncState = nextClient.getState();
+
+          this.clientUnsubscribers = [
+            nextClient.on('stateChange', state => {
+              this.syncState = state;
+            }),
+            nextClient.on('syncError', error => {
+              this.errorMessage = error.message;
+            }),
+            nextClient.on('syncComplete', () => {
+              this.errorMessage = '';
+              void this.refreshEntries();
+            }),
+            nextClient.on('documentsChanged', () => {
+              void this.refreshEntries();
+            }),
+          ];
+        },
+
+        signature(title, body, deletedAt) {
+          return `${title}\n---\n${body}\n---\n${deletedAt === null ? 'active' : deletedAt}`;
+        },
+
+        entrySignature(entry) {
+          return this.signature(entry.title, entry.body, entry.deletedAt);
+        },
+
+        currentDraftSignature() {
+          const entry = this.selectedEntry();
+          if (!entry) {
+            return '';
+          }
+
+          const normalizedTitle = this.normalizedDraftTitle();
+          return this.signature(normalizedTitle, this.draftBody, entry.deletedAt);
+        },
+
+        normalizedDraftTitle() {
+          const title = normalizeString(this.draftTitle).trim();
+          return title || 'Untitled entry';
+        },
+
+        async refreshEntries() {
+          if (!this.database) {
+            return;
+          }
+
+          const rows = await this.database.listEntries();
+          this.entries = rows;
+
+          if (!this.selectedId && rows.length > 0) {
+            const first = rows.find(entry => !entry.deletedAt) ?? rows[0];
+            this.selectedId = first.id;
+            this.hydrateDraft(first);
+            return;
+          }
+
+          if (this.selectedId && !rows.some(entry => entry.id === this.selectedId)) {
+            const next = rows.find(entry => !entry.deletedAt) ?? rows[0] ?? null;
+            this.selectedId = next ? next.id : null;
+            this.hydrateDraft(next);
+            return;
+          }
+
+          const selected = this.selectedEntry();
+          if (!selected) {
+            this.hydrateDraft(null);
+            return;
+          }
+
+          const selectedSignature = this.entrySignature(selected);
+          const hasUnsavedDraft = this.currentDraftSignature() !== this.lastSavedSignature;
+          if (!hasUnsavedDraft && selectedSignature !== this.lastSavedSignature) {
+            this.hydrateDraft(selected);
+          }
+        },
+
+        selectedEntry() {
+          if (!this.selectedId) {
+            return null;
+          }
+
+          return this.entries.find(entry => entry.id === this.selectedId) ?? null;
+        },
+
+        visibleEntries() {
+          const query = this.searchQuery.trim().toLowerCase();
+
+          return this.entries.filter(entry => {
+            const archiveFilter = this.showArchivedOnly ? !!entry.deletedAt : !entry.deletedAt;
+            if (!archiveFilter) {
+              return false;
+            }
+
+            if (!query) {
+              return true;
+            }
+
+            return (
+              entry.title.toLowerCase().includes(query) || entry.body.toLowerCase().includes(query)
+            );
+          });
+        },
+
+        entryPreview(entry) {
+          const compacted = entry.body.replace(/\s+/g, ' ').trim();
+          return compacted || 'No content yet.';
+        },
+
+        formatDate(timestamp) {
+          return this.formatter.format(timestamp);
+        },
+
+        pendingCount() {
+          return this.entries.filter(entry => entry.seq === null).length;
+        },
+
+        syncLabel() {
+          if (this.syncState === 'syncing' || this.manualSyncing) {
+            return 'Syncing';
+          }
+
+          if (this.syncState === 'pending') {
+            return 'Pending local changes';
+          }
+
+          return 'Idle';
+        },
+
+        draftStatusLabel() {
+          if (!this.selectedEntry()) {
+            return 'Select an entry to start writing.';
+          }
+
+          if (this.isSaving) {
+            return 'Saving locally...';
+          }
+
+          if (this.autosaveTimer !== null) {
+            return 'Autosave queued';
+          }
+
+          if (this.currentDraftSignature() !== this.lastSavedSignature) {
+            return 'Unsaved draft changes';
+          }
+
+          return 'Saved locally';
+        },
+
+        hydrateDraft(entry) {
+          this.isHydratingEditor = true;
+
+          if (!entry) {
+            this.draftTitle = '';
+            this.draftBody = '';
+            this.lastSavedSignature = '';
+            if (this.editor) {
+              this.editor.update('');
+            }
+
+            this.isHydratingEditor = false;
+            return;
+          }
+
+          this.draftTitle = entry.title;
+          this.draftBody = entry.body;
+          this.lastSavedSignature = this.entrySignature(entry);
+
+          if (this.editor) {
+            this.editor.update(entry.body);
+          }
+
+          this.isHydratingEditor = false;
+        },
+
+        async selectEntry(id) {
+          if (!id || id === this.selectedId) {
+            return;
+          }
+
+          await this.flushAutosave();
+          this.selectedId = id;
+          this.hydrateDraft(this.selectedEntry());
+        },
+
+        scheduleAutosave() {
+          if (this.isHydratingEditor || !this.selectedId) {
+            return;
+          }
+
+          if (this.autosaveTimer !== null) {
+            clearTimeout(this.autosaveTimer);
+          }
+
+          this.autosaveTimer = window.setTimeout(() => {
+            this.autosaveTimer = null;
+            void this.saveDraft();
+          }, AUTOSAVE_DELAY);
+        },
+
+        async flushAutosave() {
+          if (this.autosaveTimer === null) {
+            return;
+          }
+
+          clearTimeout(this.autosaveTimer);
+          this.autosaveTimer = null;
+          await this.saveDraft();
+        },
+
+        async saveDraft() {
+          if (!this.database || !this.selectedId) {
+            return;
+          }
+
+          if (this.isSaving) {
+            this.saveQueued = true;
+            return;
+          }
+
+          const entry = this.selectedEntry();
+          if (!entry) {
+            return;
+          }
+
+          const title = this.normalizedDraftTitle();
+          const body = this.editor ? this.editor.getDoc() : this.draftBody;
+          const nextSignature = this.signature(title, body, entry.deletedAt);
+
+          if (nextSignature === this.lastSavedSignature) {
+            return;
+          }
+
+          this.isSaving = true;
+
+          try {
+            const updated = await this.database.updateEntry(this.selectedId, { title, body });
+            if (updated) {
+              this.draftTitle = updated.title;
+              this.draftBody = updated.body;
+              this.lastSavedSignature = this.signature(
+                updated.title,
+                updated.body,
+                updated.deletedAt
+              );
+              await this.refreshEntries();
+            }
+          } catch (error) {
+            this.errorMessage = formatError(error, 'Could not save this entry.');
+          } finally {
+            this.isSaving = false;
+            if (this.saveQueued) {
+              this.saveQueued = false;
+              void this.saveDraft();
+            }
+          }
+        },
+
+        async createEntry() {
+          if (!this.database) {
+            return;
+          }
+
+          this.errorMessage = '';
+          await this.flushAutosave();
+
+          try {
+            const stamp = new Intl.DateTimeFormat(undefined, {
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            }).format(Date.now());
+
+            const entry = await this.database.createEntry({
+              title: `Diary note ${stamp}`,
+              body: '',
+            });
+
+            await this.refreshEntries();
+            this.selectedId = entry.id;
+            this.hydrateDraft(entry);
+            this.setInfoMessage('New diary entry created.');
+          } catch (error) {
+            this.errorMessage = formatError(error, 'Could not create a new entry.');
+          }
+        },
+
+        async archiveSelected() {
+          if (!this.database || !this.selectedId) {
+            return;
+          }
+
+          this.errorMessage = '';
+          await this.flushAutosave();
+
+          try {
+            const archived = await this.database.softDeleteEntry(this.selectedId);
+            if (!archived) {
+              return;
+            }
+
+            this.setInfoMessage('Entry archived with deletedAt soft delete.');
+            await this.refreshEntries();
+
+            if (!this.showArchivedOnly) {
+              const next = this.entries.find(entry => !entry.deletedAt) ?? this.entries[0] ?? null;
+              this.selectedId = next ? next.id : null;
+              this.hydrateDraft(next);
+            } else {
+              this.hydrateDraft(this.selectedEntry());
+            }
+          } catch (error) {
+            this.errorMessage = formatError(error, 'Could not archive this entry.');
+          }
+        },
+
+        async restoreSelected() {
+          if (!this.database || !this.selectedId) {
+            return;
+          }
+
+          this.errorMessage = '';
+          await this.flushAutosave();
+
+          try {
+            const restored = await this.database.restoreEntry(this.selectedId);
+            if (!restored) {
+              return;
+            }
+
+            this.setInfoMessage('Entry restored from soft delete.');
+            await this.refreshEntries();
+            this.hydrateDraft(this.selectedEntry());
+          } catch (error) {
+            this.errorMessage = formatError(error, 'Could not restore this entry.');
+          }
+        },
+
+        async syncNow() {
+          if (!this.client || this.manualSyncing) {
+            return;
+          }
+
+          this.errorMessage = '';
+          await this.flushAutosave();
+          this.manualSyncing = true;
+
+          try {
+            await this.client.sync();
+            await this.refreshEntries();
+            this.setInfoMessage('Manual sync completed.');
+          } catch (error) {
+            this.errorMessage = formatError(error, 'Manual sync failed.');
+          } finally {
+            this.manualSyncing = false;
+          }
+        },
+
+        setInfoMessage(message) {
+          this.infoMessage = message;
+
+          window.clearTimeout(this.infoTimer);
+          this.infoTimer = window.setTimeout(() => {
+            this.infoMessage = '';
+          }, 2800);
+        },
+
+        teardown() {
+          if (this.autosaveTimer !== null) {
+            clearTimeout(this.autosaveTimer);
+            this.autosaveTimer = null;
+          }
+
+          if (this.infoTimer !== null) {
+            clearTimeout(this.infoTimer);
+            this.infoTimer = null;
+          }
+
+          this.clientUnsubscribers.forEach(off => {
+            off();
+          });
+          this.clientUnsubscribers = [];
+
+          if (this.editor) {
+            this.editor.destroy();
+            this.editor = null;
+          }
+
+          this.client?.destroy();
+          this.client = null;
+
+          this.database?.destroy();
+          this.database = null;
+        },
+      });
+
+      Alpine.data('diaryApp', diaryApp);
+      window.Alpine = Alpine;
+      Alpine.start();
+    </script>
+  </body>
+</html>
