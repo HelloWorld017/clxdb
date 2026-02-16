@@ -7,8 +7,9 @@ export interface PinInputProps {
   label: string;
   hint: string;
   digits: string[];
-  hidden?: boolean;
+  digitsHidden?: boolean;
   disabled?: boolean;
+  autoFocus?: boolean;
   className?: string;
   onChange: (next: string[]) => void;
 }
@@ -101,19 +102,20 @@ export const PinInput = ({
   label,
   hint,
   digits,
-  hidden = true,
+  digitsHidden = true,
   disabled = false,
+  autoFocus = false,
   className,
   onChange,
 }: PinInputProps) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isFocused, setIsFocused] = useState(false);
-  const [isHidden, setIsHidden] = useState(hidden);
+  const [isHidden, setIsHidden] = useState(digitsHidden);
   const [selectionIndex, setSelectionIndex] = useState(0);
 
   useEffect(() => {
-    setIsHidden(hidden);
-  }, [hidden]);
+    setIsHidden(digitsHidden);
+  }, [digitsHidden]);
 
   const pinValue = sanitizePinValue(pinToString(digits));
   const clampedSelectionIndex = Math.min(selectionIndex, pinValue.length);
@@ -222,6 +224,7 @@ export const PinInput = ({
           maxLength={PIN_LENGTH}
           aria-label={label}
           aria-describedby={`${idPrefix}-hint`}
+          autoFocus={autoFocus}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           onClick={syncSelectionIndex}

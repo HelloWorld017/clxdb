@@ -8,9 +8,8 @@ import { ThemeProvider } from './components/theme-provider';
 import uiStyles from './style.css?inline';
 import type { DatabaseUnlockOperation } from './components/database-unlock';
 import type { StoragePickerBackendType, StoragePickerSelection } from './components/storage-picker';
-import type { SyncIndicatorClient } from './components/sync-indicator';
 import type { ThemeFontFamily, ThemePalette } from './components/theme-provider';
-import type { DatabaseClient } from './types';
+import type { ClxUIDatabaseClient } from './types';
 import type { ClxDBClientOptions, StorageBackend } from '@/types';
 import type { ReactElement, ReactNode } from 'react';
 import type { Root } from 'react-dom/client';
@@ -48,12 +47,12 @@ export interface OpenDatabaseUnlockOptions {
 
 export interface OpenDatabaseSettingsOptions {
   storage: StorageBackend;
-  client: DatabaseClient;
+  client: ClxUIDatabaseClient;
   options?: ClxDBClientOptions;
 }
 
 export interface ShowSyncIndicatorOptions {
-  client: SyncIndicatorClient;
+  client: ClxUIDatabaseClient;
   successDuration?: number;
 }
 

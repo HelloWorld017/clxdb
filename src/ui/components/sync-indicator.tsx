@@ -2,12 +2,8 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { classes } from '@/utils/classes';
 import { DEFAULT_Z_INDEX } from '../constants';
 import { Presence } from './common/presence';
-import type { ClxDBEvents, SyncState } from '@/types';
-
-type SyncIndicatorEvents = Pick<
-  ClxDBEvents,
-  'stateChange' | 'syncStart' | 'syncComplete' | 'syncError'
->;
+import type { ClxUIDatabaseClient } from '../types';
+import type { SyncState } from '@/types';
 
 type SyncIndicatorPhase = 'hidden' | 'pending' | 'syncing' | 'success' | 'error';
 type VisibleSyncIndicatorPhase = Exclude<SyncIndicatorPhase, 'hidden'>;
@@ -17,16 +13,8 @@ const DEFAULT_SYNC_ERROR_TEXT = 'Sync failed. Please try again.';
 export type SyncIndicatorVerticalPosition = 'top' | 'bottom';
 export type SyncIndicatorHorizontalPosition = 'left' | 'center' | 'right';
 
-export interface SyncIndicatorClient {
-  getState: () => SyncState;
-  on: <K extends keyof SyncIndicatorEvents>(
-    event: K,
-    listener: SyncIndicatorEvents[K]
-  ) => () => void;
-}
-
 export interface SyncIndicatorProps {
-  client: SyncIndicatorClient;
+  client: ClxUIDatabaseClient;
   vertical?: SyncIndicatorVerticalPosition;
   horizontal?: SyncIndicatorHorizontalPosition;
   successDuration?: number;
@@ -325,56 +313,61 @@ export function SyncIndicator({
           : 'right-0 origin-bottom-right'
   );
 
+  const onIndicatorClick = () => {
+    if (displayPhase === 'pending') {
+      void client.sync();
+      return;
+    }
+
+    if (displayPhase === 'error') {
+      setIsErrorOpen(currentOpen => !currentOpen);
+      return;
+    }
+  };
+
+  const canClickIndicator = displayPhase === 'pending' || displayPhase === 'error';
+
   return (
     <Presence
       enterClassName="clx-sync-indicator-presence-enter"
       exitClassName="clx-sync-indicator-presence-exit"
     >
       {isVisible ? (
-        displayPhase === 'error' ? (
-          <div
-            className={classes('pointer-events-none', positionClasses, directionClasses, className)}
-            style={{ zIndex: zIndex ?? DEFAULT_Z_INDEX }}
-          >
-            <div className="pointer-events-auto relative">
-              <button
-                type="button"
-                className={indicatorClasses}
-                onClick={() => setIsErrorOpen(currentOpen => !currentOpen)}
-                aria-label={label}
-                aria-expanded={isErrorOpen}
-                aria-controls={errorPanelId}
-              >
-                <span key={displayPhase} className="clx-sync-indicator-icon-enter inline-flex">
-                  <IndicatorIcon phase={displayPhase} />
-                </span>
-              </button>
-
-              <Presence
-                enterClassName="clx-sync-indicator-message-enter"
-                exitClassName="clx-sync-indicator-message-exit"
-              >
-                {isErrorOpen ? (
-                  <p id={errorPanelId} className={messageClasses} role="alert">
-                    {errorMessage ?? DEFAULT_SYNC_ERROR_TEXT}
-                  </p>
-                ) : null}
-              </Presence>
-            </div>
-          </div>
-        ) : (
-          <div
-            className={classes('pointer-events-none', positionClasses, directionClasses, className)}
-            style={{ zIndex: zIndex ?? DEFAULT_Z_INDEX }}
-          >
-            <div className={indicatorClasses} aria-live="polite">
-              <span className="sr-only">{label}</span>
+        <div
+          className={classes(
+            canClickIndicator ? 'pointer-events-auto' : 'pointer-events-none',
+            positionClasses,
+            directionClasses,
+            className
+          )}
+          style={{ zIndex: zIndex ?? DEFAULT_Z_INDEX }}
+        >
+          <div className="relative">
+            <button
+              type="button"
+              className={indicatorClasses}
+              onClick={onIndicatorClick}
+              aria-label={label}
+              aria-expanded={isErrorOpen}
+              aria-controls={errorPanelId}
+            >
               <span key={displayPhase} className="clx-sync-indicator-icon-enter inline-flex">
                 <IndicatorIcon phase={displayPhase} />
               </span>
-            </div>
+            </button>
+
+            <Presence
+              enterClassName="clx-sync-indicator-message-enter"
+              exitClassName="clx-sync-indicator-message-exit"
+            >
+              {displayPhase === 'error' && isErrorOpen ? (
+                <p id={errorPanelId} className={messageClasses} role="alert">
+                  {errorMessage ?? DEFAULT_SYNC_ERROR_TEXT}
+                </p>
+              ) : null}
+            </Presence>
           </div>
-        )
+        </div>
       ) : null}
     </Presence>
   );

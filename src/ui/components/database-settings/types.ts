@@ -1,5 +1,5 @@
 import type { ClxDBClientOptions } from '@/types';
-import type { DatabaseClient } from '@/ui/types';
+import type { ClxUIDatabaseClient } from '@/ui/types';
 import type { ReactNode } from 'react';
 
 export type SettingsTab = 'overview' | 'encryption' | 'devices' | 'export';
@@ -18,7 +18,7 @@ export interface StorageOverview {
 }
 
 export interface DatabaseSettingsProps {
-  client: DatabaseClient;
+  client: ClxUIDatabaseClient;
   options?: ClxDBClientOptions;
   className?: string;
   disabled?: boolean;

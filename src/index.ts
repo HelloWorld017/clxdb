@@ -13,6 +13,8 @@ export type { ClxDBStatus } from '@/core/utils/inspect';
 export type {
   DatabaseBackend,
   StorageBackend,
+  ShardDocument,
+  DatabaseDocument,
   ClxDBCrypto,
   ClxDBClientOptions,
   ClxDBOptions,

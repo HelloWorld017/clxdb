@@ -308,8 +308,8 @@ export function StoragePicker({
   return (
     <section
       className={classes(
-        `relative isolate mx-auto h-150 w-full max-w-4xl overflow-hidden rounded-[2rem] border
-        border-default-200 bg-default-100 px-2 py-2 shadow-ui-soft`,
+        `relative isolate mx-auto h-150 overflow-hidden rounded-[2rem] border border-default-200
+        bg-default-100 px-2 py-2 shadow-ui-soft`,
         className
       )}
     >

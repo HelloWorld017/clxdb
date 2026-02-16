@@ -15,13 +15,12 @@ export type {
   OpenStoragePickerOptions,
   ShowSyncIndicatorOptions,
 } from './clxui';
-export type { DatabaseClient } from './types';
+export type { ClxUIDatabaseClient } from './types';
 export type {
   DatabaseUnlockProps,
   DatabaseUnlockSubmission,
   DatabaseUnlockOperation,
 } from './components/database-unlock';
-export type { SyncIndicatorClient } from './components/sync-indicator';
 export type { ThemeMode, ThemeProviderProps } from './components/theme-provider';
 export type {
   FileSystemAccessStorageSelection,

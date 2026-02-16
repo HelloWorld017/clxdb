@@ -41,7 +41,6 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
   private state: SyncState = 'idle';
   private syncIntervalId: ReturnType<typeof setInterval> | null = null;
   private syncPromise: Promise<void> | null = null;
-  private syncRequestedWhileSyncing: boolean = false;
   private cleanup: (() => void) | null = null;
 
   constructor({ database, storage, crypto, options }: ClxDBParams) {
@@ -100,7 +99,7 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
       void this.vacuumEngine.vacuum();
     }
 
-    this.cleanup = this.database.replicate(() => this.markAsPending());
+    this.cleanup = this.database.replicate(() => void this.checkAndUpdateStatus());
     if (this.options.syncInterval > 0) {
       this.start();
     }
@@ -112,9 +111,12 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
     this.cacheManager.destroy();
   }
 
-  private markAsPending() {
+  private async checkAndUpdateStatus() {
     if (this.state === 'syncing') {
-      this.syncRequestedWhileSyncing = true;
+      return;
+    }
+
+    if ((await this.database.readPendingIds()).length === 0) {
       return;
     }
 
@@ -131,7 +133,6 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
         }
 
         const isPending = this.state === 'pending';
-        this.syncRequestedWhileSyncing = false;
         this.setState('syncing');
         this.emit('syncStart', isPending);
 
@@ -142,7 +143,8 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
         } catch (error) {
           this.emit('syncError', error as Error);
         } finally {
-          this.setState(this.syncRequestedWhileSyncing ? 'pending' : 'idle');
+          this.setState('idle');
+          void this.checkAndUpdateStatus();
           this.syncPromise = null;
         }
       })();

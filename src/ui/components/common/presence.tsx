@@ -57,7 +57,6 @@ export function Presence({
       return;
     }
 
-    console.log('goes exit');
     setState('exit');
 
     let settled = false;
@@ -99,7 +98,6 @@ export function Presence({
 
   const handleAnimationEnd: AnimationEventHandler<HTMLElement> = event => {
     child.props.onAnimationEnd?.(event);
-    console.log('complete exit', event.target, event.currentTarget);
     if (event.target === event.currentTarget) {
       completeExit();
     }

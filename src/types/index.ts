@@ -101,7 +101,7 @@ export interface ClxDBParams {
 
 export type SyncState = 'idle' | 'pending' | 'syncing';
 
-export interface ClxDBEvents {
+export type ClxDBEvents = {
   stateChange: (state: SyncState) => void;
   syncStart: (isPending: boolean) => void;
   syncComplete: () => void;
@@ -113,7 +113,7 @@ export interface ClxDBEvents {
   vacuumComplete: () => void;
   vacuumError: (error: Error) => void;
   documentsChanged: (documents: ShardDocument[]) => void;
-}
+};
 
 export type * from '@/schemas';
 export type * from './utils';

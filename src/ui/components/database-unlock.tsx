@@ -8,7 +8,7 @@ import {
   isCompletePin,
   pinToString,
 } from './common/pin-input';
-import type { DatabaseClient } from '../types';
+import type { ClxUIDatabaseClient } from '../types';
 import type { ClxDBStatus } from '@/core/utils/inspect';
 import type { ClxDBClientOptions, ClxDBCrypto, StorageBackend } from '@/types';
 import type { SubmitEvent } from 'react';
@@ -39,7 +39,7 @@ export type DatabaseUnlockSubmission =
 export type DatabaseUnlockOperation = {
   mode: 'generate' | 'open';
   crypto: ClxDBCrypto;
-  update: ((client: DatabaseClient) => Promise<void>) | null;
+  update: ((client: ClxUIDatabaseClient) => Promise<void>) | null;
   submission: DatabaseUnlockSubmission;
 };
 
@@ -358,6 +358,11 @@ export function DatabaseUnlock({
     }
   };
 
+  const formRef = useRef<HTMLFormElement | null>(null);
+  useEffect(() => {
+    formRef.current?.querySelector<HTMLElement>('*[autofocus]')?.focus();
+  }, [formVisible]);
+
   if (mode === 'inspecting') {
     return null;
   }
@@ -365,8 +370,8 @@ export function DatabaseUnlock({
   return (
     <section
       className={classes(
-        `relative isolate mx-auto w-full max-w-4xl overflow-hidden rounded-[2rem] border
-        border-default-200 bg-default-100 p-6 shadow-ui-soft sm:p-8`,
+        `relative isolate mx-auto overflow-hidden rounded-[2rem] border border-default-200
+        bg-default-100 p-6 shadow-ui-soft sm:p-8`,
         className
       )}
     >
@@ -409,6 +414,7 @@ export function DatabaseUnlock({
 
         {formVisible && (
           <form
+            ref={formRef}
             onSubmit={handleSubmit}
             className="mt-7 space-y-5 rounded-2xl border border-default-300 bg-surface/90 p-5 pt-1
               shadow-ui-medium sm:p-6 sm:pt-2"
@@ -477,6 +483,7 @@ export function DatabaseUnlock({
                   value={masterPassword}
                   onChange={event => setMasterPassword(event.target.value)}
                   autoComplete={mode === 'create' ? 'new-password' : 'current-password'}
+                  autoFocus
                   disabled={controlsLocked}
                   placeholder="Enter your master password"
                   className="mt-6 w-[324px] rounded-xl border border-default-300 bg-default-50 px-3
@@ -493,6 +500,7 @@ export function DatabaseUnlock({
                 idPrefix={`${baseId}-pin`}
                 label={mode === 'master-recovery' ? 'New Quick Unlock PIN' : 'Quick Unlock PIN'}
                 hint="PIN is local to this device and unlocks your database without re-entering the master password."
+                autoFocus
                 digits={quickUnlockPinDigits}
                 disabled={controlsLocked}
                 onChange={setQuickUnlockPinDigits}
