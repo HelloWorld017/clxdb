@@ -308,8 +308,8 @@ export function StoragePicker({
   return (
     <section
       className={classes(
-        `relative isolate mx-auto h-150 w-full max-w-4xl overflow-auto rounded-[2rem] border
-        border-default-200 bg-default-50/85 p-6 shadow-ui-soft backdrop-blur-sm sm:p-8`,
+        `relative isolate mx-auto h-150 w-full max-w-4xl overflow-hidden rounded-[2rem] border
+        border-default-200 bg-default-100 px-2 py-6 shadow-ui-soft backdrop-blur-sm sm:py-8`,
         className
       )}
     >
@@ -324,7 +324,7 @@ export function StoragePicker({
         />
       </div>
 
-      <div className="relative flex h-full flex-col">
+      <div className="relative flex h-full flex-col overflow-auto px-4 sm:px-6">
         <header className="mb-8 space-y-2">
           <p className="text-xs font-semibold tracking-[0.2em] text-default-500 uppercase">
             Storage Backend
@@ -520,8 +520,8 @@ export function StoragePicker({
 
           <div className="flex-1" />
           <div
-            className="sticky bottom-0 mt-auto flex flex-col-reverse gap-2 bg-linear-to-b
-              from-transparent to-default-50 sm:flex-row sm:justify-end"
+            className="sticky bottom-0 mt-auto flex flex-col-reverse gap-2 sm:flex-row
+              sm:justify-end"
           >
             {onCancel && (
               <button

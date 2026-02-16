@@ -36,6 +36,7 @@ const dialogLayerStyle: CSSProperties = {
 };
 
 const dialogBackdropStyle: CSSProperties = {
+  cursor: 'default',
   position: 'absolute',
   inset: 0,
   background: 'rgba(0, 0, 0, 0.1)',
@@ -61,7 +62,7 @@ const dialogCloseButtonStyle: CSSProperties = {
   width: '2rem',
   height: '2rem',
   padding: 0,
-  borderRadius: '9999px',
+  borderRadius: '0.8rem',
   border: '1px solid color-mix(in srgb, var(--color-default-300) 75%, transparent)',
   background: 'color-mix(in srgb, var(--color-surface) 92%, transparent)',
   color: 'var(--color-default-700)',

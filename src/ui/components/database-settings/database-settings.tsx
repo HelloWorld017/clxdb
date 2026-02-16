@@ -115,7 +115,7 @@ export function DatabaseSettings({
     <section
       className={classes(
         `relative isolate mx-auto flex h-150 w-full max-w-4xl flex-col overflow-hidden
-        rounded-[2rem] border border-default-200 bg-default-50/85`,
+        rounded-[2rem] border border-default-200 bg-default-100`,
         className
       )}
     >

@@ -325,7 +325,7 @@ export function DatabaseUnlock({
     <section
       className={classes(
         `relative isolate mx-auto w-full max-w-4xl overflow-hidden rounded-[2rem] border
-        border-default-200 bg-default-50/85 p-6 shadow-ui-soft backdrop-blur-sm sm:p-8`,
+        border-default-200 bg-default-100 p-6 shadow-ui-soft backdrop-blur-sm sm:p-8`,
         className
       )}
     >
