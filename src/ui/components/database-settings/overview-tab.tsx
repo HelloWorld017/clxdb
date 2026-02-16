@@ -36,7 +36,7 @@ export const OverviewTab = ({
 
         <div className="mt-4 rounded-xl border border-default-200 bg-surface px-3 py-2.5">
           <p className="text-xs text-default-500">{storageOverview.detailLabel}</p>
-          <p className="font-monospace mt-1 text-sm font-medium break-all text-default-800">
+          <p className="mt-1 font-monospace text-sm font-medium break-all text-default-800">
             {storageOverview.detailValue}
           </p>
         </div>
@@ -54,7 +54,7 @@ export const OverviewTab = ({
           >
             <span className="text-xs text-default-500">UUID</span>
             <span
-              className="font-monospace truncate font-medium text-default-800"
+              className="truncate font-monospace font-medium text-default-800"
               title={status?.uuid ?? 'Not available'}
             >
               {status?.uuid ?? 'Not available'}
