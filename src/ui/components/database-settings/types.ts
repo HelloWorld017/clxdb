@@ -1,4 +1,5 @@
-import type { ClxDBClientOptions, StorageBackend } from '@/types';
+import type { ClxDBClientOptions } from '@/types';
+import type { DatabaseClient } from '@/ui/types';
 import type { ReactNode } from 'react';
 
 export type SettingsTab = 'overview' | 'encryption' | 'devices' | 'export';
@@ -16,16 +17,8 @@ export interface StorageOverview {
   description: string;
 }
 
-export interface DatabaseSettingsClient {
-  updateMasterPassword(oldPassword: string, newPassword: string): Promise<void>;
-  updateQuickUnlockPassword(masterPassword: string, quickUnlockPin: string): Promise<void>;
-  removeRegisteredDevice(deviceId: string): Promise<void>;
-  getCurrentDeviceId?: () => Promise<string | null>;
-}
-
 export interface DatabaseSettingsProps {
-  storage: StorageBackend;
-  client: DatabaseSettingsClient;
+  client: DatabaseClient;
   options?: ClxDBClientOptions;
   className?: string;
   disabled?: boolean;

@@ -4,17 +4,37 @@ import type { CSSProperties, ReactNode } from 'react';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
-export interface ThemeProviderProps {
-  children: ReactNode;
-  className?: string;
-  mode?: ThemeMode;
+export interface ThemePalette {
   primaryColor?: string;
   defaultColor?: string;
   darkPrimaryColor?: string;
   darkDefaultColor?: string;
 }
 
+export interface ThemeFontFamily {
+  sansSerif?: string;
+  monospace?: string;
+}
+
+export interface ThemeProviderProps {
+  children: ReactNode;
+  className?: string;
+  mode?: ThemeMode;
+  palette?: ThemePalette;
+  fontFamily?: ThemeFontFamily;
+}
+
 type ResolvedThemeMode = Exclude<ThemeMode, 'system'>;
+interface ResolvedThemePalette {
+  primaryColor: string;
+  defaultColor: string;
+}
+
+interface ResolvedThemeFontFamily {
+  sansSerif: string;
+  monospace: string;
+}
+
 type ThemeStyle = CSSProperties & Record<`--${string}`, string>;
 
 const resolveSystemMode = (): ResolvedThemeMode => {
@@ -27,21 +47,21 @@ const resolveSystemMode = (): ResolvedThemeMode => {
 
 const getThemeVariables = (
   mode: ResolvedThemeMode,
-  primaryColor: string,
-  defaultColor: string
+  palette: ResolvedThemePalette,
+  fontFamily: ResolvedThemeFontFamily
 ): ThemeStyle => {
   const isDark = mode === 'dark';
 
   return {
     'colorScheme': mode,
-    '--clxui-primary-source': primaryColor,
+    '--clxui-primary-source': palette.primaryColor,
     '--clxui-primary-foreground': `color(from var(--clxui-primary-source) xyz
       clamp(0.05, (.36 / y - 1) * infinity, 1)
       clamp(0.05, (.36 / y - 1) * infinity, 1)
       clamp(0.05, (.36 / y - 1) * infinity, 1)
       / 0.95
     )`,
-    '--clxui-default-source': defaultColor,
+    '--clxui-default-source': palette.defaultColor,
 
     '--color-primary': 'oklch(from var(--clxui-primary-source) l c h)',
     '--color-primary-hover': isDark
@@ -101,6 +121,9 @@ const getThemeVariables = (
     '--shadow-ui-strong': isDark
       ? '0 14px 30px -22px oklch(from var(--clxui-default-source) 0.02 calc(c * 0.25) h / 0.95)'
       : '0 14px 30px -22px oklch(from var(--clxui-default-source) 0.11 calc(c * 0.35) h / 0.95)',
+
+    '--font-sans': `${fontFamily.sansSerif}, system-ui, sans-serif`,
+    '--font-monospace': `${fontFamily.monospace}, monospace`,
   };
 };
 
@@ -109,11 +132,16 @@ export function ThemeProvider({
   children,
   className,
   mode = 'system',
-  primaryColor = 'oklch(0.2 0 250)',
-  defaultColor = `oklch(from ${primaryColor} 0.56 min(c / 3, 0.06) h)`,
-  darkPrimaryColor = primaryColor === DEFAULT_PRIMARY_COLOR ? 'oklch(0.9 0 250)' : primaryColor,
-  darkDefaultColor = defaultColor,
+  palette = {},
+  fontFamily = {},
 }: ThemeProviderProps) {
+  const {
+    primaryColor = 'oklch(0.2 0 250)',
+    defaultColor = `oklch(from ${primaryColor} 0.56 min(c / 3, 0.06) h)`,
+    darkPrimaryColor = primaryColor === DEFAULT_PRIMARY_COLOR ? 'oklch(0.9 0 250)' : primaryColor,
+    darkDefaultColor = defaultColor,
+  } = palette;
+
   const [systemMode, setSystemMode] = useState<ResolvedThemeMode>(() => resolveSystemMode());
 
   useEffect(() => {
@@ -139,8 +167,14 @@ export function ThemeProvider({
     () => ({
       ...getThemeVariables(
         resolvedMode,
-        resolvedMode === 'dark' ? darkPrimaryColor : primaryColor,
-        resolvedMode === 'dark' ? darkDefaultColor : defaultColor
+        {
+          primaryColor: resolvedMode === 'dark' ? darkPrimaryColor : primaryColor,
+          defaultColor: resolvedMode === 'dark' ? darkDefaultColor : defaultColor,
+        },
+        {
+          sansSerif: fontFamily.sansSerif ?? 'ui-sans-serif',
+          monospace: fontFamily.monospace ?? 'ui-monospace',
+        }
       ),
       colorScheme: resolvedMode,
     }),
@@ -148,7 +182,7 @@ export function ThemeProvider({
   );
 
   return (
-    <div className={classes(className, resolvedMode)} style={style}>
+    <div className={classes(className, 'font-sans', resolvedMode)} style={style}>
       {children}
     </div>
   );

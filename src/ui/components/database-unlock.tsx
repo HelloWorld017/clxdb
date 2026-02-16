@@ -8,8 +8,9 @@ import {
   isCompletePin,
   pinToString,
 } from './common/pin-input';
+import type { DatabaseClient } from '../types';
 import type { ClxDBStatus } from '@/core/utils/inspect';
-import type { ClxDBClientOptions, StorageBackend } from '@/types';
+import type { ClxDBClientOptions, ClxDBCrypto, StorageBackend } from '@/types';
 import type { SubmitEvent } from 'react';
 
 export type DatabaseUnlockSubmission =
@@ -17,32 +18,75 @@ export type DatabaseUnlockSubmission =
       mode: 'create';
       masterPassword: string;
       quickUnlockPin: string;
-      status: ClxDBStatus;
     }
   | {
       mode: 'create-no-crypto';
-      status: ClxDBStatus;
     }
   | {
       mode: 'quick-unlock';
       quickUnlockPin: string;
-      status: ClxDBStatus;
     }
   | {
       mode: 'master-unlock';
       masterPassword: string;
-      status: ClxDBStatus;
     }
   | {
       mode: 'master-recovery';
       masterPassword: string;
       quickUnlockPin: string;
-      status: ClxDBStatus;
     };
+
+export type DatabaseUnlockOperation = {
+  mode: 'generate' | 'open';
+  crypto: ClxDBCrypto;
+  update: ((client: DatabaseClient) => Promise<void>) | null;
+  submission: DatabaseUnlockSubmission;
+};
+
+const mapToUnlockOperation = (submission: DatabaseUnlockSubmission): DatabaseUnlockOperation => {
+  if (submission.mode === 'create') {
+    return {
+      mode: 'generate',
+      crypto: { kind: 'master', password: submission.masterPassword },
+      update: async client =>
+        client.updateQuickUnlockPassword(submission.masterPassword, submission.quickUnlockPin),
+      submission,
+    };
+  }
+
+  if (submission.mode === 'create-no-crypto') {
+    return {
+      mode: 'generate',
+      crypto: { kind: 'none' },
+      update: null,
+      submission,
+    };
+  }
+
+  if (submission.mode === 'quick-unlock') {
+    return {
+      mode: 'open',
+      crypto: { kind: 'quick-unlock', password: submission.quickUnlockPin },
+      update: null,
+      submission,
+    };
+  }
+
+  return {
+    mode: 'open',
+    crypto: { kind: 'master', password: submission.masterPassword },
+    update:
+      submission.mode === 'master-recovery'
+        ? async client =>
+            client.updateQuickUnlockPassword(submission.masterPassword, submission.quickUnlockPin)
+        : null,
+    submission,
+  };
+};
 
 export interface DatabaseUnlockProps {
   storage: StorageBackend;
-  onSubmit: (submission: DatabaseUnlockSubmission) => Promise<void> | void;
+  onSubmit: (operation: DatabaseUnlockOperation) => Promise<void> | void;
   options?: ClxDBClientOptions;
   onStatusChange?: (status: ClxDBStatus) => void;
   className?: string;
@@ -235,10 +279,7 @@ export function DatabaseUnlock({
     setIsSubmitting(true);
 
     try {
-      await onSubmit({
-        mode: 'create-no-crypto',
-        status,
-      });
+      await onSubmit(mapToUnlockOperation({ mode: 'create-no-crypto' }));
 
       setMasterPassword('');
       setQuickUnlockPinDigits(createEmptyPin());
@@ -270,36 +311,40 @@ export function DatabaseUnlock({
 
     try {
       if (mode === 'create') {
-        await onSubmit({
-          mode,
-          masterPassword,
-          quickUnlockPin: pinValue ?? '',
-          status,
-        });
+        await onSubmit(
+          mapToUnlockOperation({
+            mode,
+            masterPassword,
+            quickUnlockPin: pinValue ?? '',
+          })
+        );
       }
 
       if (mode === 'quick-unlock') {
-        await onSubmit({
-          mode,
-          quickUnlockPin: pinValue ?? '',
-          status,
-        });
+        await onSubmit(
+          mapToUnlockOperation({
+            mode,
+            quickUnlockPin: pinValue ?? '',
+          })
+        );
       }
 
       if (mode === 'master-recovery') {
         if (recoveryWithDeviceKey) {
-          await onSubmit({
-            mode,
-            masterPassword,
-            quickUnlockPin: pinValue ?? '',
-            status,
-          });
+          await onSubmit(
+            mapToUnlockOperation({
+              mode,
+              masterPassword,
+              quickUnlockPin: pinValue ?? '',
+            })
+          );
         } else {
-          await onSubmit({
-            mode: 'master-unlock',
-            masterPassword,
-            status,
-          });
+          await onSubmit(
+            mapToUnlockOperation({
+              mode: 'master-unlock',
+              masterPassword,
+            })
+          );
         }
       }
 

@@ -18,7 +18,6 @@ export const TAB_OPTIONS: TabOption[] = [
 ];
 
 export function DatabaseSettings({
-  storage,
   client,
   options,
   className,
@@ -33,6 +32,7 @@ export function DatabaseSettings({
 
   const inspectionSequenceRef = useRef(0);
 
+  const storage = client.storage;
   const storageMetadata = useMemo(() => resolveStorageMetadata(storage), [storage]);
   const storageOverview = useMemo(() => getStorageOverview(storageMetadata), [storageMetadata]);
 
@@ -223,4 +223,4 @@ export function DatabaseSettings({
   );
 }
 
-export type { DatabaseSettingsClient, DatabaseSettingsProps } from './types';
+export type { DatabaseSettingsProps } from './types';

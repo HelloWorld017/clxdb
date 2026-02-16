@@ -24,8 +24,8 @@ import type {
 } from '@/types';
 
 export class ClxDB extends EventEmitter<ClxDBEvents> {
-  private database: DatabaseBackend;
-  private storage: StorageBackend;
+  public database: DatabaseBackend;
+  public storage: StorageBackend;
   private crypto: ClxDBCrypto;
   private options: ClxDBOptions;
 

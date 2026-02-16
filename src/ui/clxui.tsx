@@ -6,12 +6,12 @@ import { StoragePicker } from './components/storage-picker';
 import { SyncIndicator } from './components/sync-indicator';
 import { ThemeProvider } from './components/theme-provider';
 import uiStyles from './style.css?inline';
-import type { DatabaseSettingsClient } from './components/database-settings';
-import type { DatabaseUnlockSubmission } from './components/database-unlock';
+import type { DatabaseUnlockOperation } from './components/database-unlock';
 import type { StoragePickerBackendType, StoragePickerSelection } from './components/storage-picker';
 import type { SyncIndicatorClient } from './components/sync-indicator';
-import type { ClxDBStatus } from '@/core/utils/inspect';
-import type { ClxDBClientOptions, ClxUIOptions, StorageBackend } from '@/types';
+import type { ThemeFontFamily, ThemePalette } from './components/theme-provider';
+import type { DatabaseClient } from './types';
+import type { ClxDBClientOptions, StorageBackend } from '@/types';
 import type { ReactElement, ReactNode } from 'react';
 import type { Root } from 'react-dom/client';
 
@@ -39,19 +39,16 @@ export interface ClxUIDialogCloseResult {
 export interface OpenStoragePickerOptions {
   initialType?: StoragePickerBackendType;
   submitLabel?: string;
-  onSelect?: (selection: StoragePickerSelection) => Promise<void> | void;
 }
 
 export interface OpenDatabaseUnlockOptions {
   storage: StorageBackend;
   options?: ClxDBClientOptions;
-  onStatusChange?: (status: ClxDBStatus) => void;
-  onSubmit?: (submission: DatabaseUnlockSubmission) => Promise<void> | void;
 }
 
 export interface OpenDatabaseSettingsOptions {
   storage: StorageBackend;
-  client: DatabaseSettingsClient;
+  client: DatabaseClient;
   options?: ClxDBClientOptions;
 }
 
@@ -64,9 +61,19 @@ export interface ClxUI {
   mount(target?: HTMLElement): void;
   unmount(): void;
   openStoragePicker(options?: OpenStoragePickerOptions): Promise<StoragePickerSelection | null>;
-  openDatabaseUnlock(options: OpenDatabaseUnlockOptions): Promise<DatabaseUnlockSubmission | null>;
+  openDatabaseUnlock(options: OpenDatabaseUnlockOptions): Promise<DatabaseUnlockOperation | null>;
   openDatabaseSettings(options: OpenDatabaseSettingsOptions): Promise<ClxUIDialogCloseResult>;
   showSyncIndicator(options: ShowSyncIndicatorOptions): () => void;
+}
+
+export interface ClxUIOptions {
+  position?: ['top' | 'bottom', 'left' | 'center' | 'right'];
+  theme?: 'light' | 'dark' | 'system';
+  style?: {
+    fontFamily?: string | ThemeFontFamily;
+    palette?: string | ThemePalette;
+    zIndex?: number;
+  };
 }
 
 export const createClxUI = (options: ClxUIOptions = {}): ClxUI => {
@@ -142,10 +149,22 @@ export const createClxUI = (options: ClxUIOptions = {}): ClxUI => {
     }
   };
 
+  const palette =
+    typeof options.style?.palette === 'string'
+      ? { primaryColor: options.style.palette }
+      : options.style?.palette;
+
+  const fontFamily =
+    typeof options.style?.fontFamily === 'string'
+      ? { sansSerif: options.style.fontFamily }
+      : options.style?.fontFamily;
+
   const children: Set<ReactElement> = new Set();
   const updateChildren = () =>
     ensurePortal().root.render(
-      <ThemeProvider mode={options.theme}>{Array.from(children)}</ThemeProvider>
+      <ThemeProvider mode={options.theme} palette={palette} fontFamily={fontFamily}>
+        {Array.from(children)}
+      </ThemeProvider>
     );
 
   const addChild = (child: ReactElement) => {
@@ -173,7 +192,7 @@ export const createClxUI = (options: ClxUIOptions = {}): ClxUI => {
     };
 
     const contents = (
-      <DialogFrame key={createKey()} onClose={onFinalize}>
+      <DialogFrame key={createKey()} onClose={onFinalize} zIndex={options.style?.zIndex}>
         {close =>
           render(result => {
             resultRef = { result };
@@ -199,26 +218,19 @@ export const createClxUI = (options: ClxUIOptions = {}): ClxUI => {
           initialType={dialogOptions.initialType}
           submitLabel={dialogOptions.submitLabel}
           onCancel={closeDialog}
-          onSelect={async selection => {
-            await dialogOptions.onSelect?.(selection);
-            resolveSelection(selection);
-          }}
+          onSelect={selection => resolveSelection(selection)}
         />
       ),
     });
 
   const openDatabaseUnlock = (dialogOptions: OpenDatabaseUnlockOptions) =>
-    openDialog<DatabaseUnlockSubmission | null>({
+    openDialog<DatabaseUnlockOperation | null>({
       createCloseValue: () => null,
       render: resolveSubmission => (
         <DatabaseUnlock
           storage={dialogOptions.storage}
           options={dialogOptions.options}
-          onStatusChange={dialogOptions.onStatusChange}
-          onSubmit={async submission => {
-            await dialogOptions.onSubmit?.(submission);
-            resolveSubmission(submission);
-          }}
+          onSubmit={submission => resolveSubmission(submission)}
         />
       ),
     });
@@ -227,11 +239,7 @@ export const createClxUI = (options: ClxUIOptions = {}): ClxUI => {
     openDialog<ClxUIDialogCloseResult>({
       createCloseValue: () => ({ reason: 'closed' }),
       render: () => (
-        <DatabaseSettings
-          storage={dialogOptions.storage}
-          client={dialogOptions.client}
-          options={dialogOptions.options}
-        />
+        <DatabaseSettings client={dialogOptions.client} options={dialogOptions.options} />
       ),
     });
 
@@ -244,6 +252,7 @@ export const createClxUI = (options: ClxUIOptions = {}): ClxUI => {
         vertical={vertical}
         horizontal={horizontal}
         successDuration={indicatorOptions.successDuration}
+        zIndex={options.style?.zIndex}
       />
     );
 

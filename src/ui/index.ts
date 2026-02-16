@@ -8,20 +8,20 @@ export { ThemeProvider } from './components/theme-provider';
 export { createClxUI } from './clxui';
 export type {
   ClxUI,
+  ClxUIOptions,
   ClxUIDialogCloseResult,
   OpenDatabaseSettingsOptions,
   OpenDatabaseUnlockOptions,
   OpenStoragePickerOptions,
   ShowSyncIndicatorOptions,
 } from './clxui';
-export type { DatabaseSettingsClient, DatabaseSettingsProps } from './components/database-settings';
-export type { DatabaseUnlockProps, DatabaseUnlockSubmission } from './components/database-unlock';
+export type { DatabaseClient } from './types';
 export type {
-  SyncIndicatorClient,
-  SyncIndicatorHorizontalPosition,
-  SyncIndicatorProps,
-  SyncIndicatorVerticalPosition,
-} from './components/sync-indicator';
+  DatabaseUnlockProps,
+  DatabaseUnlockSubmission,
+  DatabaseUnlockOperation,
+} from './components/database-unlock';
+export type { SyncIndicatorClient } from './components/sync-indicator';
 export type { ThemeMode, ThemeProviderProps } from './components/theme-provider';
 export type {
   FileSystemAccessStorageSelection,

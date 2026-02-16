@@ -115,22 +115,5 @@ export interface ClxDBEvents {
   documentsChanged: (documents: ShardDocument[]) => void;
 }
 
-export interface ClxUIPalette {
-  primaryColor?: string;
-  defaultColor?: string;
-  darkPrimaryColor?: string;
-  darkDefaultColor?: string;
-}
-
-export interface ClxUIOptions {
-  position?: ['top' | 'bottom', 'left' | 'center' | 'right'];
-  theme?: 'light' | 'dark' | 'system';
-  style?: {
-    fontFamily?: string;
-    palette?: string | ClxUIPalette;
-    zIndex?: number;
-  };
-}
-
 export type * from '@/schemas';
 export type * from './utils';

@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { DEFAULT_Z_INDEX } from '@/ui/constants';
 import { classes } from '@/utils/classes';
 import { Presence } from './presence';
 
@@ -53,7 +54,7 @@ export function DialogFrame({ className, children, onClose, zIndex }: DialogFram
       {isOpen && (
         <div
           className={classes('fixed inset-0 flex items-center justify-center p-4', className)}
-          style={zIndex === undefined ? undefined : { zIndex }}
+          style={{ zIndex: zIndex ?? DEFAULT_Z_INDEX }}
           role="presentation"
         >
           <button

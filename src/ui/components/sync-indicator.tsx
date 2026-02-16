@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { classes } from '@/utils/classes';
+import { DEFAULT_Z_INDEX } from '../constants';
 import { Presence } from './common/presence';
 import type { ClxDBEvents, SyncState } from '@/types';
 
@@ -30,6 +31,7 @@ export interface SyncIndicatorProps {
   horizontal?: SyncIndicatorHorizontalPosition;
   successDuration?: number;
   className?: string;
+  zIndex?: number;
 }
 
 const resolveInitialPhase = (state: SyncState): SyncIndicatorPhase => {
@@ -174,6 +176,7 @@ export function SyncIndicator({
   horizontal = 'right',
   successDuration = 5000,
   className,
+  zIndex,
 }: SyncIndicatorProps) {
   const [phase, setPhase] = useState<SyncIndicatorPhase>(() =>
     resolveInitialPhase(client.getState())
@@ -286,7 +289,7 @@ export function SyncIndicator({
   const isVisible = phase !== 'hidden';
   const label = getIndicatorLabel(displayPhase);
   const positionClasses = classes(
-    'fixed z-50',
+    'fixed',
     vertical === 'top' ? 'top-4 sm:top-5' : 'bottom-4 sm:bottom-5',
     horizontal === 'left'
       ? 'left-4 sm:left-5'
@@ -331,6 +334,7 @@ export function SyncIndicator({
         displayPhase === 'error' ? (
           <div
             className={classes('pointer-events-none', positionClasses, directionClasses, className)}
+            style={{ zIndex: zIndex ?? DEFAULT_Z_INDEX }}
           >
             <div className="pointer-events-auto relative">
               <button
@@ -361,6 +365,7 @@ export function SyncIndicator({
         ) : (
           <div
             className={classes('pointer-events-none', positionClasses, directionClasses, className)}
+            style={{ zIndex: zIndex ?? DEFAULT_Z_INDEX }}
           >
             <div className={indicatorClasses} aria-live="polite">
               <span className="sr-only">{label}</span>
