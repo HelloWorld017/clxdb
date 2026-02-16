@@ -136,16 +136,16 @@ export const EncryptionTab = ({
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-default-900 text-lg font-semibold">Encryption credentials</h3>
-        <p className="text-default-600 mt-1 text-sm">
+        <h3 className="text-lg font-semibold text-default-900">Encryption credentials</h3>
+        <p className="mt-1 text-sm text-default-600">
           Rotate your master password and refresh this device PIN without recreating the database.
         </p>
       </div>
 
       {!status?.hasDatabase ? (
         <p
-          className="border-default-300 bg-default-100 text-default-700 rounded-xl border px-3 py-2
-            text-sm"
+          className="rounded-xl border border-default-300 bg-default-100 px-3 py-2 text-sm
+            text-default-700"
         >
           No database detected for this storage backend yet.
         </p>
@@ -153,18 +153,18 @@ export const EncryptionTab = ({
         <>
           <form
             onSubmit={handleMasterPasswordSubmit}
-            className="border-default-200 bg-default-50/70 rounded-2xl border p-4"
+            className="rounded-2xl border border-default-200 bg-default-50/70 p-4"
           >
             <div className="mb-3">
-              <p className="text-default-900 text-sm font-semibold">Change master password</p>
-              <p className="text-default-500 mt-1 text-xs leading-relaxed">
+              <p className="text-sm font-semibold text-default-900">Change master password</p>
+              <p className="mt-1 text-xs leading-relaxed text-default-500">
                 This updates the encryption key wrapping metadata for all devices.
               </p>
             </div>
 
             <div className="grid gap-3">
               <label
-                className="text-default-600 text-xs font-semibold tracking-wide"
+                className="text-xs font-semibold tracking-wide text-default-600"
                 htmlFor={`${baseId}-current-master-password`}
               >
                 Current master password
@@ -175,16 +175,16 @@ export const EncryptionTab = ({
                   onChange={event => setCurrentMasterPassword(event.target.value)}
                   disabled={disabled || isUpdatingMasterPassword}
                   autoComplete="current-password"
-                  className="border-default-300 text-default-800 focus:border-default-500
-                    disabled:border-default-200 disabled:bg-default-100 bg-surface mt-2 w-full
-                    rounded-xl border px-3 py-2.5 text-sm font-normal transition-colors duration-200
-                    outline-none disabled:cursor-not-allowed"
+                  className="mt-2 w-full rounded-xl border border-default-300 bg-surface px-3 py-2.5
+                    text-sm font-normal text-default-800 transition-colors duration-200 outline-none
+                    focus:border-default-500 disabled:cursor-not-allowed disabled:border-default-200
+                    disabled:bg-default-100"
                 />
               </label>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <label
-                  className="text-default-600 text-xs font-semibold tracking-wide"
+                  className="text-xs font-semibold tracking-wide text-default-600"
                   htmlFor={`${baseId}-new-master-password`}
                 >
                   New master password
@@ -195,15 +195,15 @@ export const EncryptionTab = ({
                     onChange={event => setNewMasterPassword(event.target.value)}
                     disabled={disabled || isUpdatingMasterPassword}
                     autoComplete="new-password"
-                    className="border-default-300 text-default-800 focus:border-default-500
-                      disabled:border-default-200 disabled:bg-default-100 bg-surface mt-2 w-full
-                      rounded-xl border px-3 py-2.5 text-sm font-normal transition-colors
-                      duration-200 outline-none disabled:cursor-not-allowed"
+                    className="mt-2 w-full rounded-xl border border-default-300 bg-surface px-3
+                      py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
+                      outline-none focus:border-default-500 disabled:cursor-not-allowed
+                      disabled:border-default-200 disabled:bg-default-100"
                   />
                 </label>
 
                 <label
-                  className="text-default-600 text-xs font-semibold tracking-wide"
+                  className="text-xs font-semibold tracking-wide text-default-600"
                   htmlFor={`${baseId}-confirm-master-password`}
                 >
                   Confirm new password
@@ -214,10 +214,10 @@ export const EncryptionTab = ({
                     onChange={event => setConfirmMasterPassword(event.target.value)}
                     disabled={disabled || isUpdatingMasterPassword}
                     autoComplete="new-password"
-                    className="border-default-300 text-default-800 focus:border-default-500
-                      disabled:border-default-200 disabled:bg-default-100 bg-surface mt-2 w-full
-                      rounded-xl border px-3 py-2.5 text-sm font-normal transition-colors
-                      duration-200 outline-none disabled:cursor-not-allowed"
+                    className="mt-2 w-full rounded-xl border border-default-300 bg-surface px-3
+                      py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
+                      outline-none focus:border-default-500 disabled:cursor-not-allowed
+                      disabled:border-default-200 disabled:bg-default-100"
                   />
                 </label>
               </div>
@@ -244,10 +244,9 @@ export const EncryptionTab = ({
             <button
               type="submit"
               disabled={disabled || isUpdatingMasterPassword}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover
-                disabled:bg-default-300 mt-4 inline-flex items-center justify-center rounded-xl px-4
-                py-2.5 text-sm font-semibold transition-colors duration-200
-                disabled:cursor-not-allowed"
+              className="mt-4 inline-flex items-center justify-center rounded-xl bg-primary px-4
+                py-2.5 text-sm font-semibold text-primary-foreground transition-colors duration-200
+                hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-default-300"
             >
               {isUpdatingMasterPassword ? 'Updating...' : 'Update master password'}
             </button>
@@ -255,17 +254,17 @@ export const EncryptionTab = ({
 
           <form
             onSubmit={handlePinSubmit}
-            className="border-default-200 bg-default-50/70 rounded-2xl border p-4"
+            className="rounded-2xl border border-default-200 bg-default-50/70 p-4"
           >
             <div className="mb-2">
-              <p className="text-default-900 text-sm font-semibold">Update quick unlock PIN</p>
-              <p className="text-default-500 mt-1 text-xs leading-relaxed">
+              <p className="text-sm font-semibold text-default-900">Update quick unlock PIN</p>
+              <p className="mt-1 text-xs leading-relaxed text-default-500">
                 This updates local quick-unlock credentials for this device.
               </p>
             </div>
 
             <label
-              className="text-default-600 text-xs font-semibold tracking-wide"
+              className="text-xs font-semibold tracking-wide text-default-600"
               htmlFor={`${baseId}-pin-master-password`}
             >
               Master password
@@ -276,10 +275,10 @@ export const EncryptionTab = ({
                 onChange={event => setPinMasterPassword(event.target.value)}
                 disabled={disabled || isUpdatingPin}
                 autoComplete="current-password"
-                className="border-default-300 text-default-800 focus:border-default-500
-                  disabled:border-default-200 disabled:bg-default-100 bg-surface mt-2 w-full
-                  rounded-xl border px-3 py-2.5 text-sm font-normal transition-colors duration-200
-                  outline-none disabled:cursor-not-allowed"
+                className="mt-2 w-full rounded-xl border border-default-300 bg-surface px-3 py-2.5
+                  text-sm font-normal text-default-800 transition-colors duration-200 outline-none
+                  focus:border-default-500 disabled:cursor-not-allowed disabled:border-default-200
+                  disabled:bg-default-100"
               />
             </label>
 
@@ -314,10 +313,9 @@ export const EncryptionTab = ({
             <button
               type="submit"
               disabled={disabled || isUpdatingPin}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover
-                disabled:bg-default-300 mt-4 inline-flex items-center justify-center rounded-xl px-4
-                py-2.5 text-sm font-semibold transition-colors duration-200
-                disabled:cursor-not-allowed"
+              className="mt-4 inline-flex items-center justify-center rounded-xl bg-primary px-4
+                py-2.5 text-sm font-semibold text-primary-foreground transition-colors duration-200
+                hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-default-300"
             >
               {isUpdatingPin ? 'Updating...' : 'Update quick unlock PIN'}
             </button>

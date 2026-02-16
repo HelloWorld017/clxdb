@@ -298,16 +298,16 @@ export function SyncIndicator({
     vertical === 'top' ? 'clx-sync-indicator-origin-top' : 'clx-sync-indicator-origin-bottom';
 
   const indicatorClasses = classes(
-    `text-default-700 shadow-ui-strong inline-flex h-11 w-11 items-center justify-center rounded-xl
-    border border-[color-mix(in_srgb,_currentColor_30%,_transparent)] text-2xl backdrop-blur
-    transition-all duration-500`,
+    `inline-flex h-11 w-11 items-center justify-center rounded-xl border
+    border-[color-mix(in_srgb,_currentColor_30%,_transparent)] text-2xl text-default-700
+    shadow-ui-strong backdrop-blur transition-all duration-500`,
     getIndicatorToneClasses(displayPhase),
     displayPhase === 'error' && isErrorOpen && 'ring-2 ring-red-300/70'
   );
 
   const messageClasses = classes(
-    `border-default-200 bg-surface text-default-800 shadow-ui-medium absolute max-w-[16rem]
-    min-w-[12rem] rounded-xl border px-3 py-2 text-xs leading-relaxed`,
+    `absolute max-w-[16rem] min-w-[12rem] rounded-xl border border-default-200 bg-surface px-3 py-2
+    text-xs leading-relaxed text-default-800 shadow-ui-medium`,
     vertical === 'top' ? 'top-full mt-4' : 'bottom-full mb-4',
     horizontal === 'left'
       ? vertical === 'top'

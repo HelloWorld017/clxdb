@@ -130,8 +130,8 @@ const NumberInput = ({
         onChange(Math.max(0, Math.min(30000, parsed)));
       }
     }}
-    className="focus:bg-surface h-10 w-full rounded-xl border border-gray-300 bg-gray-50 px-3
-      text-sm text-gray-800 outline-none focus:border-gray-500"
+    className="h-10 w-full rounded-xl border border-gray-300 bg-gray-50 px-3 text-sm text-gray-800
+      outline-none focus:border-gray-500 focus:bg-surface"
   />
 );
 
@@ -334,8 +334,8 @@ function SyncIndicatorExampleApp() {
                     onChange={event =>
                       setVertical(event.target.value as SyncIndicatorVerticalPosition)
                     }
-                    className="focus:bg-surface mt-2 h-10 w-full rounded-xl border border-gray-300
-                      bg-gray-50 px-3 text-sm text-gray-800 outline-none focus:border-gray-500"
+                    className="mt-2 h-10 w-full rounded-xl border border-gray-300 bg-gray-50 px-3
+                      text-sm text-gray-800 outline-none focus:border-gray-500 focus:bg-surface"
                   >
                     <option value="top">Top</option>
                     <option value="bottom">Bottom</option>
@@ -353,8 +353,8 @@ function SyncIndicatorExampleApp() {
                     onChange={event =>
                       setHorizontal(event.target.value as SyncIndicatorHorizontalPosition)
                     }
-                    className="focus:bg-surface mt-2 h-10 w-full rounded-xl border border-gray-300
-                      bg-gray-50 px-3 text-sm text-gray-800 outline-none focus:border-gray-500"
+                    className="mt-2 h-10 w-full rounded-xl border border-gray-300 bg-gray-50 px-3
+                      text-sm text-gray-800 outline-none focus:border-gray-500 focus:bg-surface"
                   >
                     <option value="left">Left</option>
                     <option value="center">Center</option>
@@ -387,9 +387,9 @@ function SyncIndicatorExampleApp() {
                   value={errorText}
                   onChange={event => setErrorText(event.target.value)}
                   rows={3}
-                  className="focus:bg-surface mt-2 w-full rounded-xl border border-gray-300
-                    bg-gray-50 px-3 py-2 text-sm leading-relaxed text-gray-800 outline-none
-                    placeholder:text-gray-400 focus:border-gray-500"
+                  className="mt-2 w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2
+                    text-sm leading-relaxed text-gray-800 outline-none placeholder:text-gray-400
+                    focus:border-gray-500 focus:bg-surface"
                 />
               </label>
 
@@ -399,7 +399,7 @@ function SyncIndicatorExampleApp() {
             </div>
 
             <aside
-              className="shadow-ui-soft rounded-[1.75rem] border border-gray-200 bg-gray-50/85 p-5
+              className="rounded-[1.75rem] border border-gray-200 bg-gray-50/85 p-5 shadow-ui-soft
                 backdrop-blur-sm"
             >
               <p className="text-[11px] font-semibold tracking-[0.2em] text-gray-500 uppercase">

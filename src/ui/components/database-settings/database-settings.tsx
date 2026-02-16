@@ -114,8 +114,8 @@ export function DatabaseSettings({
   return (
     <section
       className={classes(
-        `border-default-200 bg-default-50/85 relative isolate mx-auto flex h-150 w-full max-w-4xl
-        flex-col overflow-hidden rounded-[2rem] border`,
+        `relative isolate mx-auto flex h-150 w-full max-w-4xl flex-col overflow-hidden
+        rounded-[2rem] border border-default-200 bg-default-50/85`,
         className
       )}
     >
@@ -123,7 +123,7 @@ export function DatabaseSettings({
         className="mb-3 flex flex-none flex-wrap items-start justify-between gap-4 px-8 py-6
           sm:mb-4"
       >
-        <p className="text-default-500 text-xs font-semibold tracking-[0.2em] uppercase">
+        <p className="text-xs font-semibold tracking-[0.2em] text-default-500 uppercase">
           Database Settings
         </p>
       </header>
@@ -166,15 +166,15 @@ export function DatabaseSettings({
 
         <div className="h-full min-h-0 p-4 pt-0">
           <div
-            className="border-default-200 bg-surface/85 h-full overflow-y-auto rounded-2xl border
+            className="h-full overflow-y-auto rounded-2xl border border-default-200 bg-surface/85
               p-5 sm:p-6"
           >
             {isInspecting && (
               <div
-                className="border-default-200 bg-default-100 text-default-600 mb-4 inline-flex
-                  items-center gap-2 rounded-lg border px-3 py-2 text-sm"
+                className="mb-4 inline-flex items-center gap-2 rounded-lg border border-default-200
+                  bg-default-100 px-3 py-2 text-sm text-default-600"
               >
-                <span className="bg-default-500 h-2.5 w-2.5 animate-pulse rounded-full" />
+                <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-default-500" />
                 Refreshing database metadata...
               </div>
             )}

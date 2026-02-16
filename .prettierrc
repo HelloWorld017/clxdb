@@ -13,5 +13,6 @@
     "prettier-plugin-merge"
   ],
   "customFunctions": ["classes"],
-  "tailwindFunctions": ["classes"]
+  "tailwindFunctions": ["classes"],
+  "tailwindStylesheet": "./src/ui/style.css"
 }

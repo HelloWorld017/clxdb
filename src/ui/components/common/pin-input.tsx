@@ -188,7 +188,7 @@ export const PinInput = ({
   return (
     <div className={classes('my-12 flex flex-col items-center space-y-2', className)}>
       <div className="flex items-center gap-3">
-        <label className="text-md text-default-800 font-semibold" htmlFor={`${idPrefix}-input`}>
+        <label className="text-md font-semibold text-default-800" htmlFor={`${idPrefix}-input`}>
           {label}
         </label>
 
@@ -200,8 +200,8 @@ export const PinInput = ({
           onClick={() => setIsHidden(value => !value)}
           aria-label={isHidden ? 'Show PIN digits' : 'Hide PIN digits'}
           aria-pressed={!isHidden}
-          className="text-default-500 hover:text-default-700 focus-visible:ring-primary/40
-            rounded-md px-1 py-0.5 font-semibold transition-colors duration-200 focus-visible:ring-2
+          className="rounded-md px-1 py-0.5 font-semibold text-default-500 transition-colors
+            duration-200 hover:text-default-700 focus-visible:ring-2 focus-visible:ring-primary/40
             focus-visible:outline-none"
         >
           {isHidden ? <HideIcon /> : <ShowIcon />}
@@ -248,12 +248,12 @@ export const PinInput = ({
                 setCaretIndex(index);
               }}
               className={classes(
-                `border-default-300 bg-default-50 text-default-900 flex h-12 w-11 cursor-text
-                items-center justify-center rounded-xl border text-center text-lg font-semibold
-                tracking-[0.08em] transition-colors duration-200`,
+                `flex h-12 w-11 cursor-text items-center justify-center rounded-xl border
+                border-default-300 bg-default-50 text-center text-lg font-semibold tracking-[0.08em]
+                text-default-900 transition-colors duration-200`,
                 isFocused && activeIndex === index && 'border-primary/50 bg-surface',
-                `disabled:border-default-200 disabled:bg-default-100 disabled:text-default-400
-                disabled:cursor-not-allowed`
+                `disabled:cursor-not-allowed disabled:border-default-200 disabled:bg-default-100
+                disabled:text-default-400`
               )}
             >
               {isHidden ? digits[index] ? <HiddenDigitIcon /> : '' : digits[index]}
@@ -262,7 +262,7 @@ export const PinInput = ({
         </div>
       </div>
 
-      <p id={`${idPrefix}-hint`} className="text-default-500 max-w-[324px] text-center text-xs">
+      <p id={`${idPrefix}-hint`} className="max-w-[324px] text-center text-xs text-default-500">
         {hint}
       </p>
     </div>
