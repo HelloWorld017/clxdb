@@ -5,7 +5,6 @@ export { generateNewClxDB } from '@/core/utils/generate';
 export { inspectClxDBStatus } from '@/core/utils/inspect';
 
 export { createStorageBackend } from '@/storages';
-export { createClxUI } from '@/ui';
 
 export type { ClxDB };
 export type { ClxDBStatus } from '@/core/utils/inspect';
@@ -19,13 +18,3 @@ export type {
   ClxDBClientOptions,
   ClxDBOptions,
 } from '@/types';
-
-export type {
-  ClxUI,
-  ClxUIOptions,
-  DatabaseUnlockOperation,
-  FileSystemAccessStorageSelection,
-  OpfsStorageSelection,
-  WebDAVStorageSelection,
-  StoragePickerSelection,
-} from '@/ui';

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createClxDB, createClxUI, createStorageBackend, generateNewClxDB } from '@/index';
+import { createClxDB, createStorageBackend, generateNewClxDB } from '@/index';
+import { createClxUI } from '@/ui';
 import type { ClxDB, DatabaseBackend, ShardDocument, DatabaseDocument } from '@/index';
 import type { SubmitEvent } from 'react';
 

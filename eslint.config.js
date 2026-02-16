@@ -14,6 +14,7 @@ const config = defineConfig(
       'src/**/*.tsx',
       'examples/**/*.ts',
       'examples/**/*.tsx',
+      'build/**/*.ts',
       'eslint.config.js',
       'vite.config.ts',
     ],
