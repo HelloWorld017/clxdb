@@ -55,6 +55,22 @@ export class FileSystemBackend implements StorageBackend {
     return new Uint8Array(buffer);
   }
 
+  async readDirectory(path: string): Promise<string[]> {
+    const dir = await this.getDirectoryHandle(path);
+    if (!dir) {
+      return [];
+    }
+
+    const directories: string[] = [];
+    for await (const [name, handle] of dir.entries()) {
+      if (handle.kind === 'directory') {
+        directories.push(name);
+      }
+    }
+
+    return directories.sort((a, b) => a.localeCompare(b));
+  }
+
   async ensureDirectory(path: string): Promise<void> {
     const parts = path.split('/').filter(Boolean);
     if (parts.length === 0) {

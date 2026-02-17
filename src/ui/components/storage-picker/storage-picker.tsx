@@ -1,5 +1,8 @@
 import { useEffect, useId, useMemo, useState } from 'react';
+import { createStorageBackend } from '@/storages';
 import { classes } from '@/utils/classes';
+import { DirectoryPicker, normalizeDirectoryPath } from './directory-picker';
+import type { StorageBackend } from '@/types';
 import type { SubmitEvent } from 'react';
 
 export type StoragePickerBackendType = 'filesystem-access' | 'opfs' | 'webdav';
@@ -44,6 +47,37 @@ type IconProps = {
 const normalizeWebDavUrl = (value: string) => {
   const parsed = new URL(value.trim());
   return parsed.toString().replace(/\/$/, '');
+};
+
+const toWebDavDirectoryUrl = (baseUrl: string, directoryPath: string): string => {
+  const normalizedPath = normalizeDirectoryPath(directoryPath);
+  if (!normalizedPath) {
+    return baseUrl;
+  }
+
+  const parsed = new URL(baseUrl);
+  const pathname = parsed.pathname.replace(/\/$/, '');
+  const encodedPath = normalizedPath
+    .split('/')
+    .map(segment => encodeURIComponent(segment))
+    .join('/');
+
+  parsed.pathname = `${pathname}/${encodedPath}`;
+  return parsed.toString().replace(/\/$/, '');
+};
+
+const resolveDirectoryHandle = async (
+  rootHandle: FileSystemDirectoryHandle,
+  directoryPath: string
+): Promise<FileSystemDirectoryHandle> => {
+  const segments = normalizeDirectoryPath(directoryPath).split('/').filter(Boolean);
+  let currentHandle = rootHandle;
+
+  for (const segment of segments) {
+    currentHandle = await currentHandle.getDirectoryHandle(segment);
+  }
+
+  return currentHandle;
 };
 
 const supportsFileSystemAccess = () =>
@@ -119,12 +153,18 @@ export function StoragePicker({
   submitLabel = 'Save storage settings',
 }: StoragePickerProps) {
   const [selectedType, setSelectedType] = useState<StoragePickerBackendType>(initialType);
-  const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
+  const [filesystemRootHandle, setFilesystemRootHandle] =
+    useState<FileSystemDirectoryHandle | null>(null);
+  const [filesystemDirectoryPath, setFilesystemDirectoryPath] = useState('');
   const [webDavUrl, setWebDavUrl] = useState('');
   const [webDavUser, setWebDavUser] = useState('');
   const [webDavPass, setWebDavPass] = useState('');
+  const [webDavDirectoryPath, setWebDavDirectoryPath] = useState('');
+  const [opfsRootHandle, setOpfsRootHandle] = useState<FileSystemDirectoryHandle | null>(null);
+  const [opfsDirectoryPath, setOpfsDirectoryPath] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPickingDirectory, setIsPickingDirectory] = useState(false);
+  const [isLoadingOpfsRoot, setIsLoadingOpfsRoot] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const pickerId = useId();
 
@@ -157,6 +197,42 @@ export function StoragePicker({
     }
   }, [availableTypes, selectedType]);
 
+  useEffect(() => {
+    if (selectedType !== 'opfs' || !opfsSupported || opfsRootHandle || isLoadingOpfsRoot) {
+      return;
+    }
+
+    const opfsStorage = getNavigatorStorageWithDirectory();
+    if (!opfsStorage) {
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingOpfsRoot(true);
+    setErrorMessage(null);
+
+    void opfsStorage
+      .getDirectory()
+      .then(handle => {
+        if (!cancelled) {
+          setOpfsRootHandle(handle);
+        }
+      })
+      .catch(error => {
+        if (!cancelled) {
+          const fallback = 'Could not access Origin Private File System.';
+          setErrorMessage(error instanceof Error ? error.message : fallback);
+        }
+      })
+      .finally(() => {
+        setIsLoadingOpfsRoot(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoadingOpfsRoot, opfsRootHandle, opfsSupported, selectedType]);
+
   const controlsLocked = disabled || isSubmitting;
 
   const storageOptions = [
@@ -186,6 +262,47 @@ export function StoragePicker({
     },
   ];
 
+  const filesystemDirectoryStorage = useMemo<StorageBackend | null>(() => {
+    if (!filesystemRootHandle) {
+      return null;
+    }
+
+    return createStorageBackend({
+      type: 'filesystem-access',
+      handle: filesystemRootHandle,
+    });
+  }, [filesystemRootHandle]);
+
+  const opfsDirectoryStorage = useMemo<StorageBackend | null>(() => {
+    if (!opfsRootHandle) {
+      return null;
+    }
+
+    return createStorageBackend({
+      type: 'opfs',
+      handle: opfsRootHandle,
+    });
+  }, [opfsRootHandle]);
+
+  const webDavDirectoryStorage = useMemo<StorageBackend | null>(() => {
+    if (!webDavUrl.trim() || !webDavUser.trim() || !webDavPass) {
+      return null;
+    }
+
+    try {
+      return createStorageBackend({
+        type: 'webdav',
+        url: normalizeWebDavUrl(webDavUrl),
+        auth: {
+          user: webDavUser.trim(),
+          pass: webDavPass,
+        },
+      });
+    } catch {
+      return null;
+    }
+  }, [webDavPass, webDavUrl, webDavUser]);
+
   const pickDirectory = async () => {
     if (!filesystemSupported || !window.showDirectoryPicker) {
       setErrorMessage('FileSystem Access API is not available in this browser.');
@@ -196,8 +313,9 @@ export function StoragePicker({
     setIsPickingDirectory(true);
 
     try {
-      const handle = await window.showDirectoryPicker();
-      setDirectoryHandle(handle);
+      const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      setFilesystemRootHandle(handle);
+      setFilesystemDirectoryPath('');
     } catch (error) {
       if (!(error instanceof Error) || error.name !== 'AbortError') {
         const fallback = 'Could not open FileSystem Access folder picker.';
@@ -214,12 +332,18 @@ export function StoragePicker({
   };
 
   const validateSelection = () => {
-    if (selectedType === 'filesystem-access' && !directoryHandle) {
-      return 'Select a folder to continue.';
+    if (selectedType === 'filesystem-access' && !filesystemRootHandle) {
+      return 'Select a root folder to continue.';
     }
 
-    if (selectedType === 'opfs' && !opfsSupported) {
-      return 'Origin Private File System is not supported in this browser.';
+    if (selectedType === 'opfs') {
+      if (!opfsSupported) {
+        return 'Origin Private File System is not supported in this browser.';
+      }
+
+      if (!opfsRootHandle) {
+        return 'OPFS is still loading. Please wait a moment and try again.';
+      }
     }
 
     if (selectedType === 'webdav') {
@@ -267,24 +391,21 @@ export function StoragePicker({
     try {
       let selection: StoragePickerSelection | null = null;
 
-      if (selectedType === 'filesystem-access' && directoryHandle) {
-        selection = { type: 'filesystem-access', handle: directoryHandle };
+      if (selectedType === 'filesystem-access' && filesystemRootHandle) {
+        const handle = await resolveDirectoryHandle(filesystemRootHandle, filesystemDirectoryPath);
+        selection = { type: 'filesystem-access', handle };
       }
 
-      if (selectedType === 'opfs') {
-        const opfsStorage = getNavigatorStorageWithDirectory();
-        if (!opfsStorage) {
-          throw new Error('Origin Private File System is not supported in this browser.');
-        }
-
-        const handle = await opfsStorage.getDirectory();
+      if (selectedType === 'opfs' && opfsRootHandle) {
+        const handle = await resolveDirectoryHandle(opfsRootHandle, opfsDirectoryPath);
         selection = { type: 'opfs', handle };
       }
 
       if (selectedType === 'webdav') {
+        const baseUrl = normalizeWebDavUrl(webDavUrl);
         selection = {
           type: 'webdav',
-          url: normalizeWebDavUrl(webDavUrl),
+          url: toWebDavDirectoryUrl(baseUrl, webDavDirectoryPath),
           auth: {
             user: webDavUser.trim(),
             pass: webDavPass,
@@ -309,7 +430,7 @@ export function StoragePicker({
     <section
       className={classes(
         `relative isolate mx-auto h-150 overflow-hidden rounded-[2rem] border border-default-200
-        bg-default-100 px-2 py-2 shadow-ui-soft`,
+        bg-default-100 p-2 shadow-ui-soft`,
         className
       )}
     >
@@ -318,22 +439,19 @@ export function StoragePicker({
           className="pointer-events-none absolute -top-24 -left-24 h-56 w-56 rounded-full
             bg-default-300/45 blur-3xl"
         />
-        <div
-          className="pointer-events-none absolute -right-20 -bottom-28 h-56 w-56 rounded-full
-            bg-default-300/35 blur-3xl"
-        />
       </div>
 
-      <div className="flex h-full flex-col overflow-auto p-4 sm:p-6">
+      <div className="flex h-full flex-col overflow-auto p-4 pb-0 sm:p-6 sm:pb-0">
         <header className="mb-8 space-y-2">
           <p className="text-xs font-semibold tracking-[0.2em] text-default-500 uppercase">
             Storage Backend
           </p>
           <h2 className="text-2xl font-semibold tracking-tight text-default-900 sm:text-3xl">
-            Choose a storage backend
+            Choose storage and folder
           </h2>
           <p className="max-w-2xl text-sm leading-relaxed text-default-600">
-            Select FileSystem Access API, Origin Private File System, or WebDAV.
+            Pick FileSystem Access API, Origin Private File System, or WebDAV, then choose where
+            ClxDB should store its files.
           </p>
         </header>
 
@@ -416,8 +534,7 @@ export function StoragePicker({
                 <div className="flex flex-col gap-1">
                   <p className="text-sm font-semibold text-default-800">FileSystem Access API</p>
                   <p className="mt-1 text-xs text-default-500">
-                    Pick a local folder. This app will request explicit permission for read/write
-                    access.
+                    Pick a root folder first, then choose a subfolder for ClxDB files.
                   </p>
                 </div>
 
@@ -430,13 +547,27 @@ export function StoragePicker({
                     transition-colors duration-200 hover:bg-primary-hover
                     disabled:cursor-not-allowed disabled:border-default-200 disabled:bg-default-300"
                 >
-                  {isPickingDirectory ? 'Opening...' : 'Select Folder'}
+                  {isPickingDirectory ? 'Opening...' : 'Select Root Folder'}
                 </button>
               </div>
 
               <p className="mt-3 text-xs text-default-500">
-                {directoryHandle ? `Selected: ${directoryHandle.name}` : 'No folder selected yet.'}
+                {filesystemRootHandle
+                  ? `Selected root: ${filesystemRootHandle.name}`
+                  : 'No root folder selected yet.'}
               </p>
+
+              {filesystemDirectoryStorage && (
+                <DirectoryPicker
+                  className="mt-4"
+                  storage={filesystemDirectoryStorage}
+                  value={filesystemDirectoryPath}
+                  onChange={setFilesystemDirectoryPath}
+                  disabled={controlsLocked || isPickingDirectory}
+                  title="Database Folder"
+                  description="Choose or create a folder inside the selected root."
+                />
+              )}
             </div>
           )}
 
@@ -448,6 +579,22 @@ export function StoragePicker({
               <p className="mt-2 text-xs text-default-500">
                 Data is stored in browser-managed private storage for this origin and profile.
               </p>
+
+              {isLoadingOpfsRoot && (
+                <p className="mt-3 text-xs text-default-500">Loading OPFS root folder...</p>
+              )}
+
+              {opfsDirectoryStorage && (
+                <DirectoryPicker
+                  className="mt-4"
+                  storage={opfsDirectoryStorage}
+                  value={opfsDirectoryPath}
+                  onChange={setOpfsDirectoryPath}
+                  disabled={controlsLocked || isLoadingOpfsRoot}
+                  title="Database Folder"
+                  description="Choose or create a folder inside OPFS."
+                />
+              )}
             </div>
           )}
 
@@ -509,6 +656,22 @@ export function StoragePicker({
                   </label>
                 </div>
               </div>
+
+              {webDavDirectoryStorage ? (
+                <DirectoryPicker
+                  className="mt-4"
+                  storage={webDavDirectoryStorage}
+                  value={webDavDirectoryPath}
+                  onChange={setWebDavDirectoryPath}
+                  disabled={controlsLocked}
+                  title="Database Folder"
+                  description="Choose or create a folder under your WebDAV endpoint."
+                />
+              ) : (
+                <p className="mt-3 text-xs text-default-500">
+                  Enter endpoint, username, and password to browse or create folders.
+                </p>
+              )}
             </div>
           )}
 
@@ -519,8 +682,14 @@ export function StoragePicker({
           )}
 
           <div className="flex-1" />
-          <div className="sticky bottom-0 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <div className="absolute inset-0 z-[-1] bg-linear-to-t from-default-100 to-transparent" />
+          <div
+            className="sticky bottom-0 flex flex-col-reverse gap-2 pb-4 sm:flex-row sm:justify-end
+              sm:pb-6"
+          >
+            <div
+              className="absolute inset-0 z-[-1] bg-linear-to-t from-default-100 from-20%
+                to-transparent"
+            />
             {onCancel && (
               <button
                 type="button"

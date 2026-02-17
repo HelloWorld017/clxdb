@@ -11,6 +11,7 @@ export type StorageBackendMetadata =
 
 export interface StorageBackend {
   read(path: string, range?: { start: number; end: number }): Promise<Uint8Array>;
+  readDirectory?(path: string): Promise<string[]>;
   ensureDirectory(path: string): Promise<void>;
   write(path: string, content: Uint8Array): Promise<void>;
   delete(path: string): Promise<void>;

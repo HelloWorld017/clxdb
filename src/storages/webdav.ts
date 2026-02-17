@@ -24,8 +24,57 @@ export class WebDAVBackend implements StorageBackend {
     };
   }
 
+  private normalizePath(path: string): string {
+    return path.split('/').filter(Boolean).join('/');
+  }
+
+  private getUrl(path: string, asDirectory = false): string {
+    const normalizedPath = this.normalizePath(path);
+    if (!normalizedPath) {
+      return asDirectory ? `${this.url}/` : this.url;
+    }
+
+    return `${this.url}/${normalizedPath}${asDirectory ? '/' : ''}`;
+  }
+
+  private getRequestedDirectoryPathname(path: string): string {
+    const basePathname = new URL(`${this.url}/`).pathname;
+    const normalizedBasePathname = basePathname.endsWith('/') ? basePathname : `${basePathname}/`;
+    const normalizedPath = this.normalizePath(path);
+    return `${normalizedBasePathname}${normalizedPath}${normalizedPath ? '/' : ''}`;
+  }
+
+  private parsePropfindEntries(xml: string): { href: string; isDirectory: boolean }[] {
+    const parser = new DOMParser();
+    const document = parser.parseFromString(xml, 'application/xml');
+    const responses = Array.from(document.getElementsByTagNameNS('*', 'response'));
+
+    return responses
+      .map(response => ({
+        href: response.getElementsByTagNameNS('*', 'href')[0]?.textContent?.trim() ?? '',
+        isDirectory: response.getElementsByTagNameNS('*', 'collection').length > 0,
+      }))
+      .filter(entry => !!entry.href);
+  }
+
+  private decodePathSegment(segment: string): string {
+    try {
+      return decodeURIComponent(segment);
+    } catch {
+      return segment;
+    }
+  }
+
+  private resolveHrefPathname(href: string): string | null {
+    try {
+      return new URL(href, `${this.url}/`).pathname;
+    } catch {
+      return null;
+    }
+  }
+
   async read(path: string, range?: { start: number; end: number }): Promise<Uint8Array> {
-    const url = `${this.url}/${path}`;
+    const url = this.getUrl(path);
     const headers: HeadersInit = this.getHeaders();
 
     if (range) {
@@ -75,7 +124,7 @@ export class WebDAVBackend implements StorageBackend {
   }
 
   async write(path: string, content: Uint8Array): Promise<void> {
-    const url = `${this.url}/${path}`;
+    const url = this.getUrl(path);
 
     // Check if file exists first
     const stat = await this.stat(path);
@@ -98,7 +147,7 @@ export class WebDAVBackend implements StorageBackend {
   }
 
   async delete(path: string): Promise<void> {
-    const url = `${this.url}/${path}`;
+    const url = this.getUrl(path);
     const response = await fetch(url, {
       method: 'DELETE',
       headers: this.getHeaders(),
@@ -113,7 +162,7 @@ export class WebDAVBackend implements StorageBackend {
   }
 
   async stat(path: string): Promise<{ etag: string; size: number; lastModified?: Date } | null> {
-    const url = `${this.url}/${path}`;
+    const url = this.getUrl(path);
     const response = await fetch(url, {
       method: 'HEAD',
       headers: this.getHeaders(),
@@ -148,7 +197,7 @@ export class WebDAVBackend implements StorageBackend {
     content: Uint8Array,
     previousEtag: string
   ): Promise<{ success: boolean; newEtag?: string }> {
-    const url = `${this.url}/${path}`;
+    const url = this.getUrl(path);
     const headers: HeadersInit = {
       ...this.getHeaders(),
       'If-Match': previousEtag,
@@ -176,9 +225,56 @@ export class WebDAVBackend implements StorageBackend {
     return { success: true, newEtag };
   }
 
+  async readDirectory(path: string): Promise<string[]> {
+    const response = await fetch(this.getUrl(path, true), {
+      method: 'PROPFIND',
+      headers: {
+        ...this.getHeaders(),
+        Depth: '1',
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return [];
+      }
+      throw new StorageError(
+        'UNKNOWN',
+        `WebDAV read directory failed: ${response.status} ${response.statusText}`
+      );
+    }
+
+    const requestedPathname = this.getRequestedDirectoryPathname(path);
+    const entries = this.parsePropfindEntries(await response.text());
+    const directories = new Set<string>();
+
+    entries.forEach(entry => {
+      if (!entry.isDirectory) {
+        return;
+      }
+
+      const pathname = this.resolveHrefPathname(entry.href);
+      if (!pathname) {
+        return;
+      }
+
+      if (!pathname.startsWith(requestedPathname)) {
+        return;
+      }
+
+      const relativePath = pathname.slice(requestedPathname.length).replace(/\/+$/, '');
+      if (!relativePath || relativePath.includes('/')) {
+        return;
+      }
+
+      directories.add(this.decodePathSegment(relativePath));
+    });
+
+    return Array.from(directories).sort((a, b) => a.localeCompare(b));
+  }
+
   async list(path: string): Promise<string[]> {
-    const url = `${this.url}/${path}`;
-    const response = await fetch(url, {
+    const response = await fetch(this.getUrl(path, true), {
       method: 'PROPFIND',
       headers: {
         ...this.getHeaders(),
@@ -196,19 +292,32 @@ export class WebDAVBackend implements StorageBackend {
       );
     }
 
-    const text = await response.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(text, 'application/xml');
-    const responses = doc.querySelectorAll('response');
-    const files: string[] = [];
+    const requestedPathname = this.getRequestedDirectoryPathname(path);
+    const entries = this.parsePropfindEntries(await response.text());
+    const files = new Set<string>();
 
-    responses.forEach(resp => {
-      const href = resp.querySelector('href')?.textContent;
-      if (href && href !== path && !href.endsWith('/')) {
-        files.push(href.replace(/^.*\//, ''));
+    entries.forEach(entry => {
+      if (entry.isDirectory) {
+        return;
       }
+
+      const pathname = this.resolveHrefPathname(entry.href);
+      if (!pathname) {
+        return;
+      }
+
+      if (!pathname.startsWith(requestedPathname)) {
+        return;
+      }
+
+      const relativePath = pathname.slice(requestedPathname.length).replace(/^\/+/, '');
+      if (!relativePath || relativePath.includes('/')) {
+        return;
+      }
+
+      files.add(this.decodePathSegment(relativePath));
     });
 
-    return files;
+    return Array.from(files).sort((a, b) => a.localeCompare(b));
   }
 }
