@@ -233,16 +233,19 @@ export interface StorageBackend {
   // 1. Read: Range requests required (to read headers only)
   read(path: string, range?: { start: number, end: number }): Promise<Uint8Array>;
 
-  // 2. Write: Immutable files; must not overwrite (error if exists)
+  // 2. Ensure directory: idempotent recursive create for shard/blob prefixes
+  ensureDirectory(path: string): Promise<void>;
+
+  // 3. Write: Immutable files; must not overwrite (error if exists)
   write(path: string, content: Uint8Array): Promise<void>;
 
-  // 3. Delete: Used for cleanup after Vacuum
+  // 4. Delete: Used for cleanup after Vacuum
   delete(path: string): Promise<void>;
 
-  // 4. Metadata: To check ETag/Size
+  // 5. Metadata: To check ETag/Size
   stat(path: string): Promise<{ etag: string, size: number } | null>;
 
-  // 5. Atomic Update: Exclusively for manifest.json
+  // 6. Atomic Update: Exclusively for manifest.json
   // Local storage uses Locks; Remote storage uses If-Match ETag check.
   // Must fail (412 Precondition Failed) if previousEtag doesn't match server.
   atomicUpdate(path: string, content: Uint8Array, previousEtag: string): Promise<{ success: boolean, newEtag?: string }>;

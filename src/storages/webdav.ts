@@ -49,17 +49,38 @@ export class WebDAVBackend implements StorageBackend {
     return new Uint8Array(buffer);
   }
 
+  async ensureDirectory(path: string): Promise<void> {
+    const segments = path.split('/').filter(Boolean);
+    if (segments.length === 0) {
+      return;
+    }
+
+    let currentPath = '';
+    for (const segment of segments) {
+      currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+      const response = await fetch(`${this.url}/${currentPath}/`, {
+        method: 'MKCOL',
+        headers: this.getHeaders(),
+      });
+
+      if (response.ok || response.status === 405) {
+        continue;
+      }
+
+      throw new StorageError(
+        'UNKNOWN',
+        `WebDAV ensure directory failed: ${response.status} ${response.statusText}`
+      );
+    }
+  }
+
   async write(path: string, content: Uint8Array): Promise<void> {
     const url = `${this.url}/${path}`;
 
     // Check if file exists first
-    try {
-      const stat = await this.stat(path);
-      if (stat) {
-        throw new StorageError('EEXIST', `File already exists: ${path}`);
-      }
-    } catch {
-      // File doesn't exist, continue
+    const stat = await this.stat(path);
+    if (stat) {
+      throw new StorageError('EEXIST', `File already exists: ${path}`);
     }
 
     const response = await fetch(url, {

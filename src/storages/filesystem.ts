@@ -55,6 +55,22 @@ export class FileSystemBackend implements StorageBackend {
     return new Uint8Array(buffer);
   }
 
+  async ensureDirectory(path: string): Promise<void> {
+    const parts = path.split('/').filter(Boolean);
+    if (parts.length === 0) {
+      return;
+    }
+
+    let dir = this.handle;
+    try {
+      for (const part of parts) {
+        dir = await dir.getDirectoryHandle(part, { create: true });
+      }
+    } catch {
+      throw new StorageError('UNKNOWN', `Failed to ensure directory: ${path}`);
+    }
+  }
+
   async write(path: string, content: Uint8Array): Promise<void> {
     // Check if file exists
     const existing = await this.getFileHandle(path);

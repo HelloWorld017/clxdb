@@ -1,4 +1,4 @@
-import { MANIFEST_PATH, PROTOCOL_VERSION } from '@/constants';
+import { MANIFEST_PATH, PROTOCOL_VERSION, SHARDS_DIR } from '@/constants';
 import { ClxDB } from '../clxdb';
 import { CacheManager } from '../managers/cache-manager';
 import { CryptoManager } from '../managers/crypto-manager';
@@ -26,6 +26,7 @@ export const generateNewClxDB = async ({
 
   const cryptoManager = new CryptoManager(crypto, manifestManager, cacheManager);
   const initializedManifest = await cryptoManager.signInitialManifest(manifest);
+  await storage.ensureDirectory(SHARDS_DIR);
   await storage.write(
     MANIFEST_PATH,
     new TextEncoder().encode(JSON.stringify(initializedManifest, null, 2))
