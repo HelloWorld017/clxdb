@@ -65,8 +65,7 @@ export function DialogFrame({ className, children, onClose, zIndex }: DialogFram
             aria-label="Close dialog"
           />
           <div
-            className="clx-dialog-panel relative max-h-[calc(100vh-2rem)] w-full max-w-4xl
-              overflow-auto"
+            className="clx-dialog-panel relative max-h-[calc(100vh-2rem)] w-full max-w-4xl"
             role="dialog"
             aria-modal="true"
           >

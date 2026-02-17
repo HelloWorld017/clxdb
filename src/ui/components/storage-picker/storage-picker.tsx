@@ -3,7 +3,7 @@ import { createStorageBackend } from '@/storages';
 import { useDebouncedValue } from '@/ui/hooks/use-debounced-value';
 import { classes } from '@/utils/classes';
 import { DirectoryPicker } from './directory-picker';
-import { DatabaseIcon, FolderIcon, LinkIcon } from './icons';
+import { FileSystemIcon, OPFSIcon, WebDAVIcon } from './icons';
 import {
   getNavigatorStorageWithDirectory,
   normalizeWebDavUrl,
@@ -146,7 +146,7 @@ export function StoragePicker({
       type: 'filesystem-access' as const,
       label: 'FileSystem Access API',
       description: 'Save to a local folder with explicit read/write permission.',
-      icon: FolderIcon,
+      icon: FileSystemIcon,
       supported: filesystemSupported,
       unsupportedReason: 'FileSystem Access API is not supported in this browser.',
     },
@@ -154,7 +154,7 @@ export function StoragePicker({
       type: 'opfs' as const,
       label: 'Origin Private File System',
       description: 'Use browser-managed private storage for this origin and profile.',
-      icon: DatabaseIcon,
+      icon: OPFSIcon,
       supported: opfsSupported,
       unsupportedReason: 'Origin Private File System is not supported in this browser.',
     },
@@ -162,7 +162,7 @@ export function StoragePicker({
       type: 'webdav' as const,
       label: 'WebDAV',
       description: 'Connect a WebDAV endpoint to sync data across devices.',
-      icon: LinkIcon,
+      icon: WebDAVIcon,
       supported: true,
       unsupportedReason: '',
     },
@@ -290,9 +290,7 @@ export function StoragePicker({
     return null;
   };
 
-  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
+  const handleSubmit = async () => {
     if (controlsLocked) {
       return;
     }
@@ -373,7 +371,7 @@ export function StoragePicker({
           </p>
         </header>
 
-        <form onSubmit={handleSubmit} className="flex flex-1 flex-col space-y-6">
+        <div className="flex flex-1 flex-col space-y-6">
           <div className="grid gap-3 sm:grid-cols-3">
             {storageOptions.map(option => {
               const active = selectedType === option.type;
@@ -595,7 +593,8 @@ export function StoragePicker({
             )}
 
             <button
-              type="submit"
+              type="button"
+              onClick={handleSubmit}
               disabled={controlsLocked}
               className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2.5
                 text-sm font-semibold text-primary-foreground shadow-md transition-colors
@@ -605,7 +604,7 @@ export function StoragePicker({
               {isSubmitting ? 'Applying...' : submitLabel}
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </section>
   );

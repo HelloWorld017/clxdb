@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Presence } from '@/ui/components/common/presence';
 import { classes } from '@/utils/classes';
+import { FolderIcon, FolderPlusIcon, UpIcon } from './icons';
 import { normalizeDirectoryPath } from './utils';
 import type { StorageBackend } from '@/types';
 import type { SubmitEvent } from 'react';
@@ -50,7 +52,10 @@ export function DirectoryPicker({
   const [newFolderName, setNewFolderName] = useState('');
   const [manualPath, setManualPath] = useState('');
   const [isCreatingDirectory, setIsCreatingDirectory] = useState(false);
+  const [isCreateFolderPopoverOpen, setIsCreateFolderPopoverOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const createFolderPopoverRef = useRef<HTMLDivElement | null>(null);
+  const newFolderInputRef = useRef<HTMLInputElement | null>(null);
 
   const normalizedValue = normalizeDirectoryPath(value);
   const canBrowseDirectories = typeof storage.readDirectory === 'function';
@@ -58,6 +63,47 @@ export function DirectoryPicker({
   useEffect(() => {
     setManualPath(normalizedValue);
   }, [normalizedValue]);
+
+  useEffect(() => {
+    if (!isCreateFolderPopoverOpen) {
+      return;
+    }
+
+    newFolderInputRef.current?.focus();
+  }, [isCreateFolderPopoverOpen]);
+
+  useEffect(() => {
+    if (!isCreateFolderPopoverOpen) {
+      return;
+    }
+
+    const onClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (!event.composedPath().includes(createFolderPopoverRef.current!)) {
+        setIsCreateFolderPopoverOpen(false);
+        event.stopPropagation();
+        event.preventDefault();
+      }
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsCreateFolderPopoverOpen(false);
+        event.stopPropagation();
+      }
+    };
+
+    window.addEventListener('click', onClick, { capture: true });
+    window.addEventListener('keydown', onKeyDown, { capture: true });
+    return () => {
+      window.removeEventListener('click', onClick, { capture: true });
+      window.removeEventListener('keydown', onKeyDown, { capture: true });
+    };
+  }, [isCreateFolderPopoverOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -133,6 +179,7 @@ export function DirectoryPicker({
     try {
       await storage.ensureDirectory(targetPath);
       setNewFolderName('');
+      setIsCreateFolderPopoverOpen(false);
       navigateTo(targetPath);
     } catch (error) {
       const fallback = 'Could not create this folder.';
@@ -150,6 +197,23 @@ export function DirectoryPicker({
     navigateTo(manualPath);
   };
 
+  const toggleCreateFolderPopover = () => {
+    if (disabled || isCreatingDirectory) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsCreateFolderPopoverOpen(prev => !prev);
+  };
+
+  const closeCreateFolderPopover = () => {
+    if (isCreatingDirectory) {
+      return;
+    }
+
+    setIsCreateFolderPopoverOpen(false);
+  };
+
   return (
     <div
       className={classes(
@@ -159,21 +223,21 @@ export function DirectoryPicker({
     >
       <p className="text-sm font-semibold text-default-800">Select Directory</p>
 
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <div className="mt-2 flex flex-wrap items-center gap-1 text-xs">
+      <div className="mt-4 flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1 text-xs">
           <button
             type="button"
-            disabled={disabled}
-            onClick={() => navigateTo('')}
-            className="rounded-md border border-default-300 bg-surface px-2 py-1 text-default-700
-              transition-colors duration-200 hover:border-default-400 hover:bg-default-100
-              disabled:cursor-not-allowed disabled:border-default-200 disabled:bg-default-100
-              disabled:text-default-400"
+            disabled={disabled || !normalizedValue}
+            onClick={() => navigateTo(getParentDirectoryPath(normalizedValue))}
+            className="mr-2 inline-flex items-center rounded-lg border border-default-300 bg-surface
+              px-1.5 py-1.5 text-sm font-medium text-default-700 transition-colors duration-200
+              hover:border-default-400 hover:bg-default-100 disabled:cursor-not-allowed
+              disabled:border-default-200 disabled:bg-default-100 disabled:text-default-400"
           >
-            /
+            <UpIcon />
           </button>
-          {pathSegments.map((segment, index) => {
-            const partialPath = pathSegments.slice(0, index + 1).join('/');
+          {['/'].concat(pathSegments).map((segment, index) => {
+            const partialPath = pathSegments.slice(0, index).join('/') || '/';
             return (
               <button
                 key={partialPath}
@@ -191,21 +255,80 @@ export function DirectoryPicker({
           })}
         </div>
 
-        <button
-          type="button"
-          disabled={disabled || !normalizedValue}
-          onClick={() => navigateTo(getParentDirectoryPath(normalizedValue))}
-          className="inline-flex items-center rounded-lg border border-default-300 bg-surface px-2.5
-            py-1.5 text-xs font-medium text-default-700 transition-colors duration-200
-            hover:border-default-400 hover:bg-default-100 disabled:cursor-not-allowed
-            disabled:border-default-200 disabled:bg-default-100 disabled:text-default-400"
-        >
-          New Folder
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="relative" ref={createFolderPopoverRef}>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={toggleCreateFolderPopover}
+              className="inline-flex items-center rounded-lg border border-default-300 bg-surface
+                px-1.5 py-1.5 text-sm font-medium text-default-700 transition-colors duration-200
+                hover:border-default-400 hover:bg-default-100 disabled:cursor-not-allowed
+                disabled:border-default-200 disabled:bg-default-100 disabled:text-default-400"
+            >
+              <FolderPlusIcon />
+            </button>
+
+            <Presence enterClassName="clx-popover-enter" exitClassName="clx-popover-exit">
+              {isCreateFolderPopoverOpen ? (
+                <div
+                  className="clx-popover absolute top-full right-0 mt-2 w-64 origin-top-right
+                    rounded-xl border border-default-200 bg-surface p-3 shadow-lg"
+                >
+                  <form onSubmit={handleCreateDirectory} className="space-y-3">
+                    <label className="block text-xs font-medium text-default-700">
+                      Folder name
+                      <input
+                        ref={newFolderInputRef}
+                        type="text"
+                        value={newFolderName}
+                        disabled={disabled || isCreatingDirectory}
+                        onChange={event => setNewFolderName(event.target.value)}
+                        placeholder="New Folder"
+                        className="mt-1.5 w-full rounded-lg border border-default-300 bg-default-50
+                          px-2.5 py-2 text-xs text-default-800 outline-none
+                          placeholder:text-default-400 focus:border-default-500
+                          disabled:cursor-not-allowed disabled:border-default-200
+                          disabled:bg-default-100"
+                      />
+                    </label>
+
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        disabled={disabled || isCreatingDirectory}
+                        onClick={closeCreateFolderPopover}
+                        className="inline-flex items-center rounded-lg border border-default-300
+                          bg-surface px-2.5 py-1.5 text-xs font-medium text-default-700
+                          transition-colors duration-200 hover:border-default-400
+                          hover:bg-default-100 disabled:cursor-not-allowed
+                          disabled:border-default-200 disabled:bg-default-100
+                          disabled:text-default-400"
+                      >
+                        Cancel
+                      </button>
+
+                      <button
+                        type="submit"
+                        disabled={disabled || isCreatingDirectory}
+                        className="inline-flex items-center rounded-lg bg-primary px-2.5 py-1.5
+                          text-xs font-semibold text-primary-foreground transition-colors
+                          duration-200 hover:bg-primary-hover disabled:cursor-not-allowed
+                          disabled:bg-default-300"
+                      >
+                        {isCreatingDirectory ? 'Creating...' : 'Create'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              ) : null}
+            </Presence>
+          </div>
+        </div>
       </div>
 
       {canBrowseDirectories ? (
-        <div className="mt-3 rounded-lg border border-default-200 bg-surface p-2">
+        <div className="mt-3 h-50 overflow-auto rounded-lg border border-default-200 bg-surface p-2">
           {isLoadingDirectories ? (
             <p className="px-2 py-3 text-xs text-default-500">Loading folders...</p>
           ) : directories.length > 0 ? (
@@ -218,10 +341,11 @@ export function DirectoryPicker({
                     type="button"
                     disabled={disabled}
                     onClick={() => navigateTo(directoryPath)}
-                    className="flex items-center justify-between rounded-lg px-2 py-2 text-left
-                      text-xs font-medium text-default-700 transition-colors duration-200
+                    className="flex items-center gap-1 rounded-lg px-2 py-2 text-left text-xs
+                      font-medium text-default-700 transition-colors duration-200
                       hover:bg-default-100 disabled:cursor-not-allowed disabled:text-default-400"
                   >
+                    <FolderIcon className="text-sm" />
                     <span>{directoryName}</span>
                   </button>
                 );

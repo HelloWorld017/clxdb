@@ -96,6 +96,30 @@
   }
 }
 
+@keyframes clx-popover-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes clx-popover-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-3px) scale(0.98);
+  }
+}
+
 @keyframes clx-sync-presence-enter {
   from {
     opacity: 0;
@@ -231,13 +255,23 @@
   .clx-sync-indicator-message-exit {
     animation: clx-sync-message-exit 150ms ease-in both;
   }
+
+  .clx-popover-enter {
+    animation: clx-popover-enter 150ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .clx-popover-exit {
+    animation: clx-popover-exit 120ms ease-in both;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .clx-dialog-enter .clx-dialog-backdrop,
-  .clx-dialog-exit .clx-dialog-backdrop,
+  .clx-dialog-enter,
+  .clx-dialog-exit,
   .clx-dialog-enter .clx-dialog-panel,
   .clx-dialog-exit .clx-dialog-panel,
+  .clx-popover-enter,
+  .clx-popover-exit,
   .clx-sync-indicator-presence-enter,
   .clx-sync-indicator-presence-exit,
   .clx-sync-indicator-icon-enter,
