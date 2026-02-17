@@ -9,5 +9,6 @@ export const DEFAULT_VACUUM_COUNT = 3;
 export const DEFAULT_CACHE_STORAGE_KEY = 'clxdb_cache';
 export const MAX_SYNC_AGE_DAYS = 365;
 export const SHARDS_DIR = 'shards';
+export const BLOBS_DIR = 'blobs';
 export const SHARD_EXTENSION = '.clx';
 export const MANIFEST_PATH = 'manifest.json';

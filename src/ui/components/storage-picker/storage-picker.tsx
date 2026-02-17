@@ -13,7 +13,6 @@ import {
   toWebDavDirectoryUrl,
 } from './utils';
 import type { StorageBackend } from '@/types';
-import type { SubmitEvent } from 'react';
 
 export type StoragePickerBackendType = 'filesystem-access' | 'opfs' | 'webdav';
 

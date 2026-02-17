@@ -338,6 +338,7 @@ export class ClxBlobs {
 
   /** Uploads Blob data. Calculates hash first for idempotency check. */
   putBlob(data: Blob): Promise<string>;
+  deleteBlob(digest: string): Promise<string>;
 }
 
 export function createClxBlobs(params: { storage: StorageBackend }): ClxBlobs;
