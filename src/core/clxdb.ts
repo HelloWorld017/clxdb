@@ -1,5 +1,6 @@
 import { EventEmitter } from '@/utils/event-emitter';
 import { createPromisePool } from '@/utils/promise-pool';
+import { ClxBlobs } from './engines/blobs-engine';
 import { CompactionEngine } from './engines/compaction-engine';
 import { GarbageCollectorEngine } from './engines/garbage-collector-engine';
 import { SyncEngine } from './engines/sync-engine';
@@ -26,6 +27,7 @@ import type {
 export class ClxDB extends EventEmitter<ClxDBEvents> {
   public database: DatabaseBackend;
   public storage: StorageBackend;
+  public blobs: ClxBlobs;
   private crypto: ClxDBCrypto;
   private options: ClxDBOptions;
 
@@ -64,11 +66,13 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
       database: this.database,
       manifestManager: this.manifestManager,
       cacheManager: this.cacheManager,
+      cryptoManager: this.cryptoManager,
       shardManager: this.shardManager,
       options: this.options,
       update: this.update.bind(this),
     };
 
+    this.blobs = new ClxBlobs(ctx);
     this.compactionEngine = new CompactionEngine(ctx);
     this.compactionEngine.bind(this);
     this.garbageCollectorEngine = new GarbageCollectorEngine(ctx);
@@ -108,6 +112,7 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
   destroy() {
     this.stop();
     this.cleanup?.();
+    this.blobs.destroy();
     this.cacheManager.destroy();
   }
 
