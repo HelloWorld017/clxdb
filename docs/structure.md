@@ -31,8 +31,8 @@ All binary data utilizes **Little Endian** byte ordering.
 ├── manifest.json                # [Mutable] Global State, Target for CAS
 ├── shards/                      # [Immutable] Document Logs (Includes C/U/D)
 │   └── shard_{hash}.clx         # Level 0: Real-time, Level 1: Merged, Level 2: Stale
-└── blobs/{hash:2}               # [Mutable] Binary Resource Packs
-    ├── {hash}_{filename}.{ext}  # [Mutable] Uses sanitized filenames
+└── blobs/{hash:2}               # [Immutable] Binary Resource Packs
+    ├── {hash}.clb               # [Immutable] Uses sanitized filenames
     └── ...
 
 ```
@@ -210,8 +210,7 @@ const clxdb = createClxDB({
 await clxdb.init();
 
 // 4. Blob Lazy Loading
-const clxblobs = createClxBlobs({ storage });
-const url = await clxblobs.getBlobUrl(digest);
+const url = await clxdb.blobs.getBlobUrl(digest);
 ```
 
 ---
@@ -327,40 +326,6 @@ export type StorageConfig =
   | { type: 'filesystem-access'; handle: FileSystemDirectoryHandle };
 
 export function createStorageBackend(config: StorageConfig): StorageBackend;
-```
-
-### Blobs
-
-```typescript
-export class ClxBlobs {
-  /** Retrieves the Blob URL. Checks local cache or downloads from remote. */
-  getBlobUrl(digest: string): Promise<string>;
-
-  /** Uploads Blob data. Calculates hash first for idempotency check. */
-  putBlob(data: Blob): Promise<string>;
-  deleteBlob(digest: string): Promise<string>;
-}
-
-export function createClxBlobs(params: { storage: StorageBackend }): ClxBlobs;
-```
-
-### Local/Migration Interfaces
-
-```typescript
-// For local-only usage (e.g., OPFS)
-export function createClxBlobs(params: { storage: StorageBackend }): Promise<ClxBlobs>;
-
-// Migrating existing database to a different storage
-export function migrateDB(params: {
-  storage: StorageBackend;
-  database: DatabaseBackend;
-  options?: ClxDBOptions;
-}): Promise<ClxDB>;
-
-export function migrateBlobs(params: {
-  storage: StorageBackend;
-  blobs: ClxBlobs;
-}): Promise<ClxBlobs>;
 ```
 
 ### UI Plugin

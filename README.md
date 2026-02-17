@@ -31,6 +31,6 @@ Sync documents and blobs via _your own cloud_. Designed for single-html applicat
 ├── shards/
 │   └── shard_{hash}.clx
 └── blobs/{hash:2}
-    ├── {hash}_{filename}.{ext}
+    ├── {hash}.{clb}
     └── ...
 ```

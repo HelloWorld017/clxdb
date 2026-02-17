@@ -5,7 +5,6 @@ export { generateNewClxDB } from '@/core/utils/generate';
 export { inspectClxDBStatus } from '@/core/utils/inspect';
 
 export { createStorageBackend } from '@/storages';
-export { createClxBlobs } from '@/blobs';
 
 export type { ClxDB };
 export type { ClxDBStatus } from '@/core/utils/inspect';
@@ -19,4 +18,3 @@ export type {
   ClxDBClientOptions,
   ClxDBOptions,
 } from '@/types';
-export type { ClxBlobs, ClxBlobsParams } from '@/blobs';
