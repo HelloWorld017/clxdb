@@ -737,6 +737,8 @@
             await unlockSettings.update(nextClient);
           }
 
+          clxUI.showSyncIndicator({ client: nextClient });
+
           this.database = nextDatabase;
           this.client = nextClient;
           this.syncState = nextClient.getState();
