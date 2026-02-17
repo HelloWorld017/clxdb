@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { classes } from '@/utils/classes';
+import { normalizeDirectoryPath } from './utils';
 import type { StorageBackend } from '@/types';
-import type { FormEvent } from 'react';
+import type { SubmitEvent } from 'react';
 
 type DirectoryPickerStorage = Pick<StorageBackend, 'ensureDirectory' | 'readDirectory'>;
 
@@ -11,12 +12,7 @@ export interface DirectoryPickerProps {
   onChange: (path: string) => void;
   disabled?: boolean;
   className?: string;
-  title?: string;
-  description?: string;
 }
-
-export const normalizeDirectoryPath = (path: string): string =>
-  path.trim().split('/').filter(Boolean).join('/');
 
 const joinDirectoryPath = (basePath: string, nextSegment: string): string => {
   const normalizedBase = normalizeDirectoryPath(basePath);
@@ -48,8 +44,6 @@ export function DirectoryPicker({
   onChange,
   disabled = false,
   className,
-  title = 'Database Folder',
-  description = 'Choose the folder to store ClxDB files.',
 }: DirectoryPickerProps) {
   const [directories, setDirectories] = useState<string[]>([]);
   const [isLoadingDirectories, setIsLoadingDirectories] = useState(false);
@@ -115,7 +109,7 @@ export function DirectoryPicker({
     onChange(normalizeDirectoryPath(nextPath));
   };
 
-  const handleCreateDirectory = async (event: FormEvent<HTMLFormElement>) => {
+  const handleCreateDirectory = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (disabled || isCreatingDirectory) {
       return;
@@ -163,28 +157,9 @@ export function DirectoryPicker({
         className
       )}
     >
-      <p className="text-sm font-semibold text-default-800">{title}</p>
-      <p className="mt-1 text-xs text-default-500">{description}</p>
+      <p className="text-sm font-semibold text-default-800">Select Directory</p>
 
-      <div className="mt-4 rounded-xl border border-default-200 bg-default-50/70 p-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0 text-xs text-default-500">
-            <span className="font-medium text-default-700">Current folder:</span>{' '}
-            {normalizedValue ? `/${normalizedValue}` : '/'}
-          </div>
-          <button
-            type="button"
-            disabled={disabled || !normalizedValue}
-            onClick={() => navigateTo(getParentDirectoryPath(normalizedValue))}
-            className="inline-flex items-center rounded-lg border border-default-300 bg-surface
-              px-2.5 py-1.5 text-xs font-medium text-default-700 transition-colors duration-200
-              hover:border-default-400 hover:bg-default-100 disabled:cursor-not-allowed
-              disabled:border-default-200 disabled:bg-default-100 disabled:text-default-400"
-          >
-            Up
-          </button>
-        </div>
-
+      <div className="mt-2 flex items-center justify-between gap-2">
         <div className="mt-2 flex flex-wrap items-center gap-1 text-xs">
           <button
             type="button"
@@ -216,86 +191,73 @@ export function DirectoryPicker({
           })}
         </div>
 
-        {canBrowseDirectories ? (
-          <div className="mt-3 rounded-lg border border-default-200 bg-surface p-2">
-            {isLoadingDirectories ? (
-              <p className="px-2 py-3 text-xs text-default-500">Loading folders...</p>
-            ) : directories.length > 0 ? (
-              <div className="grid gap-1">
-                {directories.map(directoryName => {
-                  const directoryPath = joinDirectoryPath(normalizedValue, directoryName);
-                  return (
-                    <button
-                      key={directoryPath}
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => navigateTo(directoryPath)}
-                      className="flex items-center justify-between rounded-lg px-2 py-2 text-left
-                        text-xs font-medium text-default-700 transition-colors duration-200
-                        hover:bg-default-100 disabled:cursor-not-allowed disabled:text-default-400"
-                    >
-                      <span>{directoryName}</span>
-                      <span className="text-default-400">Open</span>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="px-2 py-3 text-xs text-default-500">
-                No subfolders in this location yet.
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
-            <input
-              type="text"
-              value={manualPath}
-              disabled={disabled}
-              onChange={event => setManualPath(event.target.value)}
-              placeholder="folder/subfolder"
-              className="w-full rounded-lg border border-default-300 bg-surface px-3 py-2 text-xs
-                text-default-800 outline-none placeholder:text-default-400 focus:border-default-500
-                disabled:cursor-not-allowed disabled:border-default-200 disabled:bg-default-100"
-            />
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={applyManualPath}
-              className="inline-flex items-center justify-center rounded-lg border
-                border-default-300 bg-surface px-3 py-2 text-xs font-medium text-default-700
-                transition-colors duration-200 hover:border-default-400 hover:bg-default-100
-                disabled:cursor-not-allowed disabled:border-default-200 disabled:bg-default-100
-                disabled:text-default-400"
-            >
-              Apply path
-            </button>
-          </div>
-        )}
-      </div>
-
-      <form onSubmit={handleCreateDirectory} className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
-        <input
-          type="text"
-          value={newFolderName}
-          disabled={disabled || isCreatingDirectory}
-          onChange={event => setNewFolderName(event.target.value)}
-          placeholder="new-folder"
-          className="w-full rounded-xl border border-default-300 bg-default-50 px-3 py-2 text-xs
-            text-default-800 outline-none placeholder:text-default-400 focus:border-default-500
-            disabled:cursor-not-allowed disabled:border-default-200 disabled:bg-default-100"
-        />
         <button
-          type="submit"
-          disabled={disabled || isCreatingDirectory}
-          className="inline-flex items-center justify-center rounded-xl border border-default-300
-            bg-surface px-3 py-2 text-xs font-medium text-default-700 transition-colors duration-200
+          type="button"
+          disabled={disabled || !normalizedValue}
+          onClick={() => navigateTo(getParentDirectoryPath(normalizedValue))}
+          className="inline-flex items-center rounded-lg border border-default-300 bg-surface px-2.5
+            py-1.5 text-xs font-medium text-default-700 transition-colors duration-200
             hover:border-default-400 hover:bg-default-100 disabled:cursor-not-allowed
             disabled:border-default-200 disabled:bg-default-100 disabled:text-default-400"
         >
-          {isCreatingDirectory ? 'Creating...' : 'Create Folder'}
+          New Folder
         </button>
-      </form>
+      </div>
+
+      {canBrowseDirectories ? (
+        <div className="mt-3 rounded-lg border border-default-200 bg-surface p-2">
+          {isLoadingDirectories ? (
+            <p className="px-2 py-3 text-xs text-default-500">Loading folders...</p>
+          ) : directories.length > 0 ? (
+            <div className="grid gap-1">
+              {directories.map(directoryName => {
+                const directoryPath = joinDirectoryPath(normalizedValue, directoryName);
+                return (
+                  <button
+                    key={directoryPath}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => navigateTo(directoryPath)}
+                    className="flex items-center justify-between rounded-lg px-2 py-2 text-left
+                      text-xs font-medium text-default-700 transition-colors duration-200
+                      hover:bg-default-100 disabled:cursor-not-allowed disabled:text-default-400"
+                  >
+                    <span>{directoryName}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="px-2 py-3 text-xs text-default-500">
+              No subfolders in this location yet.
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+          <input
+            type="text"
+            value={manualPath}
+            disabled={disabled}
+            onChange={event => setManualPath(event.target.value)}
+            placeholder="folder/subfolder"
+            className="w-full rounded-lg border border-default-300 bg-surface px-3 py-2 text-xs
+              text-default-800 outline-none placeholder:text-default-400 focus:border-default-500
+              disabled:cursor-not-allowed disabled:border-default-200 disabled:bg-default-100"
+          />
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={applyManualPath}
+            className="inline-flex items-center justify-center rounded-lg border border-default-300
+              bg-surface px-3 py-2 text-xs font-medium text-default-700 transition-colors
+              duration-200 hover:border-default-400 hover:bg-default-100 disabled:cursor-not-allowed
+              disabled:border-default-200 disabled:bg-default-100 disabled:text-default-400"
+          >
+            Apply path
+          </button>
+        </div>
+      )}
 
       {errorMessage && (
         <p
