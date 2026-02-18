@@ -29,17 +29,17 @@ const databaseAdapter = createDatabaseClxDBAdapter(database);
 // This will automatically open a database, using the storage picker / unlock UI.
 const client = await startClxDBWithUI({ database: databaseAdapter });
 
-// Update using your own database API. They will be synced automatically.
-await database.updateDocument('doc-1', {
-  title: 'Updated title',
-  attachmentDigest: blobDigest,
-});
-
 // Write blobs
 const blobDigest = await client.blobs.putBlob(
   new Blob(['hello clxdb']),
   { name: 'hello.txt' }
 );
+
+// Update using your own database API. They will be synced automatically.
+await database.updateDocument('doc-1', {
+  title: 'Updated title',
+  attachmentDigest: blobDigest,
+});
 ```
 
 ### Database Interface
@@ -105,7 +105,8 @@ These are not hard limits, but exceeding them may lead to performance degradatio
 /
 ├── manifest.json
 ├── shards/
-│   └── shard_{hash}.clx
+│   ├── shard_{hash}.clx
+│   └── ...
 └── blobs/{hash:2}
     ├── {hash}.clb
     └── ...
