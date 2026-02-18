@@ -2,13 +2,13 @@
   "name": "clxdb",
   "version": "0.1.0",
   "description": "The BYOC(Bring your own cloud) local-first synchronized db",
-  "main": "dist/clxdb.umd.cjs",
+  "main": "dist/clxdb.cjs",
   "module": "dist/clxdb.js",
   "type": "module",
   "exports": {
     ".": {
       "import": "./dist/clxdb.js",
-      "require": "./dist/clxdb.umd.cjs"
+      "require": "./dist/clxdb.cjs"
     }
   },
   "scripts": {

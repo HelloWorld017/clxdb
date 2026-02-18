@@ -2,41 +2,27 @@
 
 ## Project Snapshot
 
-`clxdb` is a browser-first local-first sync library.
+`clxdb` is a browser-first, local-first synchronization library with optional UI helpers.
 
-- Core: append-only shard-based synchronization engine.
-- Storage: BYOC style adapters (WebDAV, FileSystem Access API, OPFS).
-- Security: optional encryption with master password + per-device quick unlock.
-- UI: optional React components for storage selection, unlock flows, and settings.
+Main capabilities:
 
-This file reflects the current codebase structure and behavior.
+- append-only shard-based document sync
+- immutable, digest-addressed blob storage
+- optional encryption (master password + per-device quick unlock)
+- optional React UI flows (storage picker, unlock, settings, sync indicator)
 
-## Runtime, Build, and Packaging
+## Runtime and Toolchain
 
 - Package manager: `pnpm@10.18.3`
 - Language: TypeScript (`strict: true`, `moduleResolution: bundler`)
 - Module type: ESM (`"type": "module"`)
-- Library bundler: Vite library mode
-- Build outputs:
-  - ESM: `dist/clxdb.js`
-  - CJS/UMD: `dist/clxdb.umd.cjs`
-
-## Current Tech Stack
-
-### Runtime dependencies
-
-- `react@19.2.x`
-- `react-dom@19.2.x`
-- `zod@4.3.x`
-
-### Tooling
-
-- `typescript@6.0.0-beta`
-- `vite@7.3.x`
-- `@vitejs/plugin-react-swc`
-- `tailwindcss@4.1.x` + `@tailwindcss/vite`
-- `eslint@9.39.x` + `typescript-eslint@8.54.x` + `eslint-plugin-import-x`
-- `prettier@3.8.x` (+ tailwind/classnames/merge plugins)
+- Bundler: Vite library mode (`vite.config.ts`)
+  - `src/index.ts` (core entry)
+  - `src/ui/index.ts` (UI entry)
+- Current `dist/` artifacts include:
+  - `clxdb.js`, `clxdb.cjs`
+  - `ui.js`, `ui.cjs`
+  - hashed shared chunks (`index-*.js`, `index-*.cjs`)
 
 ## Repository Layout (Current)
 
@@ -51,57 +37,76 @@ src/
     index.ts
     utils.ts
   utils/
-    event-emitter.ts
-    promise-pool.ts
     backoff.ts
-    storage-error.ts
+    classes.ts
     device-name.ts
+    event-emitter.ts
     json.ts
+    mime.ts
+    promise-pool.ts
+    storage-error.ts
   core/
+    index.ts
     clxdb.ts
     types.ts
     engines/
-      sync-engine.ts
+      blobs-engine.ts
       compaction-engine.ts
-      vacuum-engine.ts
       garbage-collector-engine.ts
+      sync-engine.ts
+      vacuum-engine.ts
     managers/
-      manifest-manager.ts
-      shard-manager.ts
       cache-manager.ts
       crypto-manager.ts
+      manifest-manager.ts
+      shard-manager.ts
     utils/
-      options.ts
       generate.ts
       inspect.ts
-      shard-utils.ts
+      options.ts
       shard-merge.ts
+      shard-utils.ts
   storages/
+    filesystem.ts
     index.ts
     webdav.ts
-    filesystem.ts
   ui/
     index.ts
-    storage-picker.tsx
-    database-unlock.tsx
-    common/
-      pin-input.tsx
-    database-settings/
-      database-settings.tsx
-      overview-tab.tsx
-      encryption-tab.tsx
-      devices-tab.tsx
-      export-tab.tsx
-      types.ts
-      utils.ts
+    clxui.tsx
+    constants.ts
+    style.css
+    types.ts
+    hooks/
+      use-debounced-value.ts
+    components/
+      database-unlock.tsx
+      sync-indicator.tsx
+      common/
+        dialog.tsx
+        pin-input.tsx
+        presence.tsx
+      storage-picker/
+        directory-picker.tsx
+        icons.tsx
+        index.ts
+        storage-picker.tsx
+        utils.ts
+      database-settings/
+        database-settings.tsx
+        devices-tab.tsx
+        encryption-tab.tsx
+        export-tab.tsx
+        icons.tsx
+        index.ts
+        overview-tab.tsx
+        types.ts
+        utils.ts
   definitions/
     global.d.ts
 
 examples/
-  storage-picker/
+  diary/
     index.html
-    index.css
-    index.tsx
   todo/
     index.html
     index.css
@@ -112,223 +117,160 @@ examples/
 
 From `src/index.ts`:
 
-- Core creators:
-  - `createClxDB(...)`
-  - `generateNewClxDB(...)`
-  - `inspectClxDBStatus(...)`
-- Storage factory:
-  - `createStorageBackend(...)`
-- UI exports:
-  - `StoragePicker`
-  - `DatabaseUnlock`
-  - `DatabaseSettings`
-- Type exports:
-  - core/runtime/storage/UI related public types
+- `createClxDB(params)`
+- `generateNewClxDB(params)`
+- `inspectClxDBStatus(storage, options?)`
+- `createStorageBackend(config)`
+- core/storage/schema type exports
+
+From `src/ui/index.ts`:
+
+- `createClxUI(options?)`
+- `ClxUI`, `ClxUIOptions`
+- `DatabaseUnlockOperation`
+- storage picker selection types
+
+Important:
+
+- `startClxDBWithUI(...)` exists in `src/ui/clxui.tsx`, but is not re-exported by
+  `src/ui/index.ts`.
 
 ## Core Architecture
 
-### Main class (`ClxDB`)
+### Main class (`src/core/clxdb.ts`)
 
-`src/core/clxdb.ts` wires managers + engines and owns lifecycle/state:
+`ClxDB` wires managers and engines, and owns lifecycle/state.
 
-- State machine: `idle | pending | syncing`
-- Lifecycle:
-  1. `manifestManager.initialize()`
-  2. `database.initialize(uuid)`
-  3. `cacheManager.initialize(uuid)`
-  4. `cryptoManager.initialize()`
-  5. `shardManager.initialize()`
-  6. `syncEngine.initialize()`
-  7. initial `sync()`
-  8. optional background GC/Vacuum
-  9. replication callback hookup (`database.replicate(...)`)
+State machine:
 
-### Engines
+- `idle`
+- `pending`
+- `syncing`
 
-- `SyncEngine`
-  - Pulls remote updates by manifest diff and shard header/body reads.
-  - Pushes local pending documents (`seq === null`) as new shards.
-- `CompactionEngine`
-  - Merges shard groups per level when threshold is reached.
-- `VacuumEngine`
-  - Rewrites stale shards when utilization drops below threshold.
-- `GarbageCollectorEngine`
-  - Deletes orphaned shard files older than `gcGracePeriod`.
+`init()` flow:
+
+1. `manifestManager.initialize()`
+2. `database.initialize(uuid)`
+3. `cacheManager.initialize(uuid)`
+4. `cryptoManager.initialize()`
+5. `shardManager.initialize()`
+6. `syncEngine.initialize()`
+7. `sync()`
+8. `touchCurrentDeviceKey()`
+9. optional fire-and-forget GC/vacuum on start
+10. subscribe to `database.replicate(...)`
+11. start interval sync if `syncInterval > 0`
 
 ### Managers
 
-- `ManifestManager`
-  - Reads/parses manifest and performs CAS update via `atomicUpdate`.
-- `ShardManager`
-  - Reads/writes encrypted shard headers + bodies.
-  - Maintains in-memory + IndexedDB header cache.
-- `CacheManager`
-  - IndexedDB wrapper for cache objects (`lastSequence`, headers, device key).
-- `CryptoManager`
-  - Handles master-key, quick-unlock device key, shard encryption, manifest signing.
+- `ManifestManager`: reads/parses manifest, caches etag/manifest, CAS updates with retry.
+- `ShardManager`: writes/reads shard files and headers, range reads, header cache persistence.
+- `CacheManager`: IndexedDB wrapper for sequence/header/device-key cache entries.
+- `CryptoManager`: root key lifecycle, shard/blob encryption, manifest signing, device registry.
 
-## Crypto and Security Model
+### Engines
 
-- Encryption algorithm: `AES-GCM`
-- Key derivation:
-  - master password: `PBKDF2` (`1_500_000` iterations, `SHA-256`)
-  - shard and quick-unlock derivations: `HKDF`
-- Manifest integrity: `HMAC SHA-256` signature over stable JSON payload.
-- Device registry is stored in `manifest.crypto.deviceKey` and can be managed from `ClxDB` methods/UI.
+- `SyncEngine`: pull first, then push local pending docs.
+- `CompactionEngine`: merges shard groups by level when threshold is met.
+- `VacuumEngine`: rewrites stale-level shards when dead-data ratio crosses threshold.
+- `GarbageCollectorEngine`: deletes orphan shard files after a grace period.
+- `ClxBlobs`: digest-based blob put/get/delete and streaming decode.
 
-## Storage Contract
+## Storage Data Layout
 
-Any adapter must satisfy `StorageBackend` in `src/types/index.ts`:
+```text
+/
+  manifest.json
+  shards/
+    shard_<sha256>.clx
+  blobs/
+    <digest_prefix_2>/
+      <digest>.clb
+```
+
+- `manifest.json` is the only mutable file and must be updated via `atomicUpdate`.
+- shard/blob files are immutable writes (`write` should fail when file already exists).
+
+## Adapter Contracts
+
+### StorageBackend (`src/types/index.ts`)
+
+Required methods:
 
 - `read(path, range?)`
+- `ensureDirectory(path)`
 - `write(path, content)`
 - `delete(path)`
 - `stat(path)`
 - `atomicUpdate(path, content, previousEtag)`
 - `list(path)`
-- Optional `getMetadata()` for UI overview cards
 
-Implemented adapters:
+Optional:
 
-- `WebDAVBackend` (`src/storages/webdav.ts`)
-- `FileSystemBackend` for `filesystem-access` and `opfs` (`src/storages/filesystem.ts`)
+- `readDirectory(path)` (used by directory picker UI)
+- `getMetadata()` (used by settings overview UI)
 
-## Database Contract
+Built-in implementations:
 
-Any local database adapter passed to `createClxDB(...)` must satisfy `DatabaseBackend` in
-`src/types/index.ts`:
+- `WebDAVBackend`
+- `FileSystemBackend` (`filesystem-access` and `opfs`)
+
+### DatabaseBackend (`src/types/index.ts`)
+
+Required methods:
 
 - `initialize(uuid)`
-- `read(ids)`
+- `read(ids)` (must preserve input order)
 - `readPendingIds()`
 - `upsert(data)`
 - `delete(data)`
 - `replicate(onUpdate)`
 
-Behavioral expectations:
+Behavior expectations:
 
-- User-originated create/update/delete operations should be staged with `seq: null`.
-- `readPendingIds()` should return IDs currently staged with `seq: null`.
-- `replicate(onUpdate)` should notify ClxDB when local staged changes occur.
-- Sync-ack writes from ClxDB (`upsert/delete` with concrete `seq`) should not re-trigger
-  replication callbacks.
-- `read(ids)` must preserve input order and return `(DatabaseDocument | null)[]`.
+- user-originated writes/deletes are staged with `seq: null`
+- `replicate` should notify when those staged local changes appear
+- push ack currently goes through `database.upsert(...)` with synced shard documents,
+  including tombstones
+- pull applies non-deleted docs via `upsert` and deleted docs via `delete`
 
-Reference implementation:
+## Crypto Model (Current Implementation)
 
-- Example adapter in `examples/todo/index.tsx` (`TodoDatabase.getClxDBAdapter()`).
+- Encryption algorithm: `AES-GCM`
+- Per encrypted chunk/part overhead: IV 12 bytes + auth tag 16 bytes
+- Manifest integrity: HMAC signature over stable JSON payload
+- Encrypted manifest stores:
+  - wrapped root key (`masterKey`, `masterKeySalt`)
+  - per-device quick unlock registry (`deviceKey`)
+  - `nonce`, `timestamp`, `signature`
+- Quick unlock is per-device and uses IndexedDB-cached device key material.
 
-## Defaults and Important Constants
+If you modify crypto behavior, inspect `src/core/managers/crypto-manager.ts` carefully.
 
-From `src/constants/index.ts` + `normalizeOptions(...)`:
+## Defaults (`normalizeOptions`)
 
-- `syncInterval`: 5 minutes
-- `compactionThreshold`: 4
-- `desiredShardSize`: 5 MB
-- `maxShardLevel`: 6
+From `src/core/utils/options.ts`:
+
+- `syncInterval`: `60_000`
+- `compactionThreshold`: `4`
+- `desiredShardSize`: `5 * 1024 * 1024`
+- `maxShardLevel`: `6`
 - `gcOnStart`: `true`
-- `gcGracePeriod`: 1 hour
+- `gcGracePeriod`: `60 * 60 * 1000`
 - `vacuumOnStart`: `true`
 - `vacuumThreshold`: `0.15`
 - `vacuumCount`: `3`
 - `cacheStorageKey`: `clxdb_cache`
-- `MAX_SYNC_AGE_DAYS`: `365`
-
-## Coding Conventions
-
-### TypeScript
-
-- Keep strict typing; avoid `any`.
-- Prefer explicit exported types for public APIs.
-- Use `type` imports where applicable (`@typescript-eslint/consistent-type-imports`).
-
-### Imports
-
-ESLint enforces this group order:
-
-1. `builtin`
-2. `external`
-3. `internal` (`@/...`)
-4. `parent`
-5. `index`
-6. `sibling`
-7. `type`
-
-### Lint/style rules to preserve
-
-- Single quotes
-- Curly braces required (`curly: all`)
-- `console.log` is disallowed (`console.warn`/`console.error` allowed)
-- Camelcase rule enabled (`properties: never`)
-- Prettier is integrated via ESLint (`prettier/prettier`)
-
-### Formatting
-
-From `.prettierrc`:
-
-- `semi: true`
-- `singleQuote: true`
-- `printWidth: 100`
-- `tabWidth: 2`
+- `databasePersistent`: `true`
 
 ## Development Commands
 
-- Start dev server: `pnpm dev`
-- Build library bundle: `pnpm build`
-- Type check: `pnpm typecheck`
-- Lint: `pnpm lint`
-
-Examples are plain Vite entry HTML files under `examples/*/index.html`.
+- `pnpm dev`
+- `pnpm build`
+- `pnpm typecheck`
+- `pnpm lint`
 
 ## Testing Status
 
-There is no dedicated automated test suite configured yet.
-
-When adding tests later, prefer covering:
-
-- sync conflict scenarios
-- manifest CAS retries
-- shard merge/vacuum behavior
-- crypto/unlock flows
-
-## Common Workflows
-
-### Create a brand-new database
-
-Use `generateNewClxDB(...)`.
-
-- It creates and writes `manifest.json`.
-- It signs initial manifest when encryption is enabled.
-
-### Open an existing database
-
-Use `createClxDB(...)` + `await client.init()`.
-
-- `ManifestManager.initialize()` expects existing manifest.
-- If manifest does not exist, creation path must be used.
-
-### Add a storage backend
-
-1. Implement `StorageBackend`
-2. Respect immutable-write semantics (existing file => error)
-3. Implement CAS in `atomicUpdate`
-4. Export from `src/storages/index.ts`
-5. Optionally expose `getMetadata()` for `DatabaseSettings` overview
-
-### Add or modify UI settings features
-
-- Main container: `src/ui/database-settings/database-settings.tsx`
-- Tab-level logic:
-  - `overview-tab.tsx`
-  - `encryption-tab.tsx`
-  - `devices-tab.tsx`
-  - `export-tab.tsx`
-- Integration contract: `DatabaseSettingsClient` in `src/ui/database-settings/types.ts`
-
-## Gotchas
-
-- `createClxDB` does not create database files; it assumes manifest exists.
-- Compaction and vacuum skip work while local pending updates exist.
-- GC and vacuum are enabled on start by default via normalized options.
-- Cache behavior depends on browser IndexedDB availability.
-- UI export/import tab is currently presentation-only (disabled actions).
+No dedicated automated test suite is configured yet.
+Manual verification is usually done through `examples/todo` and `examples/diary`.

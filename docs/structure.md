@@ -1,343 +1,334 @@
 # `clxdb` Design Specification
 
-This document defines the architecture of **clxdb**, a serverless synchronization engine that uses WebDAV and OPFS as backends.
+This document describes the current architectural decisions of **clxdb**.
 
 ---
 
 ## 1. Architecture Overview
 
-### Design Philosophy
+### 1.1 Design Philosophy
 
-- **Bring Your Own Cloud (BYOC):** Leverages the user's own WebDAV storage.
-- **Immutable Log-Structured:** All write operations (Create/Update/Delete) are handled by creating new files (Append-only). Existing files are never overwritten.
-- **Tiered Storage:** A hierarchical structure (Level 0 -> 1 -> 2) balances write speed and read performance.
+- **Bring Your Own Cloud (BYOC):** clxdb does not require a central service. Storage is provided by user-owned backends (WebDAV or browser file systems).
+- **Immutable data files + single mutable index:** shard/blob files are immutable; `manifest.json` is the only mutable coordination file.
+- **Local-first convergence:** local changes are accepted immediately by the host database and reconciled through periodic pull/push.
+- **Pluggable boundaries:** both storage and local database are adapter-based so host apps can integrate their existing stacks.
 
-### Expected Workload
+### 1.2 Runtime Scope
 
-- **Documents:** 100 creations/hr, 10 updates/hr, 1 deletion/hr. Total ~20,000 docs, expected to grow up to 100MB.
-- **Blobs:** 10 creations/hr, 0.1 deletions/hr. Total ~5,000 files, expected to grow up to 4GB.
-- **Sync:** ~5 devices. Low concurrency is expected.
+- Browser-first runtime
+- Typical low-concurrency multi-device sync (personal/team small scale)
+- No dedicated server process required
 
 ---
 
-## 2. File System Structure
+## 2. Storage Model
 
-All binary data utilizes **Little Endian** byte ordering.
+All binary lengths/footers use **Little Endian** where applicable.
 
-### 2.1 Directory Structure
+### 2.1 Directory Layout
 
 ```text
 /
-├── manifest.json                # [Mutable] Global State, Target for CAS
-├── shards/                      # [Immutable] Document Logs (Includes C/U/D)
-│   └── shard_{hash}.clx         # Level 0: Real-time, Level 1: Merged, Level 2: Stale
-└── blobs/{hash:2}               # [Immutable] Binary Resource Packs
-    ├── {hash}.clb               # [Immutable] Uses sanitized filenames
-    └── ...
-
+├── manifest.json
+├── shards/
+│   └── shard_{hash}.clx
+└── blobs/{hash:2}/
+    └── {hash}.clb
 ```
 
-### 2.2 `manifest.json` (Global State)
+### 2.2 Manifest as Global Coordination Point
 
-```typescript
-interface Manifest {
-  version: number; // Protocol version (2)
-  lastSequence: number; // Logical clock (Lamport Clock)
+`manifest.json` is the system index and coordination primitive:
 
-  // Active shard list (Must be sorted from Oldest -> Newest)
-  shardFiles: Array<{
-    filename: string; // Filename (includes hash)
-    level: number; // Packing level
-    range: { min: number; max: number }; // Sequence range
-  }>;
-}
-```
+- protocol version
+- database UUID
+- global sequence frontier (`lastSequence`)
+- active shard index (`shardFiles[]` with level + sequence range)
+- optional crypto envelope/signature metadata
 
-### 2.3 Document Shard (`*.clx`)
+Design rule:
 
-- **Format:** `[Header Length(4B)]` + `[Header JSON]` + `[Body JSONs]`
-- **Content:** `INSERT`, `UPDATE`, and `DELETE` operations are all recorded as JSON Documents.
+- manifest updates must use **CAS semantics** (`atomicUpdate` + previous etag)
 
-```typescript
-interface ShardHeader {
-  docs: Array<{
-    id: string; // Document ID
-    at: number; // Timestamp
-    seq: number; // Sequence number
-    del: boolean; // Deleted (Tombstone)
-    offset: number; // Starting byte position in Body
-    len: number; // Data length
-  }>;
-}
-```
+### 2.3 Shard Files (`*.clx`)
+
+Shard concept:
+
+- append-only immutable log segments for document mutations
+- each shard carries compact metadata (`id`, `seq`, `timestamp`, tombstone flag, byte ranges)
+
+Physical idea:
+
+- header length prefix
+- header payload
+- body payloads
+
+This supports:
+
+- cheap metadata-first reads
+- selective document body fetch
+- deterministic sequence range indexing per shard
+
+### 2.4 Blob Files (`*.clb`)
+
+Blob concept:
+
+- digest-addressed immutable binary object storage
+- content keyed by SHA-256 digest
+- chunked payload + footer metadata
+
+Design goals:
+
+- dedup-friendly addressing
+- stream-friendly read path
+- optional per-chunk encryption
 
 ---
 
-## 3. Tiered Compaction Strategy
+## 3. Sharding, Compaction, and Leveling Strategy
 
-To reduce WebDAV HTTP request overhead, clxdb adopts an **LSM-Tree** inspired approach.
-Following is an example of 3-level sharding. The user can change the level of sharding.
+clxdb follows an LSM-inspired model.
 
-- Initial Shards (Level 0)
-  - Created when user creates/updates/deletes documents. (after debounce)
-  - Real-time changes. Small file size (few KB). Count increases rapidly.
+### 3.1 Level Assignment
 
-- Merged Shards (Level 1)
-  - When there are >= 10 level 0 shards, they are packed into a shard
+- shard level is derived from size relative to target sizing parameters
+- `desiredShardSize` defines long-term target size
+- `compactionThreshold` influences growth ratio between levels
+- `maxShardLevel` marks "stale"/high-level shards that stop normal upward compaction
 
-- Stale Shards (Level 2)
-  - For the yielded shards whose size is larger than 5MB, it becomes a stale shard and not targeted for the compaction.
+Implication:
 
-| Level       | Creation Trigger              | Description                                                            |
-| ----------- | ----------------------------- | ---------------------------------------------------------------------- |
-| **Level 0** | User Write (after Debounce)   |                                                                        |
-| **Level 1** | When ≥ 10 shards              | Intermediate files created by merging deltas (tens to hundreds of KB). |
-| **Level 2** | When Level 1 files total ~5MB | Final optimized 5MB files                                              |
+- applications can tune for write-heavy or read-heavy behavior
+
+### 3.2 Compaction
+
+Compaction merges dense shard sets within lower levels when threshold is reached.
+
+Primary goals:
+
+- reduce read amplification
+- remove dead history (overwritten revisions, expired tombstones)
+- keep manifest shard index manageable
+
+Safety rule:
+
+- compaction is skipped while unresolved local pending writes exist
+
+### 3.3 Vacuum
+
+Vacuum targets high-level/stale shards when live-data utilization drops below threshold.
+
+Primary goals:
+
+- reclaim dead space in long-lived shards
+- reduce long-term storage bloat
+
+This is complementary to compaction:
+
+- compaction handles accumulation pressure
+- vacuum handles low-utilization cleanup pressure
 
 ---
 
 ## 4. Synchronization Protocol
 
-### 4.1 WRITE (Push Process) - Idempotency & Completion Guarantee
+### 4.1 Push (Local -> Storage)
 
-The process of safely recording Database changes to the server.
+Design flow:
 
-1. **Buffer & Pack (Local):**
+1. read local pending IDs (`seq: null`)
+2. materialize documents to sync
+3. pack immutable shard
+4. append shard metadata via manifest CAS update
+5. only after successful manifest commit, acknowledge local rows with concrete sequence
 
-- Buffer database change logs (C/U/D) in memory.
-- Serialize buffer into a Level 0 Shard and generate a filename via hash (`{hash}.clx`).
+Design guarantees:
 
-2. **Check Idempotency (Server):**
+- manifest commit is the authoritative "sync success" boundary
+- immutable shard writes make duplicate/retry attempts safe
 
-- Send `HEAD /shards/{hash}.clx`.
-- **File exists:** Already uploaded (duplicate request or remnant of previous attempt). **Skip upload.**
-- **File missing:** Upload file via `PUT`.
+### 4.2 Pull (Storage -> Local)
 
-3. **Atomic Commit (Manifest CAS):**
+Design flow:
 
-- `GET` the `manifest.json`, append the new delta to the `shardFiles` list.
-- Update via `PUT` using the `If-Match` header.
-- On failure (412 Error), re-read the Manifest and retry.
+1. read latest manifest
+2. select candidate shards by sequence range
+3. fetch/parse headers first
+4. fetch only relevant bodies
+5. apply upserts/deletes to local database
+6. advance local sequence frontier
 
-4. **Ack to Database Backend:**
+### 4.3 Conflict Resolution Principle
 
-- **Only after the Manifest update succeeds (200 OK)**, send the "Sync Complete" signal to database backend.
-- If previous steps fail, database backend treats it as "Failed" and retries in the next cycle (Exponential Backoff).
+When a document has local pending state and remote updates arrive,
+remote application uses timestamp comparison (`at`) to avoid blindly overwriting newer local intent.
 
-### 4.2 READ (Pull Process)
+### 4.4 Pull-First Ordering
 
-1. **Fetch Manifest:** Periodically poll `manifest.json`.
-2. **Diff:** Compare the local "last seen" file list with the server list to identify **new files**.
-3. **Partial Fetch:**
+A sync cycle is intentionally **pull-first, then push**.
 
-- Read only the **Header** of new files using a `Range Request`.
-- Compare Document IDs and Revisions in the header with the local DB.
+Why:
 
-4. **Apply:** Download only the Bodies of documents newer than the local state and apply them to database backend (`bulkUpsert`).
-
-> [!IMPORTANT]
-> Pulling is prohibited for devices outdated by more than 1 year to prevent "Zombie" data issues.
-
----
-
-## 5. Maintenance & Recovery
-
-### 5.1 Compaction Process
-
-Runs in the background to optimize read performance.
-
-- **Definition of a "Dead Row":**
-- A newer revision of the document exists.
-- OR, it is a Tombstone (deleted) and is older than 1 year.
-
-1. **Trigger:** Analyze Manifest `shardFiles` list (e.g., Level 0 files > 10).
-2. **Merge:** Download target files and merge in memory. Remove Dead Rows.
-3. **Write New Shard:** Create and upload a Level 1 or Level 2 Shard from the merged result.
-4. **Switch Manifest:**
-
-- Remove old files and add the new merged file in the Manifest.
-- Perform CAS update.
-
-5. **Mark for GC:** Files removed from the Manifest become "Orphans" and targets for GC (not deleted immediately).
-
-### 5.2 Safe Garbage Collection (Dangling Shard Cleanup)
-
-Safely removes "garbage files" caused by sync interruptions or conflicts.
-
-- **Execution:** Executed **Asynchronously (Fire-and-Forget)** when `clxdb.init()` is called.
-- **Algorithm (Cool-down Rule):**
-
-1. Get the full server file list (`All`) and the Manifest file list (`Active`).
-2. Identify `Orphans = All - Active`.
-3. Check `Last-Modified` header for each Orphan.
-4. Send `DELETE` only if **`(Current Time - Modified Time) > 1 hour`**.
-
-- _Reason:_ A recently uploaded file might be a "valid file" currently being added to the Manifest by another client.
-
-### 5.3 Vacuum Process
-
-Similar to Compaction, but based on the **Utilization Rate** of a shard.
-
-1. **Trigger:** When the Utilization Rate drops below a threshold (e.g., Dead Rows in a shard exceed 15%).
-2. **Write New Shards:** Generate a shard of `max(level - 1, 0)` after purging Dead Rows.
-3. **Manifest CAS:** Follows the same procedure as Compaction.
+- pushes allocate new sequence numbers
+- pulling first reduces divergence and avoids assigning sequences on stale local manifest state
 
 ---
 
-## 6. Library API (Developer Interface)
+## 5. Maintenance and Recovery
 
-```typescript
-import { createClxDB, WebDAVBackend } from 'clxdb';
+### 5.1 Garbage Collection (Orphan Shards)
 
-// 1. Backend Setup
-const storage = new WebDAVBackend({
-  url: 'https://my-cloud.com/dav',
-  auth: { ... }
-});
+GC identifies shard files present in storage but not referenced by manifest.
 
-// 2. Initialization & Options
-const clxdb = createClxDB({
-  database: myRxDBInstance,
-  storage,
-  options: {
-    syncInterval: 1000 * 60 * 5, // Sync every 5 mins (recommended)
-    compactionThreshold: 10,     // Merge when 10 deltas accumulate
-    gcOnStart: true              // Cleanup orphaned files older than 1hr on start
-  }
-});
+Deletion is delayed by a grace period (`gcGracePeriod`) and only attempted when backend metadata (`lastModified`) allows safe age checks.
 
-// 3. Execution
-await clxdb.init();
+Why delayed deletion:
 
-// 4. Blob Lazy Loading
-const url = await clxdb.blobs.getBlobUrl(digest);
-```
+- avoid deleting files that may have been uploaded by another client but not yet committed into manifest
+
+### 5.2 Startup Maintenance Policy
+
+GC and vacuum can run on startup as background maintenance tasks.
+They are designed to be opportunistic and non-blocking for normal open/sync flow.
 
 ---
 
-## 7. Storage Interface (Storage Adapter API)
+## 6. Crypto and Trust Model
 
-All backends (WebDAV, FileSystem Access API, etc.) must implement this interface.
+### 6.1 Encryption Modes
 
-```typescript
-export interface StorageBackend {
-  // 1. Read: Range requests required (to read headers only)
-  read(path: string, range?: { start: number; end: number }): Promise<Uint8Array>;
+- `none`: no encryption
+- `master`: unlock with master password
+- `quick-unlock`: unlock with per-device quick password/PIN material
 
-  // 2. Read directory (optional): returns immediate child directory names
-  readDirectory?(path: string): Promise<string[]>;
+### 6.2 Key Hierarchy
 
-  // 3. Ensure directory: idempotent recursive create for shard/blob prefixes
-  ensureDirectory(path: string): Promise<void>;
+Design hierarchy:
 
-  // 4. Write: Immutable files; must not overwrite (error if exists)
-  write(path: string, content: Uint8Array): Promise<void>;
+1. user master password is stretched with a high work-factor KDF (1,500,000 iterations)
+2. derived master key decrypts a stored wrapped root key
+3. root key is used to derive context-specific keys for:
+   - shard encryption
+   - blob encryption
+   - quick-unlock wrapping
+   - manifest integrity signing
 
-  // 5. Delete: Used for cleanup after Vacuum
-  delete(path: string): Promise<void>;
+Benefits:
 
-  // 6. Metadata: To check ETag/Size
-  stat(path: string): Promise<{ etag: string; size: number } | null>;
+- key separation between domains (shards/blobs/signing)
+- easier rotation/enrollment workflows
 
-  // 7. Atomic Update: Exclusively for manifest.json
-  // Local storage uses Locks; Remote storage uses If-Match ETag check.
-  // Must fail (412 Precondition Failed) if previousEtag doesn't match server.
-  atomicUpdate(
-    path: string,
-    content: Uint8Array,
-    previousEtag: string
-  ): Promise<{ success: boolean; newEtag?: string }>;
-}
-```
+### 6.3 Manifest Integrity
 
----
+Encrypted manifests carry an integrity signature (HMAC-based) over a stable JSON payload.
+Any mismatch is treated as tampering/corruption.
 
-## 8. Key Scenarios Summary
+### 6.4 Device Registry for Quick Unlock
 
-| Situation           | Action & Processing                                                               |
-| ------------------- | --------------------------------------------------------------------------------- |
-| **New Row Added**   | Create L0 file -> Idempotency check -> Upload -> Update Manifest.                 |
-| **Row Edit/Delete** | No modification of existing files; create new L0 file with changes (Append-only). |
-| **Fragmentation**   | Merge L0 to L1 when count ≥ 10. Merge to L2 when size reaches 5MB (Compaction).   |
-| **Garbage Files**   | Background cleanup of "unreferenced files older than 1 hour" upon app start.      |
+Manifest crypto metadata stores a per-device registry:
 
----
+- device id
+- encrypted device-specific wrapped key
+- device name
+- last-used timestamp
 
-## 9. Error Handling & Edge Cases
+Local quick-unlock material is cached in IndexedDB.
 
-1. **404 on Range Read:**
+Design intent:
 
-- If a shard file is missing during Pull, it was likely deleted by another client's **Vacuum**.
-- **Action:** Immediately stop sync, re-read `manifest.json` from scratch, and restart with the new file list.
+- master password remains global authority
+- quick unlock is device-scoped convenience and revocable per device
 
-2. **Offline:**
+### 6.5 Rotation and Recovery
 
-- Queue tasks locally; resume `Push` process when connection is restored.
+- **Master password update:** re-wraps root-key envelope and resets quick-unlock registry policy accordingly
+- **Quick unlock update:** enrolls or refreshes current device entry
+- **Device removal:** revokes that device's quick unlock path without re-encrypting all data
 
-3. **Shutdown while Sync:**
+### 6.6 Encryption Overhead
 
-- **File uploaded, Manifest update failed:** Database backends treats as failure -> Next run checks file existence (Skips upload) -> Retries Manifest update.
-- **File not uploaded:** Database backends keeps pending changes -> Next run retries upload and Manifest update.
+Per encrypted part overhead is AES-GCM IV + auth tag:
+
+- IV: 12 bytes
+- tag: 16 bytes
+
+This overhead is accounted for in shard/blob sizing logic.
 
 ---
 
-## 10. Interfaces
+## 7. Adapter Contracts (Design-Level)
 
-### Core Types
+### 7.1 Storage Adapter
 
-```typescript
-export interface ClxDBOptions {
-  syncInterval?: number;        // default: 5 mins
-  compactionThreshold?: number; // default: 10 files
-  desiredShardSize?: number;    // default: 5 * 1024 * 1024
-  gcOnStart?: boolean;          // default: true
-}
+A storage adapter must support:
 
-export type SyncState =
-  | 'idle'      // Waiting (fully synced)
-  | 'pending'   // Local changes exist (not yet pushed - e.g., offline)
-  | 'syncing'   // Sync in progress (upload/download)
-  | 'offline';  // Network disconnected
+- byte reads (with range support)
+- immutable file writes
+- CAS-style manifest update
+- listing/deletion/stat
+- directory ensure/create behavior
 
-export class ClxDB implements EventEmitter {
-  constructor(
-    private backend: StorageBackend,
-    private database: DatabaseBackend,
-    private options: ClxDBOptions
-  );
+Additional optional capabilities:
 
-  async init(): Promise<void>;
-  start(): void;
-  stop(): void;
-  triggerSync(): Promise<void>;
-  forceCompaction(): Promise<void>;
-  getSyncState(): SyncState;
-}
+- directory browsing (`readDirectory`) for UI pickers
+- self-describing metadata (`getMetadata`) for settings UX
 
-export function createClxDB(params: {
-  storage: StorageBackend;
-  database: DatabaseBackend;
-  options?: ClxDBOptions;
-}): ClxDB;
+### 7.2 Database Adapter
 
-export type StorageConfig =
-  | { type: 'opfs'; path: string }
-  | { type: 'webdav'; url: string; auth: { user: string; pass: string } }
-  | { type: 'filesystem-access'; handle: FileSystemDirectoryHandle };
+A database adapter must support:
 
-export function createStorageBackend(config: StorageConfig): StorageBackend;
-```
+- initialization per clxdb UUID
+- ordered batched read by IDs
+- pending-id enumeration
+- applying synced upserts/deletes
+- change subscription (`replicate`)
 
-### UI Plugin
+Core invariant:
 
-```typescript
-/** Vanilla JS implementation for DOM/Event management */
-export class ClxUI {
-  /** Renders UI to DOM. Indicator shows immediately; dialog remains hidden. */
-  mount(options?: ClxUIOptions): void;
-  unmount(): void;
-  openStorageDialog(): Promise<StorageConfig | null>;
-}
+- user-originated changes must be staged as `seq: null` until clxdb commit acknowledgement
 
-export function createClxUI(params: { clxdb: ClxDB; options: ClxUIOptions }): ClxUI;
-```
+---
+
+## 8. Runtime Defaults and Tunables
+
+Current defaults:
+
+| Option                | Default           |
+| --------------------- | ----------------- |
+| `syncInterval`        | `60_000`          |
+| `compactionThreshold` | `4`               |
+| `desiredShardSize`    | `5 * 1024 * 1024` |
+| `maxShardLevel`       | `6`               |
+| `gcOnStart`           | `true`            |
+| `gcGracePeriod`       | `60 * 60 * 1000`  |
+| `vacuumOnStart`       | `true`            |
+| `vacuumThreshold`     | `0.15`            |
+| `vacuumCount`         | `3`               |
+| `cacheStorageKey`     | `clxdb_cache`     |
+| `databasePersistent`  | `true`            |
+
+Design guidance:
+
+- lower `compactionThreshold` favors read performance earlier (more merge activity)
+- higher `maxShardLevel` tolerates more historical layering before vacuum pressure
+- shorter `syncInterval` improves freshness but increases storage/network churn
+
+---
+
+## 9. Optional UI Layer
+
+clxdb includes an optional React-based UI helper package for common flows:
+
+- storage selection (WebDAV / FileSystem Access / OPFS)
+- database unlock/create (master + quick unlock)
+- settings (overview/encryption/devices/export placeholder)
+- sync indicator
+
+UI is an integration convenience, not a requirement of the sync core.
+
+---
+
+## 10. Current Boundaries and Non-Goals
+
+- No central coordinator service (manifest + immutable files are the coordination model)
+- No bundled server-managed auth lifecycle (BYOC model delegates to storage backend)
