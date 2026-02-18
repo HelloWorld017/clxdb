@@ -1,6 +1,6 @@
 {
   "name": "clxdb",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "The BYOC(Bring your own cloud) local-first synchronized db",
   "main": "dist/clxdb.umd.cjs",
   "module": "dist/clxdb.js",
