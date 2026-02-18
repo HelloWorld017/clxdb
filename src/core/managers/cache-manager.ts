@@ -23,7 +23,7 @@ export class CacheManager {
   }
 
   async initialize(uuid: string) {
-    if (!this.options.cacheStorageKey || typeof window === 'undefined' || !window.indexedDB) {
+    if (typeof window === 'undefined' || !window.indexedDB) {
       return null;
     }
 

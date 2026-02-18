@@ -88,7 +88,8 @@ export interface ClxDBClientOptions {
   vacuumOnStart?: boolean;
   vacuumCount?: number;
   vacuumThreshold?: number;
-  cacheStorageKey?: string | null;
+  cacheStorageKey?: string;
+  databasePersistent?: boolean;
 }
 
 export type ClxDBOptions = Required<ClxDBClientOptions>;

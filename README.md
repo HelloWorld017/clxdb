@@ -2,20 +2,14 @@
 
 ![Coded With AI](https://img.shields.io/badge/coded-with%20ai-black?style=flat-square)
 
-### Description
-
-A serverless synchronization engine that uses WebDAV or the FileSystem Access API for storage.
-Sync documents and blobs via _your own cloud_. Designed for single-html applications.
-
-### Warnings
-> [!WARNING] DO NOT USE THIS IN PRODUCTION.
+> [!WARNING]
+> **DO NOT USE THIS IN PRODUCTION**  
 > ClxDB is not battle-tested. Use at your own risk.
 
-### Screenshot
+### Description
 
-| ![Storage Selector](./docs/images/screenshot_storage.png) | ![Onboarding](./docs/images/screenshot_open.png) | ![Settings](./docs/images/screenshot_settings.png) |
-| --------------------------------------------------------- | ------------------------------------------------ | -------------------------------------------------- |
-| Storage Selector                                          | Onboarding                                       | Settings                                           |
+A serverless synchronization engine that uses WebDAV or the FileSystem Access API for storage.  
+Sync documents and blobs via _your own cloud_. Designed for single-html applications.
 
 ### Features
 
@@ -26,50 +20,16 @@ Sync documents and blobs via _your own cloud_. Designed for single-html applicat
 ### Example
 
 ```ts
-import { createClxDB, createStorageBackend, generateNewClxDB } from 'clxdb';
-import { createClxUI } from 'clxdb/ui';
+import { startClxDBWithUI } from 'clxdb/ui';
 
 // Assume these exist in your app.
 const database = createDatabase();
 const databaseAdapter = createDatabaseClxDBAdapter(database);
 
-export const openClxDB = async () => {
-  const clxui = createClxUI();
+// This will automatically open a database, using the storage picker / unlock UI.
+const client = await startClxDBWithUI({ database: databaseAdapter });
 
-  // You can use the predefined UI for storage selection
-  const storageSelection = await clxui.openStoragePicker();
-  if (!storageSelection) {
-    return;
-  }
-
-  const storage = createStorageBackend(storageSelection);
-
-  // You can also use the predefined UI for unlock database
-  const unlock = await clxui.openDatabaseUnlock({ storage });
-  if (!unlock) {
-    return;
-  }
-
-  const client = (unlock.mode === 'open' ? createClxDB : generateNewClxDB)({
-    database: databaseAdapter,
-    storage,
-    crypto: unlock.crypto,
-    options: {},
-  });
-
-  await client.init();
-
-  if (unlock.update) {
-    await unlock.update(client);
-  }
-
-  return client;
-};
-
-const client = await openClxDB();
-
-// Write using your own database API.
-// They will be synced automatically.
+// Update using your own database API. They will be synced automatically.
 await database.updateDocument('doc-1', {
   title: 'Updated title',
   attachmentDigest: blobDigest,
@@ -82,7 +42,7 @@ const blobDigest = await client.blobs.putBlob(
 );
 ```
 
-### Database Backend Interface
+### Database Interface
 
 You should implement these methods to integrate your own backend with ClxDB.
 
@@ -115,20 +75,21 @@ export interface DatabaseBackend {
 }
 ```
 
-You should know that the update by user must be handled in a two-step mechanism.  
-If the deletion hinder you, consider to not delete. (use soft-delete)
+Please note that the update by user must be handled using a two-step mechanism.  
+If deleting hinders you, consider using a soft-delete instead.
 
-> [!INFO] There are one single rule:  
+> [!NOTE]
+> There is one single rule:  
 > The user-originated updates are always `seq: null`
 
 * Insertion / Update
-  1. Mark as seq: null
-  2. After the ClxDB sync, the ClxDB calls `upsert()` and updates the seq.
-     This does not need to be replicated, but replicating it would not make any error.
+  1. Mark as `seq: null`
+  2. After the ClxDB sync, the ClxDB calls `upsert()` and updates the seq.  
+     This does not need to be replicated, but doing so won't cause any errors.
 * Deletion
-  1. Mark as del: true, seq: null
-  2. After the ClxDB sync, it commits the real deletion.
-     This does not need to be replicated, but replicating it would not make any error.
+  1. Mark as `del: true`, `seq: null`
+  2. After the ClxDB sync, it commits the real deletion.  
+     This does not need to be replicated, but doing so won't cause any errors.
 
 ### Expected Workload
 
@@ -136,7 +97,7 @@ If the deletion hinder you, consider to not delete. (use soft-delete)
 - **Blobs:** 10 creations/hr, 0.1 deletions/hr. Total ~5,000 files, expected to grow up to 4GB.
 - **Sync:** ~5 devices. Low concurrency is expected.
 
-These are not a hard limit, but exceeding these limits will make your database suboptimal.
+These are not hard limits, but exceeding them may lead to performance degradation.
 
 ### Storage Structure
 
@@ -146,6 +107,12 @@ These are not a hard limit, but exceeding these limits will make your database s
 ├── shards/
 │   └── shard_{hash}.clx
 └── blobs/{hash:2}
-    ├── {hash}.{clb}
+    ├── {hash}.clb
     └── ...
 ```
+
+### Screenshots
+
+| ![Storage Selector](./docs/images/screenshot_storage.png) | ![Onboarding](./docs/images/screenshot_open.png) | ![Settings](./docs/images/screenshot_settings.png) |
+| --------------------------------------------------------- | ------------------------------------------------ | -------------------------------------------------- |
+| Storage Selector                                          | Onboarding                                       | Settings                                           |

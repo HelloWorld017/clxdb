@@ -2,16 +2,6 @@ export const PROTOCOL_VERSION = 2;
 export const MAX_SYNC_AGE_DAYS = 365;
 export const LITTLE_ENDIAN = true;
 
-// Options
-export const DEFAULT_SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
-export const DEFAULT_COMPACTION_THRESHOLD = 4;
-export const DEFAULT_GC_GRACE_PERIOD = 1 * 60 * 60 * 1000;
-export const DEFAULT_DESIRED_SHARD_SIZE = 5 * 1024 * 1024; // 5MB
-export const DEFAULT_MAX_SHARD_LEVEL = 6;
-export const DEFAULT_VACUUM_THRESHOLD = 0.15; // 15%
-export const DEFAULT_VACUUM_COUNT = 3;
-export const DEFAULT_CACHE_STORAGE_KEY = 'clxdb_cache';
-
 // Manifest
 export const MANIFEST_PATH = 'manifest.json';
 

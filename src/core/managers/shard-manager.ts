@@ -267,6 +267,10 @@ export class ShardManager {
   }
 
   private async loadFromCache(): Promise<void> {
+    if (!this.options.databasePersistent) {
+      return;
+    }
+
     const cache = await this.cacheManager.readIndexedDB(CACHE_HEADERS_KEY, shardHeaderCacheSchema);
     if (cache && cache.version === CACHE_HEADERS_VERSION) {
       for (const [filename, cachedHeader] of Object.entries(cache.headers)) {
@@ -278,6 +282,10 @@ export class ShardManager {
   }
 
   private async saveToCache(): Promise<void> {
+    if (!this.options.databasePersistent) {
+      return;
+    }
+
     const cache: ShardHeaderCache = {
       version: CACHE_HEADERS_VERSION,
       headers: {},
