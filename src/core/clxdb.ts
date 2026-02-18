@@ -112,7 +112,6 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
   destroy() {
     this.stop();
     this.cleanup?.();
-    this.blobs.destroy();
     this.cacheManager.destroy();
   }
 

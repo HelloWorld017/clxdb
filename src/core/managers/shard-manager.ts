@@ -1,4 +1,11 @@
-import { SHARD_EXTENSION, SHARDS_DIR } from '@/constants';
+import {
+  CACHE_HEADERS_KEY,
+  CACHE_HEADERS_VERSION,
+  LITTLE_ENDIAN,
+  SHARD_EXTENSION,
+  SHARD_HEADER_LENGTH_BYTES,
+  SHARDS_DIR,
+} from '@/constants';
 import { shardHeaderCacheSchema } from '@/schemas';
 import { createPromisePool } from '@/utils/promise-pool';
 import {
@@ -21,11 +28,6 @@ import type {
   ClxDBOptions,
   ShardHeaderCache,
 } from '@/types';
-
-const CACHE_VERSION = 1;
-const HEADERS_KEY = 'headers';
-const HEADER_LENGTH_BYTES = 4;
-const LITTLE_ENDIAN = true;
 
 export class ShardManager {
   private storage: StorageBackend;
@@ -184,11 +186,13 @@ export class ShardManager {
     );
 
     const data = new Uint8Array(
-      HEADER_LENGTH_BYTES + encryptedHeaderLength + encryptedBodyTotalLength
+      SHARD_HEADER_LENGTH_BYTES + encryptedHeaderLength + encryptedBodyTotalLength
     );
-    new DataView(data.buffer).setUint32(0, encryptedHeaderLength, LITTLE_ENDIAN);
 
-    const headerOffset = HEADER_LENGTH_BYTES;
+    const dataView = new DataView(data.buffer);
+    dataView.setUint32(0, encryptedHeaderLength, LITTLE_ENDIAN);
+
+    const headerOffset = SHARD_HEADER_LENGTH_BYTES;
     data.set(headerPlainBytes, headerOffset);
 
     let bodyOffset = headerOffset + encryptedHeaderLength;
@@ -263,8 +267,8 @@ export class ShardManager {
   }
 
   private async loadFromCache(): Promise<void> {
-    const cache = await this.cacheManager.readIndexedDB(HEADERS_KEY, shardHeaderCacheSchema);
-    if (cache && cache.version === CACHE_VERSION) {
+    const cache = await this.cacheManager.readIndexedDB(CACHE_HEADERS_KEY, shardHeaderCacheSchema);
+    if (cache && cache.version === CACHE_HEADERS_VERSION) {
       for (const [filename, cachedHeader] of Object.entries(cache.headers)) {
         this.headers.set(filename, cachedHeader.header);
       }
@@ -275,7 +279,7 @@ export class ShardManager {
 
   private async saveToCache(): Promise<void> {
     const cache: ShardHeaderCache = {
-      version: CACHE_VERSION,
+      version: CACHE_HEADERS_VERSION,
       headers: {},
     };
 
@@ -287,6 +291,6 @@ export class ShardManager {
       };
     }
 
-    await this.cacheManager.writeIndexedDB(HEADERS_KEY, cache);
+    await this.cacheManager.writeIndexedDB(CACHE_HEADERS_KEY, cache);
   }
 }

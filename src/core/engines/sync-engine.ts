@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CACHE_LAST_SEQUENCE_KEY } from '@/constants';
 import { EventEmitter } from '@/utils/event-emitter';
 import { createPromisePool } from '@/utils/promise-pool';
 import type { CacheManager } from '../managers/cache-manager';
@@ -6,8 +7,6 @@ import type { ManifestManager } from '../managers/manifest-manager';
 import type { ShardManager } from '../managers/shard-manager';
 import type { EngineContext } from '../types';
 import type { ClxDBEvents, DatabaseBackend, ShardDocument, ShardFileInfo } from '@/types';
-
-const LAST_SEQUENCE_KEY = 'lastSequence';
 
 export class SyncEngine extends EventEmitter<ClxDBEvents> {
   private database: DatabaseBackend;
@@ -28,7 +27,7 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
   }
 
   async initialize(): Promise<void> {
-    const lastSequence = await this.cacheManager.readIndexedDB(LAST_SEQUENCE_KEY, z.number());
+    const lastSequence = await this.cacheManager.readIndexedDB(CACHE_LAST_SEQUENCE_KEY, z.number());
     if (lastSequence !== null) {
       this.localSequence = lastSequence;
     }
@@ -149,6 +148,6 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
       this.manifestManager.getLastManifest().lastSequence
     );
 
-    await this.cacheManager.writeIndexedDB(LAST_SEQUENCE_KEY, this.localSequence);
+    await this.cacheManager.writeIndexedDB(CACHE_LAST_SEQUENCE_KEY, this.localSequence);
   }
 }

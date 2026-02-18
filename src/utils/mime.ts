@@ -40,6 +40,4 @@ const extensionToMimeType: Record<string, string> = {
 };
 
 export const getMimeTypeByExtension = (extension: string) =>
-  Object.hasOwn(extensionToMimeType, extension)
-    ? extensionToMimeType[extension]
-    : 'application/octet-stream';
+  Object.hasOwn(extensionToMimeType, extension) ? extensionToMimeType[extension] : null;

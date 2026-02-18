@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { BLOB_MAX_FILENAME_SIZE } from '@/constants';
 
 export const shardDocInfoSchema = z.object({
   id: z.string(),
@@ -10,6 +11,7 @@ export const shardDocInfoSchema = z.object({
 });
 
 export const shardHeaderSchema = z.object({
+  version: z.number(),
   docs: z.array(shardDocInfoSchema),
 });
 
@@ -58,6 +60,31 @@ export const shardHeaderCacheSchema = z.object({
   headers: z.record(z.string(), cachedShardHeaderSchema),
 });
 
+export const blobMetadataSchema = z.object({
+  name: z.string().min(1).max(BLOB_MAX_FILENAME_SIZE).optional(),
+  mimeType: z.string().min(1).optional(),
+  createdAt: z.number().int().nonnegative().optional(),
+});
+
+export const blobFooterSchema = z
+  .object({
+    version: z.number(),
+    encrypted: z.boolean(),
+    plainSize: z.number().int().nonnegative(),
+    chunkSize: z.number().int().positive(),
+    storedChunkSize: z.number().int().positive(),
+    metadata: blobMetadataSchema.optional().default({}),
+  })
+  .superRefine((footer, ctx) => {
+    if (footer.storedChunkSize < footer.chunkSize) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'storedChunkSize must be greater than or equal to chunkSize',
+        path: ['storedChunkSize'],
+      });
+    }
+  });
+
 export const deviceKeyStoreSchema = z.object({
   deviceId: z.string(),
   key: z.instanceof(CryptoKey),
@@ -71,4 +98,6 @@ export type ManifestDeviceKeyRegistry = z.infer<typeof manifestDeviceKeyRegistry
 export type Manifest = z.infer<typeof manifestSchema>;
 export type CachedShardHeader = z.infer<typeof cachedShardHeaderSchema>;
 export type ShardHeaderCache = z.infer<typeof shardHeaderCacheSchema>;
+export type BlobMetadata = z.infer<typeof blobMetadataSchema>;
+export type BlobFooter = z.infer<typeof blobFooterSchema>;
 export type DeviceKeyStore = z.infer<typeof deviceKeyStoreSchema>;

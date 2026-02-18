@@ -1,16 +1,20 @@
+import {
+  CACHE_DEVICE_KEY_STORE_KEY,
+  CRYPTO_AUTH_ALGORITHM,
+  CRYPTO_DERIVATION_ALGORITHM,
+  CRYPTO_DERIVATION_MASTER_ALGORITHM,
+  CRYPTO_DERIVATION_MASTER_ITERATIONS,
+  CRYPTO_ENCRYPTION_ALGORITHM,
+  CRYPTO_ENCRYPTION_AUTH_TAG_SIZE,
+  CRYPTO_ENCRYPTION_IV_SIZE,
+  CRYPTO_HASH_ALGORITHM,
+} from '@/constants';
 import { deviceKeyStoreSchema } from '@/schemas';
 import { getFriendlyDeviceName } from '@/utils/device-name';
 import { stableJSONSerialize } from '@/utils/json';
 import type { CacheManager } from './cache-manager';
 import type { ManifestManager } from './manifest-manager';
 import type { Manifest, ClxDBCrypto, DeviceKeyStore, ManifestDeviceKeyRegistry } from '@/types';
-
-const AES_ALGORITHM = 'AES-GCM';
-const HASH_ALGORITHM = 'SHA-256';
-const PBKDF2_ITERATIONS = 1_500_000;
-const IV_SIZE = 12;
-const AUTH_TAG_SIZE = 16;
-const DEVICE_KEY_STORE_KEY = 'device_key';
 
 const toArrayBackedUint8 = (bytes: Uint8Array): Uint8Array<ArrayBuffer> => {
   if (bytes.buffer instanceof ArrayBuffer) {
@@ -28,8 +32,12 @@ export interface RegisteredDevice {
 
 const encrypt = async (key: CryptoKey, plaintext: Uint8Array) => {
   const input = toArrayBackedUint8(plaintext);
-  const iv = crypto.getRandomValues(new Uint8Array(IV_SIZE));
-  const ciphertext = await crypto.subtle.encrypt({ name: AES_ALGORITHM, iv }, key, input);
+  const iv = crypto.getRandomValues(new Uint8Array(CRYPTO_ENCRYPTION_IV_SIZE));
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: CRYPTO_ENCRYPTION_ALGORITHM, iv },
+    key,
+    input
+  );
 
   const output = new Uint8Array(iv.length + ciphertext.byteLength);
   output.set(iv, 0);
@@ -39,38 +47,54 @@ const encrypt = async (key: CryptoKey, plaintext: Uint8Array) => {
 };
 
 const decrypt = async (key: CryptoKey, input: Uint8Array) => {
-  const iv = input.slice(0, IV_SIZE);
-  const ciphertext = input.slice(IV_SIZE);
-  const plaintext = await crypto.subtle.decrypt({ name: AES_ALGORITHM, iv }, key, ciphertext);
+  const iv = input.slice(0, CRYPTO_ENCRYPTION_IV_SIZE);
+  const ciphertext = input.slice(CRYPTO_ENCRYPTION_IV_SIZE);
+  const plaintext = await crypto.subtle.decrypt(
+    { name: CRYPTO_ENCRYPTION_ALGORITHM, iv },
+    key,
+    ciphertext
+  );
 
   return new Uint8Array(plaintext);
 };
 
 const importRootKey = (plaintext: Uint8Array) =>
-  crypto.subtle.importKey('raw', toArrayBackedUint8(plaintext), 'HKDF', false, ['deriveKey']);
+  crypto.subtle.importKey(
+    'raw',
+    toArrayBackedUint8(plaintext),
+    CRYPTO_DERIVATION_ALGORITHM,
+    false,
+    ['deriveKey']
+  );
 
 const importDeviceKey = (plaintext: Uint8Array) =>
-  crypto.subtle.importKey('raw', toArrayBackedUint8(plaintext), 'HKDF', false, ['deriveKey']);
+  crypto.subtle.importKey(
+    'raw',
+    toArrayBackedUint8(plaintext),
+    CRYPTO_DERIVATION_ALGORITHM,
+    false,
+    ['deriveKey']
+  );
 
 const deriveMasterKey = async (password: string, salt: Uint8Array<ArrayBuffer>) => {
   const encoder = new TextEncoder();
   const masterPassword = await crypto.subtle.importKey(
     'raw',
     encoder.encode(password),
-    'PBKDF2',
+    CRYPTO_DERIVATION_MASTER_ALGORITHM,
     false,
     ['deriveKey']
   );
 
   const masterKey = await crypto.subtle.deriveKey(
     {
-      name: 'PBKDF2',
+      name: CRYPTO_DERIVATION_MASTER_ALGORITHM,
       salt,
-      iterations: PBKDF2_ITERATIONS,
-      hash: HASH_ALGORITHM,
+      iterations: CRYPTO_DERIVATION_MASTER_ITERATIONS,
+      hash: CRYPTO_HASH_ALGORITHM,
     },
     masterPassword,
-    { name: AES_ALGORITHM, length: 256 },
+    { name: CRYPTO_ENCRYPTION_ALGORITHM, length: 256 },
     false,
     ['encrypt', 'decrypt']
   );
@@ -82,13 +106,13 @@ const deriveQuickUnlockKey = async (password: string, deviceKeyStore: DeviceKeyS
   const encoder = new TextEncoder();
   const quickUnlockKey = await crypto.subtle.deriveKey(
     {
-      name: 'HKDF',
+      name: CRYPTO_DERIVATION_ALGORITHM,
       salt: new Uint8Array(0),
       info: encoder.encode(`encryption:quick_unlock/${password}`),
-      hash: HASH_ALGORITHM,
+      hash: CRYPTO_HASH_ALGORITHM,
     },
     deviceKeyStore.key,
-    { name: AES_ALGORITHM, length: 256 },
+    { name: CRYPTO_ENCRYPTION_ALGORITHM, length: 256 },
     false,
     ['encrypt', 'decrypt']
   );
@@ -100,13 +124,13 @@ const deriveShardKey = async (rootKey: CryptoKey, shardHash: string) => {
   const encoder = new TextEncoder();
   const shardKey = await crypto.subtle.deriveKey(
     {
-      name: 'HKDF',
+      name: CRYPTO_DERIVATION_ALGORITHM,
       salt: new Uint8Array(0),
       info: encoder.encode(`encryption:shard/${shardHash}`),
-      hash: HASH_ALGORITHM,
+      hash: CRYPTO_HASH_ALGORITHM,
     },
     rootKey,
-    { name: AES_ALGORITHM, length: 256 },
+    { name: CRYPTO_ENCRYPTION_ALGORITHM, length: 256 },
     false,
     ['encrypt', 'decrypt']
   );
@@ -118,13 +142,13 @@ const deriveBlobKey = async (rootKey: CryptoKey, digest: string) => {
   const encoder = new TextEncoder();
   const blobKey = await crypto.subtle.deriveKey(
     {
-      name: 'HKDF',
+      name: CRYPTO_DERIVATION_ALGORITHM,
       salt: new Uint8Array(0),
       info: encoder.encode(`encryption:blob/${digest}`),
-      hash: HASH_ALGORITHM,
+      hash: CRYPTO_HASH_ALGORITHM,
     },
     rootKey,
-    { name: AES_ALGORITHM, length: 256 },
+    { name: CRYPTO_ENCRYPTION_ALGORITHM, length: 256 },
     false,
     ['encrypt', 'decrypt']
   );
@@ -136,13 +160,13 @@ const deriveSigningKey = async (rootKey: CryptoKey) => {
   const encoder = new TextEncoder();
   const signingKey = await crypto.subtle.deriveKey(
     {
-      name: 'HKDF',
+      name: CRYPTO_DERIVATION_ALGORITHM,
       salt: new Uint8Array(0),
       info: encoder.encode('sign:manifest'),
-      hash: HASH_ALGORITHM,
+      hash: CRYPTO_HASH_ALGORITHM,
     },
     rootKey,
-    { name: 'HMAC', hash: HASH_ALGORITHM, length: 256 },
+    { name: CRYPTO_AUTH_ALGORITHM, hash: CRYPTO_HASH_ALGORITHM, length: 256 },
     false,
     ['sign', 'verify']
   );
@@ -169,14 +193,14 @@ const signManifest = async (signingKey: CryptoKey, manifest: Manifest) =>
     crypto: {
       ...manifest.crypto!,
       signature: new Uint8Array(
-        await crypto.subtle.sign('HMAC', signingKey, getManifestForSign(manifest))
+        await crypto.subtle.sign(CRYPTO_AUTH_ALGORITHM, signingKey, getManifestForSign(manifest))
       ).toBase64(),
     },
   }) satisfies Manifest;
 
 const verifyManifest = async (signingKey: CryptoKey, manifest: Manifest) => {
   const result = await crypto.subtle.verify(
-    'HMAC',
+    CRYPTO_AUTH_ALGORITHM,
     signingKey,
     Uint8Array.fromBase64(manifest.crypto!.signature),
     getManifestForSign(manifest)
@@ -200,7 +224,7 @@ export class CryptoManager {
   }
 
   static async getStoredDeviceKey(cacheManager: CacheManager): Promise<DeviceKeyStore | null> {
-    return cacheManager.readIndexedDB(DEVICE_KEY_STORE_KEY, deviceKeyStoreSchema);
+    return cacheManager.readIndexedDB(CACHE_DEVICE_KEY_STORE_KEY, deviceKeyStoreSchema);
   }
 
   static async hasUsableDeviceKey(
@@ -266,7 +290,7 @@ export class CryptoManager {
         manifest: newManifest,
         commit: async () => {
           if (currentDeviceId === deviceId) {
-            await this.cacheManager.removeIndexedDB(DEVICE_KEY_STORE_KEY);
+            await this.cacheManager.removeIndexedDB(CACHE_DEVICE_KEY_STORE_KEY);
           }
         },
       };
@@ -477,7 +501,8 @@ export class CryptoManager {
 
       return {
         manifest: newManifest,
-        commit: () => this.cacheManager.writeIndexedDB(DEVICE_KEY_STORE_KEY, newDeviceKeyStore),
+        commit: () =>
+          this.cacheManager.writeIndexedDB(CACHE_DEVICE_KEY_STORE_KEY, newDeviceKeyStore),
       };
     };
   }
@@ -576,7 +601,7 @@ export class CryptoManager {
       return originalSize;
     }
 
-    return originalSize + IV_SIZE + AUTH_TAG_SIZE;
+    return originalSize + CRYPTO_ENCRYPTION_IV_SIZE + CRYPTO_ENCRYPTION_AUTH_TAG_SIZE;
   }
 
   getShardPartSize(originalSize: number): number {
@@ -584,6 +609,6 @@ export class CryptoManager {
       return originalSize;
     }
 
-    return originalSize + IV_SIZE + AUTH_TAG_SIZE;
+    return originalSize + CRYPTO_ENCRYPTION_IV_SIZE + CRYPTO_ENCRYPTION_AUTH_TAG_SIZE;
   }
 }

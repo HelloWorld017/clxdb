@@ -1,25 +1,16 @@
-import { z } from 'zod';
-import { BLOBS_DIR } from '@/constants';
+import {
+  BLOB_CHUNK_SIZE,
+  BLOB_EXTENSION,
+  BLOB_FOOTER_LENGTH_BYTES,
+  BLOB_MAX_FILENAME_SIZE,
+  BLOB_VERSION,
+  BLOBS_DIR,
+  LITTLE_ENDIAN,
+} from '@/constants';
+import { blobFooterSchema } from '@/schemas';
 import { getMimeTypeByExtension } from '@/utils/mime';
 import type { EngineContext } from '../types';
-import type { StorageBackend } from '@/types';
-
-const MAX_FILENAME_SIZE = 128;
-const BLOB_EXTENSION = '.clb';
-const FOOTER_LENGTH_BYTES = 4;
-const FOOTER_VERSION = 1;
-const MAX_FOOTER_SIZE = 64 * 1024;
-const DEFAULT_BLOB_CHUNK_SIZE = 1024 * 1024;
-const LITTLE_ENDIAN = true;
-
-interface BlobFooter {
-  version: number;
-  encrypted: boolean;
-  plainSize: number;
-  chunkSize: number;
-  storedChunkSize: number;
-  metadata: BlobMetadata;
-}
+import type { BlobFooter, BlobMetadata, StorageBackend, StoredBlob } from '@/types';
 
 interface BlobFileData {
   payload: Uint8Array;
@@ -32,45 +23,6 @@ interface BlobChunkLayout {
   lastPlainChunkSize: number;
   lastStoredChunkSize: number;
   expectedPayloadSize: number;
-}
-
-export interface BlobMetadata {
-  name?: string;
-  mimeType?: string;
-  createdAt?: number;
-}
-
-const blobMetadataSchema: z.ZodType<BlobMetadata> = z.object({
-  name: z.string().min(1).max(MAX_FILENAME_SIZE).optional(),
-  mimeType: z.string().min(1).optional(),
-  createdAt: z.number().finite().int().nonnegative().optional(),
-});
-
-const blobFooterSchema = z
-  .object({
-    version: z.literal(FOOTER_VERSION),
-    encrypted: z.boolean(),
-    plainSize: z.number().int().nonnegative(),
-    chunkSize: z.number().int().positive(),
-    storedChunkSize: z.number().int().positive(),
-    metadata: blobMetadataSchema.optional().default({}),
-  })
-  .superRefine((footer, ctx) => {
-    if (footer.storedChunkSize < footer.chunkSize) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'storedChunkSize must be greater than or equal to chunkSize',
-        path: ['storedChunkSize'],
-      });
-    }
-  });
-
-export interface StoredBlob {
-  digest: string;
-  file(): Promise<File>;
-  metadata(): Promise<BlobMetadata>;
-  stream(): ReadableStream<Uint8Array>;
-  arrayBuffer(): Promise<ArrayBuffer>;
 }
 
 export class ClxBlobs {
@@ -152,7 +104,7 @@ export class ClxBlobs {
 
     const normalizedMetadata = this.normalizeMetadata(data, metadata);
     const encryptChunk = await this.cryptoManager.encryptBlobChunk(digest);
-    const chunkSize = DEFAULT_BLOB_CHUNK_SIZE;
+    const chunkSize = BLOB_CHUNK_SIZE;
     const storedChunkSize = this.cryptoManager.getBlobChunkSize(chunkSize);
     const storedChunks: Uint8Array[] = [];
 
@@ -168,7 +120,7 @@ export class ClxBlobs {
     }
 
     const footer: BlobFooter = {
-      version: FOOTER_VERSION,
+      version: BLOB_VERSION,
       encrypted: this.cryptoManager.isEncryptionEnabled(),
       plainSize: plainBytes.length,
       chunkSize,
@@ -177,15 +129,7 @@ export class ClxBlobs {
     };
 
     const footerBytes = new TextEncoder().encode(JSON.stringify(footer));
-    if (footerBytes.length > MAX_FOOTER_SIZE) {
-      throw new Error('Blob footer is too large');
-    }
-
-    if (footerBytes.length > 0xffff_ffff) {
-      throw new Error('Blob footer exceeds uint32 size');
-    }
-
-    const output = new Uint8Array(payloadLength + footerBytes.length + FOOTER_LENGTH_BYTES);
+    const output = new Uint8Array(payloadLength + footerBytes.length + BLOB_FOOTER_LENGTH_BYTES);
     let cursor = 0;
     for (const storedChunk of storedChunks) {
       output.set(storedChunk, cursor);
@@ -194,11 +138,9 @@ export class ClxBlobs {
 
     output.set(footerBytes, cursor);
     cursor += footerBytes.length;
-    new DataView(output.buffer, output.byteOffset, output.byteLength).setUint32(
-      cursor,
-      footerBytes.length,
-      LITTLE_ENDIAN
-    );
+
+    const dataView = new DataView(output.buffer, output.byteOffset, output.byteLength);
+    dataView.setUint32(cursor, footerBytes.length, LITTLE_ENDIAN);
 
     const blobDirectory = this.getBlobDirectory(digest);
     const blobPath = this.getBlobPath(digest);
@@ -220,10 +162,6 @@ export class ClxBlobs {
     this.assertDigest(digest);
     await this.storage.delete(this.getBlobPath(digest));
     return digest;
-  }
-
-  destroy(): void {
-    return;
   }
 
   private getBlobDirectory(digest: string): string {
@@ -294,11 +232,11 @@ export class ClxBlobs {
   }
 
   private limitFileName(name: string): string {
-    if (name.length <= MAX_FILENAME_SIZE) {
+    if (name.length <= BLOB_MAX_FILENAME_SIZE) {
       return name;
     }
 
-    return name.slice(0, MAX_FILENAME_SIZE);
+    return name.slice(0, BLOB_MAX_FILENAME_SIZE);
   }
 
   private async fetchFooterByRange(path: string): Promise<BlobFooter> {
@@ -307,21 +245,21 @@ export class ClxBlobs {
       throw new Error(`Blob not found: ${path}`);
     }
 
-    if (stat.size < FOOTER_LENGTH_BYTES) {
+    if (stat.size < BLOB_FOOTER_LENGTH_BYTES) {
       throw new Error('Invalid blob format: footer length is missing');
     }
 
     const footerLengthBytes = await this.storage.read(path, {
-      start: stat.size - FOOTER_LENGTH_BYTES,
+      start: stat.size - BLOB_FOOTER_LENGTH_BYTES,
       end: stat.size - 1,
     });
 
     const footerLength = this.parseFooterLength(footerLengthBytes, stat.size);
-    const footerStart = stat.size - FOOTER_LENGTH_BYTES - footerLength;
+    const footerStart = stat.size - BLOB_FOOTER_LENGTH_BYTES - footerLength;
 
     const footerBytes = await this.storage.read(path, {
       start: footerStart,
-      end: stat.size - FOOTER_LENGTH_BYTES - 1,
+      end: stat.size - BLOB_FOOTER_LENGTH_BYTES - 1,
     });
 
     if (footerBytes.length !== footerLength) {
@@ -333,14 +271,14 @@ export class ClxBlobs {
 
   private async fetchBlobByFullRead(path: string): Promise<BlobFileData> {
     const bytes = await this.storage.read(path);
-    if (bytes.length < FOOTER_LENGTH_BYTES) {
+    if (bytes.length < BLOB_FOOTER_LENGTH_BYTES) {
       throw new Error('Invalid blob format: footer length is missing');
     }
 
-    const footerLengthStart = bytes.length - FOOTER_LENGTH_BYTES;
+    const footerLengthStart = bytes.length - BLOB_FOOTER_LENGTH_BYTES;
     const footerLengthBytes = bytes.subarray(footerLengthStart);
     const footerLength = this.parseFooterLength(footerLengthBytes, bytes.length);
-    const footerStart = bytes.length - FOOTER_LENGTH_BYTES - footerLength;
+    const footerStart = bytes.length - BLOB_FOOTER_LENGTH_BYTES - footerLength;
 
     const payload = bytes.subarray(0, footerStart);
     const footer = this.parseFooter(bytes.subarray(footerStart, footerLengthStart));
@@ -350,7 +288,7 @@ export class ClxBlobs {
   }
 
   private parseFooterLength(footerLengthBytes: Uint8Array, totalSize: number): number {
-    if (footerLengthBytes.length !== FOOTER_LENGTH_BYTES) {
+    if (footerLengthBytes.length !== BLOB_FOOTER_LENGTH_BYTES) {
       throw new Error('Invalid blob format: malformed footer length bytes');
     }
 
@@ -364,11 +302,7 @@ export class ClxBlobs {
       throw new Error('Invalid blob format: footer length must be greater than zero');
     }
 
-    if (footerLength > MAX_FOOTER_SIZE) {
-      throw new Error('Invalid blob format: footer length exceeds max size');
-    }
-
-    if (footerLength > totalSize - FOOTER_LENGTH_BYTES) {
+    if (footerLength > totalSize - BLOB_FOOTER_LENGTH_BYTES) {
       throw new Error('Invalid blob format: footer length exceeds file size');
     }
 
@@ -411,12 +345,8 @@ export class ClxBlobs {
     const lastPlainChunkSize = footer.plainSize - fullChunkCount * footer.chunkSize;
     const chunkOverhead = footer.storedChunkSize - footer.chunkSize;
 
-    if (footer.encrypted && chunkOverhead <= 0) {
-      throw new Error('Invalid blob format: encrypted chunk overhead is malformed');
-    }
-
-    if (!footer.encrypted && chunkOverhead !== 0) {
-      throw new Error('Invalid blob format: unencrypted chunk overhead is malformed');
+    if ((footer.encrypted && chunkOverhead <= 0) || (!footer.encrypted && chunkOverhead !== 0)) {
+      throw new Error('Invalid blob format: chunk overhead is malformed');
     }
 
     const lastStoredChunkSize = footer.encrypted

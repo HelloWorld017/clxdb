@@ -1,8 +1,6 @@
+import { LITTLE_ENDIAN, SHARD_HEADER_LENGTH_BYTES, SHARD_VERSION } from '@/constants';
 import { shardHeaderSchema } from '@/schemas';
 import type { ShardHeader, ShardDocument } from '@/types';
-
-const HEADER_LENGTH_BYTES = 4;
-const LITTLE_ENDIAN = true;
 
 export interface EncodedShard {
   data: Uint8Array;
@@ -32,7 +30,7 @@ export function buildShardHeaderFromLengths(
     throw new Error('Mismatched documents and body lengths');
   }
 
-  const header: ShardHeader = { docs: [] };
+  const header: ShardHeader = { version: SHARD_VERSION, docs: [] };
   let currentOffset = 0;
 
   documents.forEach((row, index) => {
@@ -78,7 +76,7 @@ export async function calculateHash(data: Uint8Array): Promise<string> {
 }
 
 export function extractBodyOffset(headerLength: number): number {
-  return HEADER_LENGTH_BYTES + headerLength;
+  return SHARD_HEADER_LENGTH_BYTES + headerLength;
 }
 
 interface ShardLevelOptions {

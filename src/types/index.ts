@@ -1,3 +1,5 @@
+import type { BlobMetadata } from '@/schemas';
+
 export type StorageBackendMetadata =
   | {
       kind: 'webdav';
@@ -116,6 +118,14 @@ export type ClxDBEvents = {
   vacuumError: (error: Error) => void;
   documentsChanged: (documents: ShardDocument[]) => void;
 };
+
+export interface StoredBlob {
+  digest: string;
+  file(): Promise<File>;
+  metadata(): Promise<BlobMetadata>;
+  stream(): ReadableStream<Uint8Array>;
+  arrayBuffer(): Promise<ArrayBuffer>;
+}
 
 export type * from '@/schemas';
 export type * from './utils';
