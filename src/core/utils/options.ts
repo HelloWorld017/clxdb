@@ -10,7 +10,7 @@ import {
 } from '@/constants';
 import type { ClxDBClientOptions, ClxDBOptions } from '@/types';
 
-export const normalizeOptions = (options: ClxDBClientOptions): ClxDBOptions => ({
+export const normalizeOptions = (options: ClxDBClientOptions = {}): ClxDBOptions => ({
   syncInterval: options.syncInterval ?? DEFAULT_SYNC_INTERVAL,
   compactionThreshold: options.compactionThreshold ?? DEFAULT_COMPACTION_THRESHOLD,
   desiredShardSize: options.desiredShardSize ?? DEFAULT_DESIRED_SHARD_SIZE,

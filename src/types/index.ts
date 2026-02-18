@@ -59,19 +59,21 @@ export interface DatabaseBackend {
 
   /**
    * Two-step update
-   *   * The update by user should be handled in two-step
-   *   * Insertion / Update
-   *     1. Mark as seq: null
-   *     2. After the ClxDB sync, the ClxDB calls `upsert()` and updates the seq.
-   *        This should not be replicated.
-   *   * Deletion
-   *     1. Mark as del: true, seq: null
-   *     2. After the ClxDB sync, it commits the real deletion.
-   *        This should not be replicated.
+   * * The update by user must be handled using a two-step mechanism.
+   * * If deleting hinders you, consider using a soft-delete instead.
    *
-   *  The rule:
-   *     1. User update is always seq: null
-   *     2. Only seq === null updates should be replicated.
+   * > [!NOTE]
+   * > There is one single rule:
+   * > The user-originated updates are always `seq: null`
+   *
+   * * Insertion / Update
+   *   1. Mark as `seq: null`
+   *   2. After the ClxDB sync, the ClxDB calls `upsert()` and updates the seq.
+   *      This does not need to be replicated, but doing so won't cause any errors.
+   * * Deletion
+   *   1. Mark as `del: true`, `seq: null`
+   *   2. After the ClxDB sync, it commits the real deletion.
+   *      This does not need to be replicated, but doing so won't cause any errors.
    */
   replicate(onUpdate: () => void): () => void;
 }
@@ -100,7 +102,7 @@ export interface ClxDBParams {
   database: DatabaseBackend;
   storage: StorageBackend;
   crypto: ClxDBCrypto;
-  options: ClxDBClientOptions;
+  options?: ClxDBClientOptions;
 }
 
 export type SyncState = 'idle' | 'pending' | 'syncing';

@@ -287,3 +287,5 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
     }
   }
 }
+
+export const createClxDB = (params: ClxDBParams) => new ClxDB(params);

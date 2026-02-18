@@ -1,13 +1,7 @@
-import { ClxDB } from '@/core/clxdb';
-
-export const createClxDB = (...args: ConstructorParameters<typeof ClxDB>) => new ClxDB(...args);
-export { generateNewClxDB } from '@/core/utils/generate';
-export { inspectClxDBStatus } from '@/core/utils/inspect';
-
+export { createClxDB, generateNewClxDB, inspectClxDBStatus } from '@/core';
 export { createStorageBackend } from '@/storages';
 
-export type { ClxDB };
-export type { ClxDBStatus } from '@/core/utils/inspect';
+export type { ClxDB, ClxDBStatus } from '@/core';
 
 export type {
   DatabaseBackend,
