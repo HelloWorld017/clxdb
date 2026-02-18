@@ -345,7 +345,7 @@ export function StoragePicker({
     <section
       className={classes(
         `relative isolate mx-auto h-150 overflow-hidden rounded-[2rem] border border-default-200
-        bg-default-100 p-2 shadow-ui-soft`,
+        bg-default-100 p-3 shadow-ui-soft`,
         className
       )}
     >
@@ -356,7 +356,7 @@ export function StoragePicker({
         />
       </div>
 
-      <div className="flex h-full flex-col overflow-auto p-4 pb-0 sm:p-6 sm:pb-0">
+      <div className="flex h-full flex-col overflow-auto p-3 pb-0 sm:p-5 sm:pb-0">
         <header className="mb-8 space-y-2">
           <p className="text-xs font-semibold tracking-[0.2em] text-default-500 uppercase">
             Storage Backend

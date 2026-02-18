@@ -4,7 +4,7 @@ import { classes } from '@/utils/classes';
 import { DevicesTab } from './devices-tab';
 import { EncryptionTab } from './encryption-tab';
 import { ExportTab } from './export-tab';
-import { DevicesIcon, EncryptionIcon, ExportIcon, OverviewIcon } from './icons';
+import { DevicesIcon, EncryptionIcon, OverviewIcon } from './icons';
 import { OverviewTab } from './overview-tab';
 import { getErrorMessage, getStorageOverview, resolveStorageMetadata } from './utils';
 import type { DatabaseSettingsProps, SettingsTab, TabOption } from './types';
@@ -14,7 +14,7 @@ export const TAB_OPTIONS: TabOption[] = [
   { id: 'overview', label: 'Overview', icon: <OverviewIcon /> },
   { id: 'encryption', label: 'Encryption', icon: <EncryptionIcon /> },
   { id: 'devices', label: 'Devices', icon: <DevicesIcon /> },
-  { id: 'export', label: 'Export', icon: <ExportIcon /> },
+  // { id: 'export', label: 'Export', icon: <ExportIcon /> },
 ];
 
 export function DatabaseSettings({
