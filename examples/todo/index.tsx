@@ -454,7 +454,7 @@ const TodoExampleApp = () => {
 
       const storage = createStorageBackend(storageSettings);
       const unlockSettings = await clxUI.openDatabaseUnlock({ storage });
-      if (!unlockSettings) {
+      if (!unlockSettings || unlockSettings.mode === 'change-storage') {
         return;
       }
 

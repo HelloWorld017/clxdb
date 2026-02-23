@@ -1,5 +1,5 @@
 export { createClxDB, generateNewClxDB, inspectClxDBStatus } from '@/core';
-export { createStorageBackend } from '@/storages';
+export { createStorageBackend, deserializeStorageBackend } from '@/storages';
 
 export type { ClxDB, ClxDBStatus } from '@/core';
 
@@ -12,3 +12,5 @@ export type {
   ClxDBClientOptions,
   ClxDBOptions,
 } from '@/types';
+
+export type { StorageConfig } from '@/storages';

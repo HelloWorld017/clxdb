@@ -1,6 +1,4 @@
 import { createRoot } from 'react-dom/client';
-import { createClxDB, generateNewClxDB } from '@/core';
-import { createStorageBackend } from '@/storages';
 import { DialogFrame } from './components/common/dialog';
 import { DatabaseSettings } from './components/database-settings';
 import { DatabaseUnlock } from './components/database-unlock';
@@ -9,11 +7,11 @@ import { SyncIndicator } from './components/sync-indicator';
 import { ThemeProvider } from './components/theme-provider';
 import uiStyles from './style.css?inline';
 import type { DatabaseUnlockOperation } from './components/database-unlock';
-import type { StoragePickerBackendType, StoragePickerSelection } from './components/storage-picker';
+import type { StoragePickerBackendType } from './components/storage-picker';
 import type { ThemeFontFamily, ThemePalette } from './components/theme-provider';
 import type { ClxUIDatabaseClient } from './types';
-import type { ClxDB } from '@/core';
-import type { ClxDBClientOptions, DatabaseBackend, StorageBackend } from '@/types';
+import type { StorageConfig } from '@/storages';
+import type { ClxDBClientOptions, StorageBackend } from '@/types';
 import type { ReactElement, ReactNode } from 'react';
 import type { Root } from 'react-dom/client';
 
@@ -46,6 +44,7 @@ export interface OpenStoragePickerOptions {
 export interface OpenDatabaseUnlockOptions {
   storage: StorageBackend;
   options?: ClxDBClientOptions;
+  allowStorageChange?: boolean;
 }
 
 export interface OpenDatabaseSettingsOptions {
@@ -62,7 +61,7 @@ export interface ShowSyncIndicatorOptions {
 export interface ClxUI {
   mount(target?: HTMLElement): void;
   unmount(): void;
-  openStoragePicker(options?: OpenStoragePickerOptions): Promise<StoragePickerSelection | null>;
+  openStoragePicker(options?: OpenStoragePickerOptions): Promise<StorageConfig | null>;
   openDatabaseUnlock(options: OpenDatabaseUnlockOptions): Promise<DatabaseUnlockOperation | null>;
   openDatabaseSettings(options: OpenDatabaseSettingsOptions): Promise<ClxUIDialogCloseResult>;
   showSyncIndicator(options: ShowSyncIndicatorOptions): () => void;
@@ -213,7 +212,7 @@ export const createClxUI = (options: ClxUIOptions = {}): ClxUI => {
   };
 
   const openStoragePicker = (dialogOptions: OpenStoragePickerOptions = {}) =>
-    openDialog<StoragePickerSelection | null>({
+    openDialog<StorageConfig | null>({
       createCloseValue: () => null,
       render: (resolveSelection, closeDialog) => (
         <StoragePicker
@@ -232,6 +231,7 @@ export const createClxUI = (options: ClxUIOptions = {}): ClxUI => {
         <DatabaseUnlock
           storage={dialogOptions.storage}
           options={dialogOptions.options}
+          allowStorageChange={dialogOptions.allowStorageChange}
           onSubmit={submission => resolveSubmission(submission)}
         />
       ),
@@ -270,50 +270,4 @@ export const createClxUI = (options: ClxUIOptions = {}): ClxUI => {
     openDatabaseSettings,
     showSyncIndicator,
   };
-};
-
-type ClxDBWithUI = ClxDB & { ui: ClxUI };
-interface ClxDBWithUIOptions {
-  database: DatabaseBackend;
-  options?: ClxDBClientOptions;
-  ui?: ClxUIOptions & {
-    root?: HTMLElement;
-    syncIndicator?: boolean;
-  };
-}
-
-export const startClxDBWithUI = async ({ database, options, ui }: ClxDBWithUIOptions) => {
-  const clxui = createClxUI(ui);
-  clxui.mount(ui?.root);
-
-  const storageSelection = await clxui.openStoragePicker();
-  if (!storageSelection) {
-    return;
-  }
-
-  const storage = createStorageBackend(storageSelection);
-  const unlock = await clxui.openDatabaseUnlock({ storage });
-  if (!unlock) {
-    return;
-  }
-
-  const client = await (unlock.mode === 'open' ? createClxDB : generateNewClxDB)({
-    database,
-    storage,
-    crypto: unlock.crypto,
-    options,
-  });
-
-  await client.init();
-  if (ui?.syncIndicator ?? true) {
-    clxui.showSyncIndicator({ client });
-  }
-
-  if (unlock.update) {
-    await unlock.update(client);
-  }
-
-  const clientWithUI = client as ClxDBWithUI;
-  clientWithUI.ui = clxui;
-  return clientWithUI;
 };

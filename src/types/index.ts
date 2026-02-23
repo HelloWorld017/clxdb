@@ -25,12 +25,8 @@ export interface StorageBackend {
   ): Promise<{ success: boolean; newEtag?: string }>;
   list(path: string): Promise<string[]>;
   getMetadata?(): StorageBackendMetadata;
+  serialize?(): unknown;
 }
-
-export type StorageConfig =
-  | { type: 'webdav'; url: string; auth: { user: string; pass: string } }
-  | { type: 'filesystem-access'; handle: FileSystemDirectoryHandle }
-  | { type: 'opfs'; handle: FileSystemDirectoryHandle };
 
 export type DocData = Record<string, unknown>;
 

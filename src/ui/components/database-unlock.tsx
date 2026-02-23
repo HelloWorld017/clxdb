@@ -36,14 +36,20 @@ export type DatabaseUnlockSubmission =
       quickUnlockPin: string;
     };
 
-export type DatabaseUnlockOperation = {
-  mode: 'generate' | 'open';
-  crypto: ClxDBCrypto;
-  update: ((client: ClxUIDatabaseClient) => Promise<void>) | null;
-  submission: DatabaseUnlockSubmission;
-};
+export type DatabaseUnlockOperation =
+  | {
+      mode: 'generate' | 'open';
+      crypto: ClxDBCrypto;
+      update: ((client: ClxUIDatabaseClient) => Promise<void>) | null;
+      submission: DatabaseUnlockSubmission;
+    }
+  | {
+      mode: 'change-storage';
+    };
 
-const mapToUnlockOperation = (submission: DatabaseUnlockSubmission): DatabaseUnlockOperation => {
+type CredentialUnlockOperation = Exclude<DatabaseUnlockOperation, { mode: 'change-storage' }>;
+
+const mapToUnlockOperation = (submission: DatabaseUnlockSubmission): CredentialUnlockOperation => {
   if (submission.mode === 'create') {
     return {
       mode: 'generate',
@@ -88,6 +94,7 @@ export interface DatabaseUnlockProps {
   storage: StorageBackend;
   onSubmit: (operation: DatabaseUnlockOperation) => Promise<void> | void;
   options?: ClxDBClientOptions;
+  allowStorageChange?: boolean;
   onStatusChange?: (status: ClxDBStatus) => void;
   className?: string;
   disabled?: boolean;
@@ -147,6 +154,7 @@ export function DatabaseUnlock({
   storage,
   onSubmit,
   options,
+  allowStorageChange = false,
   onStatusChange,
   className,
   disabled = false,
@@ -358,6 +366,23 @@ export function DatabaseUnlock({
     }
   };
 
+  const handleChangeStorage = async () => {
+    if (controlsLocked || !allowStorageChange) {
+      return;
+    }
+
+    setSubmitError(null);
+    setIsSubmitting(true);
+
+    try {
+      await onSubmit({ mode: 'change-storage' });
+    } catch (error) {
+      setSubmitError(getSubmitErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const formRef = useRef<HTMLFormElement | null>(null);
   useEffect(() => {
     formRef.current?.querySelector<HTMLElement>('*[autofocus]')?.focus();
@@ -555,6 +580,23 @@ export function DatabaseUnlock({
               </>
             )}
           </form>
+        )}
+
+        {allowStorageChange && (
+          <div className="mt-4 flex justify-end">
+            <button
+              type="button"
+              onClick={handleChangeStorage}
+              disabled={controlsLocked}
+              className="inline-flex items-center justify-center rounded-xl border
+                border-default-300 bg-surface px-4 py-2.5 text-sm font-medium text-default-700
+                shadow-xs transition-colors duration-200 hover:border-default-400
+                hover:bg-default-100 disabled:cursor-not-allowed disabled:border-default-200
+                disabled:bg-default-100 disabled:text-default-400"
+            >
+              Choose Different Storage
+            </button>
+          </div>
         )}
       </div>
     </section>

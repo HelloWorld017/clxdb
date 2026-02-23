@@ -40,21 +40,19 @@ export const resolveDirectoryHandle = async (
 export const supportsFileSystemAccess = () =>
   typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function';
 
-type NavigatorStorageWithDirectory = StorageManager & {
-  getDirectory: () => Promise<FileSystemDirectoryHandle>;
-};
+type StorageManagerWithDirectory = StorageManager & Required<Pick<StorageManager, 'getDirectory'>>;
 
-export const getNavigatorStorageWithDirectory = (): NavigatorStorageWithDirectory | null => {
+export const getNavigatorStorageWithDirectory = (): StorageManagerWithDirectory | null => {
   if (typeof navigator === 'undefined') {
     return null;
   }
 
-  const candidate = navigator.storage as NavigatorStorageWithDirectory;
+  const candidate = navigator.storage;
   if (typeof candidate?.getDirectory !== 'function') {
     return null;
   }
 
-  return candidate;
+  return candidate as StorageManagerWithDirectory;
 };
 
 export const supportsOpfs = () => !!getNavigatorStorageWithDirectory();

@@ -1,22 +1,26 @@
 import { FileSystemBackend } from './filesystem';
 import { WebDAVBackend } from './webdav';
-import type { StorageBackend, StorageConfig } from '../types';
+import type { FileSystemConfig } from './filesystem';
+import type { WebDAVConfig } from './webdav';
+import type { StorageBackend } from '../types';
+
+export type StorageConfig = WebDAVConfig | FileSystemConfig;
 
 export function createStorageBackend(config: StorageConfig): StorageBackend {
-  switch (config.type) {
+  switch (config.kind) {
     case 'webdav':
-      return new WebDAVBackend({
-        url: config.url,
-        auth: config.auth,
-      });
+      return new WebDAVBackend(config);
 
-    case 'filesystem-access':
-      return new FileSystemBackend(config.handle, 'filesystem-access');
-
-    case 'opfs':
-      return new FileSystemBackend(config.handle, 'opfs');
+    case 'filesystem':
+      return new FileSystemBackend(config);
 
     default:
-      throw new Error(`Unknown storage type: ${(config as StorageConfig).type}`);
+      throw new Error(`Unknown storage type: ${(config as StorageConfig).kind}`);
   }
 }
+
+export const deserializeStorageBackend = async (
+  serializedStorage: unknown
+): Promise<StorageBackend | null> =>
+  WebDAVBackend.deserialize(serializedStorage) ||
+  (await FileSystemBackend.deserialize(serializedStorage));

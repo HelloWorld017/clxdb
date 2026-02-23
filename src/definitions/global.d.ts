@@ -8,8 +8,16 @@ declare global {
     };
   }
 
+  interface FileSystemHandle {
+    queryPermission?: (descriptor: { mode?: 'read' | 'readwrite' }) => Promise<PermissionState>;
+  }
+
+  interface StorageManager {
+    getDirectory?(): Promise<FileSystemDirectoryHandle>;
+  }
+
   interface Window {
-    showDirectoryPicker(options?: {
+    showDirectoryPicker?(options?: {
       id?: string;
       mode?: 'read' | 'readwrite';
       startIn?:

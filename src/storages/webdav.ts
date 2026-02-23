@@ -1,20 +1,22 @@
+import { z } from 'zod';
 import { StorageError } from '@/utils/storage-error';
 import type { StorageBackend, StorageBackendMetadata } from '../types';
+
+const configSchema = z.object({
+  kind: z.literal('webdav'),
+  url: z.string(),
+  auth: z.object({ user: z.string(), pass: z.string() }),
+});
+
+export type WebDAVConfig = z.infer<typeof configSchema>;
 
 export class WebDAVBackend implements StorageBackend {
   private url: string;
   private auth: { user: string; pass: string };
 
-  constructor(config: { url: string; auth: { user: string; pass: string } }) {
+  constructor(config: WebDAVConfig) {
     this.url = config.url.replace(/\/$/, '');
     this.auth = config.auth;
-  }
-
-  getMetadata(): StorageBackendMetadata {
-    return {
-      kind: 'webdav',
-      endpoint: this.url,
-    };
   }
 
   private getHeaders(): Record<string, string> {
@@ -319,5 +321,29 @@ export class WebDAVBackend implements StorageBackend {
     });
 
     return Array.from(files).sort((a, b) => a.localeCompare(b));
+  }
+
+  getMetadata(): StorageBackendMetadata {
+    return {
+      kind: 'webdav',
+      endpoint: this.url,
+    };
+  }
+
+  serialize(): WebDAVConfig {
+    return {
+      kind: 'webdav',
+      url: this.url,
+      auth: this.auth,
+    };
+  }
+
+  static deserialize(config: unknown) {
+    const { success, data } = configSchema.safeParse(config);
+    if (!success) {
+      return null;
+    }
+
+    return new WebDAVBackend(data);
   }
 }

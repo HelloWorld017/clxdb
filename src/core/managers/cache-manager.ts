@@ -1,18 +1,14 @@
+import {
+  openIndexedDB,
+  readIndexedDBValue,
+  removeIndexedDBValue,
+  writeIndexedDBValue,
+} from '@/utils/indexeddb';
 import type { ClxDBOptions } from '@/types';
 import type { ZodType } from 'zod';
 
 const STORE_NAME = 'cache';
 const DB_VERSION = 1;
-
-const requestToPromise = <T>(request: IDBRequest<T>): Promise<T> =>
-  new Promise((resolve, reject) => {
-    request.onsuccess = () => {
-      resolve(request.result);
-    };
-    request.onerror = () => {
-      reject(request.error ?? new Error('IndexedDB request failed'));
-    };
-  });
 
 export class CacheManager {
   private options: ClxDBOptions;
@@ -31,15 +27,16 @@ export class CacheManager {
       return this.cacheDatabase;
     }
 
-    const request = window.indexedDB.open(`${this.options.cacheStorageKey}_${uuid}`, DB_VERSION);
-    request.onupgradeneeded = () => {
-      const opened = request.result;
-      if (!opened.objectStoreNames.contains(STORE_NAME)) {
-        opened.createObjectStore(STORE_NAME);
-      }
-    };
+    const openedDb = await openIndexedDB({
+      name: `${this.options.cacheStorageKey}_${uuid}`,
+      version: DB_VERSION,
+      onUpgrade: database => {
+        if (!database.objectStoreNames.contains(STORE_NAME)) {
+          database.createObjectStore(STORE_NAME);
+        }
+      },
+    });
 
-    const openedDb = await requestToPromise(request);
     openedDb.onversionchange = () => {
       openedDb.close();
       this.cacheDatabase = null;
@@ -59,11 +56,9 @@ export class CacheManager {
         return null;
       }
 
-      const tx = database.transaction(STORE_NAME, 'readonly');
-      const store = tx.objectStore(STORE_NAME);
-      const value = await requestToPromise<unknown>(store.get(key));
+      const value = await readIndexedDBValue<unknown>(database, STORE_NAME, key);
 
-      if (value === undefined) {
+      if (value === null) {
         return null;
       }
 
@@ -89,9 +84,7 @@ export class CacheManager {
         return;
       }
 
-      const tx = database.transaction(STORE_NAME, 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      await requestToPromise(store.put(value, key));
+      await writeIndexedDBValue(database, STORE_NAME, key, value);
     } catch (error) {
       console.warn(
         `Failed to write to IndexedDB for key "${this.options.cacheStorageKey}/${key}":`,
@@ -107,9 +100,7 @@ export class CacheManager {
         return;
       }
 
-      const tx = database.transaction(STORE_NAME, 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      await requestToPromise(store.delete(key));
+      await removeIndexedDBValue(database, STORE_NAME, key);
     } catch {
       // Ignore removal errors
     }

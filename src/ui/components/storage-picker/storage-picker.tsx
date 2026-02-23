@@ -12,36 +12,13 @@ import {
   supportsOpfs,
   toWebDavDirectoryUrl,
 } from './utils';
+import type { StorageConfig } from '@/storages';
 import type { StorageBackend } from '@/types';
 
 export type StoragePickerBackendType = 'filesystem-access' | 'opfs' | 'webdav';
 
-export interface FileSystemAccessStorageSelection {
-  type: 'filesystem-access';
-  handle: FileSystemDirectoryHandle;
-}
-
-export interface OpfsStorageSelection {
-  type: 'opfs';
-  handle: FileSystemDirectoryHandle;
-}
-
-export interface WebDAVStorageSelection {
-  type: 'webdav';
-  url: string;
-  auth: {
-    user: string;
-    pass: string;
-  };
-}
-
-export type StoragePickerSelection =
-  | FileSystemAccessStorageSelection
-  | OpfsStorageSelection
-  | WebDAVStorageSelection;
-
 export interface StoragePickerProps {
-  onSelect: (selection: StoragePickerSelection) => Promise<void> | void;
+  onSelect: (selection: StorageConfig) => Promise<void> | void;
   onCancel?: () => void;
   className?: string;
   disabled?: boolean;
@@ -167,17 +144,19 @@ export function StoragePicker({
     },
   ];
 
-  const storageBackendUndebounced = useMemo<StorageBackend | null>(() => {
+  const rootStorageBackendUndebounced = useMemo<StorageBackend | null>(() => {
     if (selectedType === 'filesystem-access' && filesystemRootHandle) {
       return createStorageBackend({
-        type: 'filesystem-access',
+        kind: 'filesystem',
+        provider: 'filesystem-access',
         handle: filesystemRootHandle,
       });
     }
 
     if (selectedType === 'opfs' && opfsRootHandle) {
       return createStorageBackend({
-        type: 'opfs',
+        kind: 'filesystem',
+        provider: 'opfs',
         handle: opfsRootHandle,
       });
     }
@@ -189,7 +168,7 @@ export function StoragePicker({
 
       try {
         return createStorageBackend({
-          type: 'webdav',
+          kind: 'webdav',
           url: normalizeWebDavUrl(webDavUrl),
           auth: {
             user: webDavUser.trim(),
@@ -203,7 +182,7 @@ export function StoragePicker({
     return null;
   }, [selectedType, webDavUrl, webDavUser, webDavPass, filesystemRootHandle, opfsRootHandle]);
 
-  const storageBackend = useDebouncedValue(storageBackendUndebounced, 500, selectedType);
+  const rootStorageBackend = useDebouncedValue(rootStorageBackendUndebounced, 500, selectedType);
   const [directoryPath, setDirectoryPath] = (() => {
     if (selectedType === 'filesystem-access') {
       return [filesystemDirectoryPath, setFilesystemDirectoryPath];
@@ -304,22 +283,22 @@ export function StoragePicker({
     setIsSubmitting(true);
 
     try {
-      let selection: StoragePickerSelection | null = null;
+      let selection: StorageConfig | null = null;
 
       if (selectedType === 'filesystem-access' && filesystemRootHandle) {
         const handle = await resolveDirectoryHandle(filesystemRootHandle, filesystemDirectoryPath);
-        selection = { type: 'filesystem-access', handle };
+        selection = { kind: 'filesystem', provider: 'filesystem-access', handle };
       }
 
       if (selectedType === 'opfs' && opfsRootHandle) {
         const handle = await resolveDirectoryHandle(opfsRootHandle, opfsDirectoryPath);
-        selection = { type: 'opfs', handle };
+        selection = { kind: 'filesystem', provider: 'opfs', handle };
       }
 
       if (selectedType === 'webdav') {
         const baseUrl = normalizeWebDavUrl(webDavUrl);
         selection = {
-          type: 'webdav',
+          kind: 'webdav',
           url: toWebDavDirectoryUrl(baseUrl, webDavDirectoryPath),
           auth: {
             user: webDavUser.trim(),
@@ -547,9 +526,9 @@ export function StoragePicker({
             </div>
           )}
 
-          {storageBackend ? (
+          {rootStorageBackend ? (
             <DirectoryPicker
-              storage={storageBackend}
+              storage={rootStorageBackend}
               value={directoryPath}
               onChange={setDirectoryPath}
               disabled={controlsLocked}

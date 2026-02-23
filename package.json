@@ -9,6 +9,10 @@
     ".": {
       "import": "./dist/clxdb.js",
       "require": "./dist/clxdb.cjs"
+    },
+    "./ui": {
+      "import": "./dist/ui.js",
+      "require": "./dist/ui.cjs"
     }
   },
   "scripts": {

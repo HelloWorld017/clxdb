@@ -264,11 +264,7 @@
       import Alpine from 'https://esm.sh/alpinejs@3.15.8/';
       import Dexie from 'https://esm.sh/dexie@4.3.0/';
       import { defineOptions, ink } from 'https://esm.sh/ink-mde@0.22.0';
-      import {
-        createClxDB,
-        createStorageBackend,
-        generateNewClxDB,
-      } from '@/index';
+      import { createClxDB, createStorageBackend, generateNewClxDB } from '@/index';
       import { createClxUI } from '@/ui';
 
       const DIARY_DB_NAME_PREFIX = 'clxdb_diary_example_';
@@ -706,24 +702,25 @@
 
           const storage = createStorageBackend(storageSettings);
           const unlockSettings = await clxUI.openDatabaseUnlock({ storage });
-          if (!unlockSettings) {
+          if (!unlockSettings || unlockSettings.mode === 'change-storage') {
             throw new Error('Unlock Canceled');
           }
 
           const nextDatabase = new DiaryDatabase();
-          const nextClient = unlockSettings.mode === 'open'
-            ? createClxDB({
-                database: nextDatabase,
-                storage,
-                crypto: unlockSettings.crypto,
-                options: { syncInterval: 45_000 },
-              })
-            : await generateNewClxDB({
-                database: nextDatabase,
-                storage,
-                crypto: unlockSettings.crypto,
-                options: { syncInterval: 45_000 },
-              });
+          const nextClient =
+            unlockSettings.mode === 'open'
+              ? createClxDB({
+                  database: nextDatabase,
+                  storage,
+                  crypto: unlockSettings.crypto,
+                  options: { syncInterval: 45_000 },
+                })
+              : await generateNewClxDB({
+                  database: nextDatabase,
+                  storage,
+                  crypto: unlockSettings.crypto,
+                  options: { syncInterval: 45_000 },
+                });
 
           try {
             await nextClient.init();

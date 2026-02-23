@@ -1,21 +1,39 @@
+import { z } from 'zod';
 import { StorageError } from '@/utils/storage-error';
 import type { StorageBackend, StorageBackendMetadata } from '../types';
+
+const configSchema = z.object({
+  kind: z.literal('filesystem'),
+  provider: z.union([z.literal('filesystem-access'), z.literal('opfs')]),
+  handle: z.instanceof(FileSystemDirectoryHandle),
+});
+
+export type FileSystemConfig = z.infer<typeof configSchema>;
+
+const isHandleAlive = async (handle: FileSystemDirectoryHandle): Promise<boolean> => {
+  try {
+    if (typeof handle.queryPermission === 'function') {
+      const permission = await handle.queryPermission({ mode: 'readwrite' });
+      if (permission !== 'granted') {
+        return false;
+      }
+    }
+
+    const iterator = handle.values();
+    await iterator.next();
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 export class FileSystemBackend implements StorageBackend {
   private handle: FileSystemDirectoryHandle;
   private provider: 'filesystem-access' | 'opfs';
 
-  constructor(handle: FileSystemDirectoryHandle, provider: 'filesystem-access' | 'opfs') {
+  constructor({ handle, provider }: FileSystemConfig) {
     this.handle = handle;
     this.provider = provider;
-  }
-
-  getMetadata(): StorageBackendMetadata {
-    return {
-      kind: 'filesystem',
-      provider: this.provider,
-      directoryName: this.handle.name || '(root)',
-    };
   }
 
   private async getFileHandle(path: string, create = false): Promise<FileSystemFileHandle | null> {
@@ -206,5 +224,34 @@ export class FileSystemBackend implements StorageBackend {
     }
 
     return dir;
+  }
+
+  getMetadata(): StorageBackendMetadata {
+    return {
+      kind: 'filesystem',
+      provider: this.provider,
+      directoryName: this.handle.name || '(root)',
+    };
+  }
+
+  serialize(): FileSystemConfig {
+    return {
+      kind: 'filesystem',
+      provider: this.provider,
+      handle: this.handle,
+    };
+  }
+
+  static async deserialize(config: unknown) {
+    const { success, data } = configSchema.safeParse(config);
+    if (!success) {
+      return null;
+    }
+
+    if (!(await isHandleAlive(data.handle))) {
+      return null;
+    }
+
+    return new FileSystemBackend(data);
   }
 }
