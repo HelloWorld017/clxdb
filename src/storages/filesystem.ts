@@ -5,7 +5,8 @@ import type { StorageBackend, StorageBackendMetadata } from '../types';
 const configSchema = z.object({
   kind: z.literal('filesystem'),
   provider: z.union([z.literal('filesystem-access'), z.literal('opfs')]),
-  handle: z.instanceof(FileSystemDirectoryHandle),
+  handle:
+    typeof window !== 'undefined' ? z.instanceof(window.FileSystemDirectoryHandle) : z.never(),
 });
 
 export type FileSystemConfig = z.infer<typeof configSchema>;

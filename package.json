@@ -8,12 +8,24 @@
   "files": ["dist"],
   "exports": {
     ".": {
+      "types": "./dist/clxdb.d.ts",
       "import": "./dist/clxdb.js",
       "require": "./dist/clxdb.cjs"
     },
     "./ui": {
+      "types": "./dist/ui.d.ts",
       "import": "./dist/ui.js",
       "require": "./dist/ui.cjs"
+    },
+    "./browser": {
+      "default": "./dist/clxdb.umd.cjs"
+    }
+  },
+  "types": "./dist/clxdb.d.ts",
+  "typesVersions": {
+    "*": {
+      ".": ["./dist/clxdb.d.ts"],
+      "ui": ["./dist/ui.d.ts"]
     }
   },
   "scripts": {
@@ -37,7 +49,7 @@
     "replication",
     "webdav"
   ],
-  "author": "nenw <khi@nenw.dev>",
+  "author": "nenw* <khi@nenw.dev>",
   "license": "MIT",
   "packageManager": "pnpm@10.18.3",
   "devDependencies": {
