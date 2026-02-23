@@ -29,7 +29,9 @@
     "jsx": "react-jsx",
     "allowJs": true,
     "skipLibCheck": true,
-    "noEmit": true,
+    "emitDeclarationOnly": true,
+    "outDir": "./dist",
+    "tsBuildInfoFile": "./tsconfig.tsbuildinfo",
     "incremental": true,
     "composite": true
   },

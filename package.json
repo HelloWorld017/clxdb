@@ -5,6 +5,7 @@
   "main": "dist/clxdb.cjs",
   "module": "dist/clxdb.js",
   "type": "module",
+  "files": ["dist"],
   "exports": {
     ".": {
       "import": "./dist/clxdb.js",
@@ -17,11 +18,25 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "clean": "rm -rf dist",
+    "build": "pnpm run clean && concurrently pnpm:build:*",
+    "build:default": "vite build",
+    "build:umd": "BUILD_UMD=true vite build",
+    "build:lint": "pnpm run lint",
+    "build:typecheck": "pnpm run typecheck",
+    "analyze": "BUILD_ANALYZE=true vite build",
     "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run build",
     "lint": "eslint ."
   },
-  "keywords": [],
+  "keywords": [
+    "database",
+    "local-first",
+    "offline-first",
+    "sync",
+    "replication",
+    "webdav"
+  ],
   "author": "nenw <khi@nenw.dev>",
   "license": "MIT",
   "packageManager": "pnpm@10.18.3",
@@ -34,6 +49,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react-swc": "^4.2.3",
     "autoprefixer": "^10.4.24",
+    "concurrently": "^9.2.1",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.4",
@@ -44,15 +60,29 @@
     "prettier-plugin-classnames": "^0.9.0",
     "prettier-plugin-merge": "^0.9.0",
     "prettier-plugin-tailwindcss": "^0.7.2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "tailwindcss": "^4.1.18",
     "typescript": "6.0.0-beta",
     "typescript-eslint": "^8.54.0",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vite-bundle-analyzer": "^1.3.6",
+    "vite-plugin-dts": "^4.5.4"
   },
   "dependencies": {
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
     "tailwind-merge": "^3.4.0",
     "zod": "^4.3.6"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
   }
 }
