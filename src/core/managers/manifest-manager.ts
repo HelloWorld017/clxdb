@@ -120,8 +120,8 @@ export class ManifestManager {
       }
 
       if (attempt < MAX_RETRIES - 1) {
-        await onRetry();
         await delayWithBackoff(attempt);
+        await onRetry();
       }
     }
 

@@ -145,7 +145,7 @@ export class ClxBlobs {
     const blobDirectory = this.getBlobDirectory(digest);
     const blobPath = this.getBlobPath(digest);
 
-    await this.storage.ensureDirectory(blobDirectory);
+    await this.storage.ensureDirectory?.(blobDirectory);
     try {
       await this.storage.write(blobPath, output);
     } catch (error) {

@@ -168,6 +168,7 @@ export class WebDAVBackend implements StorageBackend {
     const response = await fetch(url, {
       method: 'HEAD',
       headers: this.getHeaders(),
+      cache: 'no-store',
     });
 
     if (response.status === 404) {

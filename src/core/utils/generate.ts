@@ -26,8 +26,8 @@ export const generateNewClxDB = async ({
 
   const cryptoManager = new CryptoManager(crypto, manifestManager, cacheManager);
   const initializedManifest = await cryptoManager.signInitialManifest(manifest);
-  await storage.ensureDirectory(SHARDS_DIR);
-  await storage.ensureDirectory(BLOBS_DIR);
+  await storage.ensureDirectory?.(SHARDS_DIR);
+  await storage.ensureDirectory?.(BLOBS_DIR);
   await storage.write(
     MANIFEST_PATH,
     new TextEncoder().encode(JSON.stringify(initializedManifest, null, 2))

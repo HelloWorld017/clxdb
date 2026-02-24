@@ -486,6 +486,7 @@ const TodoExampleApp = () => {
       nextClient = null;
       nextDatabase = null;
     } catch (error) {
+      console.error(error);
       setErrorMessage(formatErrorMessage(error, 'Could not open the Todo example database.'));
     } finally {
       nextClient?.destroy();
@@ -505,6 +506,7 @@ const TodoExampleApp = () => {
     try {
       await session.client.sync();
     } catch (error) {
+      console.error(error);
       setErrorMessage(formatErrorMessage(error, 'Manual sync failed.'));
     } finally {
       setIsManualSyncing(false);

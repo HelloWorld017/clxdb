@@ -1,4 +1,5 @@
 import type { BlobMetadata } from '@/schemas';
+import type { S3Provider } from '@/storages/s3';
 
 export type StorageBackendMetadata =
   | {
@@ -7,7 +8,7 @@ export type StorageBackendMetadata =
     }
   | {
       kind: 's3';
-      provider: 's3' | 'r2' | 'minio';
+      provider: S3Provider;
       endpoint: string;
       region: string;
       bucket: string;
@@ -22,7 +23,7 @@ export type StorageBackendMetadata =
 export interface StorageBackend {
   read(path: string, range?: { start: number; end: number }): Promise<Uint8Array>;
   readDirectory?(path: string): Promise<string[]>;
-  ensureDirectory(path: string): Promise<void>;
+  ensureDirectory?(path: string): Promise<void>;
   write(path: string, content: Uint8Array): Promise<void>;
   delete(path: string): Promise<void>;
   stat(path: string): Promise<{ etag: string; size: number; lastModified?: Date } | null>;

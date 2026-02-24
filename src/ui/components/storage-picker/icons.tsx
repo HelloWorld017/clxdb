@@ -56,9 +56,9 @@ export const S3Icon = ({ className }: IconProps) => (
     aria-hidden
   >
     <title>S3 Compatible</title>
-    <path d="M6.5 18.5h10.8a3.2 3.2 0 0 0 .5-6.36A5.55 5.55 0 0 0 7.2 9.6a4.1 4.1 0 0 0-.7 8.9Z" />
-    <path d="M12 7.5v8" />
-    <path d="m9.5 10 2.5-2.5L14.5 10" />
+    <path d="M12 13v8" />
+    <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+    <path d="m8 17 4-4 4 4" />
   </svg>
 );
 

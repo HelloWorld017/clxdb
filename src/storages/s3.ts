@@ -6,10 +6,14 @@ const EMPTY_SHA256_HEX = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca49599
 const S3_SERVICE = 's3';
 const SIGV4_ALGORITHM = 'AWS4-HMAC-SHA256';
 
+const s3ProviderSchema = z
+  .union([z.literal('s3'), z.literal('r2'), z.literal('minio'), z.literal('unknown')])
+  .default('s3');
+
 const configSchema = z.object({
   kind: z.literal('s3'),
-  provider: z.union([z.literal('s3'), z.literal('r2'), z.literal('minio')]).default('s3'),
-  endpoint: z.string().url(),
+  provider: s3ProviderSchema,
+  endpoint: z.url(),
   region: z.string().default('us-east-1'),
   bucket: z.string(),
   prefix: z.string().default(''),
@@ -22,6 +26,7 @@ const configSchema = z.object({
 });
 
 export type S3Config = z.infer<typeof configSchema>;
+export type S3Provider = z.infer<typeof s3ProviderSchema>;
 
 interface ParsedListObjects {
   keys: string[];
@@ -35,6 +40,7 @@ interface SignedRequestParams {
   url: URL;
   headers?: Record<string, string>;
   body?: Uint8Array;
+  cache?: RequestCache;
 }
 
 const textEncoder = new TextEncoder();
@@ -89,7 +95,7 @@ const hmacSha256 = async (key: Uint8Array, value: string): Promise<Uint8Array> =
 
 export class S3Backend implements StorageBackend {
   private endpoint: URL;
-  private provider: 's3' | 'r2' | 'minio';
+  private provider: S3Provider;
   private region: string;
   private bucket: string;
   private prefix: string;
@@ -200,36 +206,6 @@ export class S3Backend implements StorageBackend {
     return Array.from(directories).sort((left, right) => left.localeCompare(right));
   }
 
-  async ensureDirectory(path: string): Promise<void> {
-    const segments = normalizePath(path).split('/').filter(Boolean);
-    if (!segments.length) {
-      return;
-    }
-
-    let currentPath = '';
-    for (const segment of segments) {
-      currentPath = currentPath ? `${currentPath}/${segment}` : segment;
-      const markerKey = `${this.getObjectKey(currentPath)}/`;
-      const response = await this.signedRequest({
-        method: 'PUT',
-        url: this.getObjectUrl(markerKey),
-        headers: {
-          'If-None-Match': '*',
-        },
-        body: new Uint8Array(0),
-      });
-
-      if (response.ok || response.status === 412 || response.status === 409) {
-        continue;
-      }
-
-      throw new StorageError(
-        'UNKNOWN',
-        `S3 ensure directory failed: ${response.status} ${response.statusText}${await this.getErrorMessage(response)}`
-      );
-    }
-  }
-
   async write(path: string, content: Uint8Array): Promise<void> {
     const existing = await this.stat(path);
     if (existing) {
@@ -278,6 +254,7 @@ export class S3Backend implements StorageBackend {
     const response = await this.signedRequest({
       method: 'HEAD',
       url: this.getObjectUrl(key),
+      cache: 'no-store',
     });
 
     if (response.status === 404) {
@@ -535,6 +512,7 @@ export class S3Backend implements StorageBackend {
     url,
     headers,
     body,
+    cache,
   }: SignedRequestParams): Promise<Response> {
     const payloadHash = body ? await sha256Hex(body) : EMPTY_SHA256_HEX;
     const amzDate = toAmzDate(new Date());
@@ -590,6 +568,7 @@ export class S3Backend implements StorageBackend {
       method,
       headers: fetchHeaders,
       body: body as Uint8Array<ArrayBuffer> | undefined,
+      cache,
     });
   }
 

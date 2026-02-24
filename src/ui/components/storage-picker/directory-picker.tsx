@@ -58,7 +58,8 @@ export function DirectoryPicker({
   const newFolderInputRef = useRef<HTMLInputElement | null>(null);
 
   const normalizedValue = normalizeDirectoryPath(value);
-  const canBrowseDirectories = typeof storage.readDirectory === 'function';
+  const canBrowseDirectories =
+    typeof storage.readDirectory === 'function' && typeof storage.ensureDirectory === 'function';
 
   useEffect(() => {
     setManualPath(normalizedValue);
@@ -108,7 +109,7 @@ export function DirectoryPicker({
   useEffect(() => {
     let cancelled = false;
 
-    if (!canBrowseDirectories || !storage.readDirectory) {
+    if (!canBrowseDirectories) {
       setDirectories([]);
       setIsLoadingDirectories(false);
       return;
@@ -118,7 +119,7 @@ export function DirectoryPicker({
     setErrorMessage(null);
 
     void storage
-      .readDirectory(normalizedValue)
+      .readDirectory?.('')
       .then(nextDirectories => {
         if (cancelled) {
           return;
@@ -143,7 +144,7 @@ export function DirectoryPicker({
     return () => {
       cancelled = true;
     };
-  }, [canBrowseDirectories, normalizedValue, storage]);
+  }, [canBrowseDirectories, storage]);
 
   const pathSegments = useMemo(
     () => normalizeDirectoryPath(normalizedValue).split('/').filter(Boolean),
@@ -172,15 +173,15 @@ export function DirectoryPicker({
       return;
     }
 
-    const targetPath = joinDirectoryPath(normalizedValue, folderName);
+    const targetPath = folderName;
     setIsCreatingDirectory(true);
     setErrorMessage(null);
 
     try {
-      await storage.ensureDirectory(targetPath);
+      await storage.ensureDirectory?.(targetPath);
       setNewFolderName('');
       setIsCreateFolderPopoverOpen(false);
-      navigateTo(targetPath);
+      navigateTo(joinDirectoryPath(normalizedValue, folderName));
     } catch (error) {
       const fallback = 'Could not create this folder.';
       setErrorMessage(error instanceof Error ? error.message : fallback);
@@ -257,17 +258,19 @@ export function DirectoryPicker({
 
         <div className="flex items-center gap-2">
           <div className="relative" ref={createFolderPopoverRef}>
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={toggleCreateFolderPopover}
-              className="inline-flex items-center rounded-lg border border-default-300 bg-surface
-                px-1.5 py-1.5 text-sm font-medium text-default-700 transition-colors duration-200
-                hover:border-default-400 hover:bg-default-100 disabled:cursor-not-allowed
-                disabled:border-default-200 disabled:bg-default-100 disabled:text-default-400"
-            >
-              <FolderPlusIcon />
-            </button>
+            {canBrowseDirectories && (
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={toggleCreateFolderPopover}
+                className="inline-flex items-center rounded-lg border border-default-300 bg-surface
+                  px-1.5 py-1.5 text-sm font-medium text-default-700 transition-colors duration-200
+                  hover:border-default-400 hover:bg-default-100 disabled:cursor-not-allowed
+                  disabled:border-default-200 disabled:bg-default-100 disabled:text-default-400"
+              >
+                <FolderPlusIcon />
+              </button>
+            )}
 
             <Presence enterClassName="clx-popover-enter" exitClassName="clx-popover-exit">
               {isCreateFolderPopoverOpen ? (

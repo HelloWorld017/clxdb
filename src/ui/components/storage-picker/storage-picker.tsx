@@ -1,25 +1,17 @@
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { createStorageBackend } from '@/storages';
 import { useDebouncedValue } from '@/ui/hooks/use-debounced-value';
 import { classes } from '@/utils/classes';
 import { DirectoryPicker } from './directory-picker';
 import { FileSystemIcon, OPFSIcon, S3Icon, WebDAVIcon } from './icons';
-import {
-  getNavigatorStorageWithDirectory,
-  joinDirectoryPaths,
-  normalizeS3Bucket,
-  normalizeS3Endpoint,
-  normalizeS3Prefix,
-  normalizeWebDavUrl,
-  resolveDirectoryHandle,
-  supportsFileSystemAccess,
-  supportsOpfs,
-  toWebDavDirectoryUrl,
-} from './utils';
+import { StoragePickerFilesystemAccess } from './storage-picker-filesystem-access';
+import { StoragePickerOpfs } from './storage-picker-opfs';
+import { StoragePickerS3 } from './storage-picker-s3';
+import { StoragePickerWebdav } from './storage-picker-webdav';
+import { supportsFileSystemAccess, supportsOpfs } from './utils';
+import type { OnStoragePickerConfigChange } from './types';
 import type { StorageConfig } from '@/storages';
 import type { StorageBackend } from '@/types';
-
-type S3Provider = 's3' | 'r2' | 'minio';
 
 export type StoragePickerBackendType = 'filesystem-access' | 'opfs' | 'webdav' | 's3';
 
@@ -41,51 +33,21 @@ export function StoragePicker({
   submitLabel = 'Save storage settings',
 }: StoragePickerProps) {
   const [selectedType, setSelectedType] = useState<StoragePickerBackendType>(initialType);
-  const [filesystemRootHandle, setFilesystemRootHandle] =
-    useState<FileSystemDirectoryHandle | null>(null);
-  const [filesystemDirectoryPath, setFilesystemDirectoryPath] = useState('');
-  const [webDavUrl, setWebDavUrl] = useState('');
-  const [webDavUser, setWebDavUser] = useState('');
-  const [webDavPass, setWebDavPass] = useState('');
-  const [webDavDirectoryPath, setWebDavDirectoryPath] = useState('');
-  const [s3Provider, setS3Provider] = useState<S3Provider>('s3');
-  const [s3Endpoint, setS3Endpoint] = useState('');
-  const [s3Region, setS3Region] = useState('us-east-1');
-  const [s3Bucket, setS3Bucket] = useState('');
-  const [s3Prefix, setS3Prefix] = useState('');
-  const [s3AccessKeyId, setS3AccessKeyId] = useState('');
-  const [s3SecretAccessKey, setS3SecretAccessKey] = useState('');
-  const [s3SessionToken, setS3SessionToken] = useState('');
-  const [s3DirectoryPath, setS3DirectoryPath] = useState('');
-  const [opfsRootHandle, setOpfsRootHandle] = useState<FileSystemDirectoryHandle | null>(null);
-  const [opfsDirectoryPath, setOpfsDirectoryPath] = useState('');
+  const [directoryPath, setDirectoryPath] = useState('');
+  const [selectedConfigUndebounced, setSelectedConfigUndebounced] = useState<StorageConfig | null>(
+    null
+  );
+  const [configDebounceKey, setConfigDebounceKey] = useState(`${initialType}:init`);
+  const [validationMessage, setValidationMessage] = useState<string | null>(null);
+  const [isSelectionValid, setIsSelectionValid] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isPickingDirectory, setIsPickingDirectory] = useState(false);
-  const [isLoadingOpfsRoot, setIsLoadingOpfsRoot] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const pickerId = useId();
 
   const storageGroupName = `${pickerId}-storage`;
-  const webDavUrlId = `${pickerId}-webdav-url`;
-  const webDavUserId = `${pickerId}-webdav-user`;
-  const webDavPassId = `${pickerId}-webdav-pass`;
-  const s3ProviderId = `${pickerId}-s3-provider`;
-  const s3EndpointId = `${pickerId}-s3-endpoint`;
-  const s3RegionId = `${pickerId}-s3-region`;
-  const s3BucketId = `${pickerId}-s3-bucket`;
-  const s3PrefixId = `${pickerId}-s3-prefix`;
-  const s3AccessKeyIdId = `${pickerId}-s3-access-key`;
-  const s3SecretAccessKeyId = `${pickerId}-s3-secret-key`;
-  const s3SessionTokenId = `${pickerId}-s3-session-token`;
 
   const filesystemSupported = supportsFileSystemAccess();
   const opfsSupported = supportsOpfs();
-  const s3EndpointPlaceholder =
-    s3Provider === 'r2'
-      ? 'https://<account-id>.r2.cloudflarestorage.com'
-      : s3Provider === 'minio'
-        ? 'https://minio.example.com'
-        : 'https://s3.ap-northeast-2.amazonaws.com';
 
   const availableTypes = useMemo(() => {
     const types: StoragePickerBackendType[] = ['s3', 'webdav'];
@@ -103,46 +65,16 @@ export function StoragePicker({
 
   useEffect(() => {
     if (!availableTypes.includes(selectedType)) {
-      setSelectedType(availableTypes[0]);
+      const fallbackType = availableTypes[0];
+      setSelectedType(fallbackType);
+      setDirectoryPath('');
+      setSelectedConfigUndebounced(null);
+      setConfigDebounceKey(`${fallbackType}:fallback`);
+      setValidationMessage(null);
+      setIsSelectionValid(false);
       setErrorMessage(null);
     }
   }, [availableTypes, selectedType]);
-
-  useEffect(() => {
-    if (selectedType !== 'opfs' || !opfsSupported || opfsRootHandle || isLoadingOpfsRoot) {
-      return;
-    }
-
-    const opfsStorage = getNavigatorStorageWithDirectory();
-    if (!opfsStorage) {
-      return;
-    }
-
-    let cancelled = false;
-    setIsLoadingOpfsRoot(true);
-    setErrorMessage(null);
-
-    void opfsStorage
-      .getDirectory()
-      .then(handle => {
-        if (!cancelled) {
-          setOpfsRootHandle(handle);
-        }
-      })
-      .catch(error => {
-        if (!cancelled) {
-          const fallback = 'Could not access Origin Private File System.';
-          setErrorMessage(error instanceof Error ? error.message : fallback);
-        }
-      })
-      .finally(() => {
-        setIsLoadingOpfsRoot(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isLoadingOpfsRoot, opfsRootHandle, opfsSupported, selectedType]);
 
   const controlsLocked = disabled || isSubmitting;
 
@@ -181,224 +113,45 @@ export function StoragePicker({
     },
   ];
 
-  const rootStorageBackendUndebounced = useMemo<StorageBackend | null>(() => {
-    if (selectedType === 'filesystem-access' && filesystemRootHandle) {
-      return createStorageBackend({
-        kind: 'filesystem',
-        provider: 'filesystem-access',
-        handle: filesystemRootHandle,
-      });
-    }
-
-    if (selectedType === 'opfs' && opfsRootHandle) {
-      return createStorageBackend({
-        kind: 'filesystem',
-        provider: 'opfs',
-        handle: opfsRootHandle,
-      });
-    }
-
-    if (selectedType === 'webdav') {
-      if (!webDavUrl.trim() || !webDavUser.trim() || !webDavPass) {
-        return null;
-      }
-
-      try {
-        return createStorageBackend({
-          kind: 'webdav',
-          url: normalizeWebDavUrl(webDavUrl),
-          auth: {
-            user: webDavUser.trim(),
-            pass: webDavPass,
-          },
-        });
-      } catch {
-        return null;
-      }
-    }
-
-    if (selectedType === 's3') {
-      if (!s3Endpoint.trim() || !s3Bucket.trim() || !s3AccessKeyId.trim() || !s3SecretAccessKey) {
-        return null;
-      }
-
-      try {
-        const region = s3Region.trim() || (s3Provider === 'r2' ? 'auto' : 'us-east-1');
-        return createStorageBackend({
-          kind: 's3',
-          provider: s3Provider,
-          endpoint: normalizeS3Endpoint(s3Endpoint),
-          region,
-          bucket: normalizeS3Bucket(s3Bucket),
-          prefix: normalizeS3Prefix(s3Prefix),
-          forcePathStyle: s3Provider !== 's3',
-          credentials: {
-            accessKeyId: s3AccessKeyId.trim(),
-            secretAccessKey: s3SecretAccessKey,
-            ...(s3SessionToken.trim() ? { sessionToken: s3SessionToken.trim() } : {}),
-          },
-        });
-      } catch {
-        return null;
-      }
-    }
-
-    return null;
-  }, [
-    selectedType,
-    webDavUrl,
-    webDavUser,
-    webDavPass,
-    s3Provider,
-    s3Endpoint,
-    s3Region,
-    s3Bucket,
-    s3Prefix,
-    s3AccessKeyId,
-    s3SecretAccessKey,
-    s3SessionToken,
-    filesystemRootHandle,
-    opfsRootHandle,
-  ]);
-
-  const rootStorageBackend = useDebouncedValue(rootStorageBackendUndebounced, 500, selectedType);
-  const [directoryPath, setDirectoryPath] = (() => {
-    if (selectedType === 'filesystem-access') {
-      return [filesystemDirectoryPath, setFilesystemDirectoryPath];
-    }
-
-    if (selectedType === 'opfs') {
-      return [opfsDirectoryPath, setOpfsDirectoryPath];
-    }
-
-    if (selectedType === 'webdav') {
-      return [webDavDirectoryPath, setWebDavDirectoryPath];
-    }
-
-    if (selectedType === 's3') {
-      return [s3DirectoryPath, setS3DirectoryPath];
-    }
-
-    return ['', () => {}];
-  })();
-
-  const pickDirectory = async () => {
-    if (!filesystemSupported || !window.showDirectoryPicker) {
-      setErrorMessage('FileSystem Access API is not available in this browser.');
-      return;
-    }
-
+  const onStorageConfigChange = useCallback<OnStoragePickerConfigChange>(change => {
+    setSelectedConfigUndebounced(change.config);
+    setConfigDebounceKey(change.debounceKey);
+    setValidationMessage(change.validationMessage);
+    setIsSelectionValid(change.isValid);
     setErrorMessage(null);
-    setIsPickingDirectory(true);
+  }, []);
+
+  const selectedConfigDebounced = useDebouncedValue(
+    selectedConfigUndebounced,
+    500,
+    configDebounceKey
+  );
+
+  const rootStorageBackend = useMemo<StorageBackend | null>(() => {
+    if (!selectedConfigDebounced) {
+      return null;
+    }
 
     try {
-      const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
-      setFilesystemRootHandle(handle);
-      setFilesystemDirectoryPath('');
-    } catch (error) {
-      if (!(error instanceof Error) || error.name !== 'AbortError') {
-        const fallback = 'Could not open FileSystem Access folder picker.';
-        setErrorMessage(error instanceof Error ? error.message : fallback);
-      }
-    } finally {
-      setIsPickingDirectory(false);
+      return createStorageBackend(selectedConfigDebounced);
+    } catch {
+      return null;
     }
-  };
+  }, [selectedConfigDebounced]);
+
+  const handleDirectoryPathChange = useCallback((nextPath: string) => {
+    setDirectoryPath(nextPath);
+    setErrorMessage(null);
+  }, []);
 
   const selectStorageType = (nextType: StoragePickerBackendType) => {
     setSelectedType(nextType);
+    setDirectoryPath('');
+    setSelectedConfigUndebounced(null);
+    setConfigDebounceKey(`${nextType}:switch`);
+    setValidationMessage(null);
+    setIsSelectionValid(false);
     setErrorMessage(null);
-  };
-
-  const selectS3Provider = (provider: S3Provider) => {
-    setS3Provider(provider);
-    if (provider === 'r2') {
-      if (!s3Region.trim() || s3Region.trim() === 'us-east-1') {
-        setS3Region('auto');
-      }
-
-      return;
-    }
-
-    if (s3Region.trim() === 'auto') {
-      setS3Region('us-east-1');
-    }
-  };
-
-  const validateSelection = () => {
-    if (selectedType === 'filesystem-access' && !filesystemRootHandle) {
-      return 'Select a root folder to continue.';
-    }
-
-    if (selectedType === 'opfs') {
-      if (!opfsSupported) {
-        return 'Origin Private File System is not supported in this browser.';
-      }
-
-      if (!opfsRootHandle) {
-        return 'OPFS is still loading. Please wait a moment and try again.';
-      }
-    }
-
-    if (selectedType === 'webdav') {
-      if (!webDavUrl.trim()) {
-        return 'Enter a WebDAV endpoint URL.';
-      }
-
-      try {
-        const parsed = new URL(webDavUrl.trim());
-        if (!['http:', 'https:'].includes(parsed.protocol)) {
-          return 'WebDAV endpoint must start with http:// or https://.';
-        }
-      } catch {
-        return 'Enter a valid WebDAV endpoint URL.';
-      }
-
-      if (!webDavUser.trim()) {
-        return 'Enter a WebDAV username.';
-      }
-
-      if (!webDavPass) {
-        return 'Enter your password.';
-      }
-    }
-
-    if (selectedType === 's3') {
-      if (!s3Endpoint.trim()) {
-        return 'Enter an S3 endpoint URL.';
-      }
-
-      try {
-        const parsed = new URL(s3Endpoint.trim());
-        if (!['http:', 'https:'].includes(parsed.protocol)) {
-          return 'S3 endpoint must start with http:// or https://.';
-        }
-      } catch {
-        return 'Enter a valid S3 endpoint URL.';
-      }
-
-      if (!s3Bucket.trim()) {
-        return 'Enter an S3 bucket name.';
-      }
-
-      if (s3Bucket.trim().includes('/')) {
-        return 'Bucket name cannot include slashes.';
-      }
-
-      if (!s3Region.trim()) {
-        return 'Enter a region (use auto for Cloudflare R2).';
-      }
-
-      if (!s3AccessKeyId.trim()) {
-        return 'Enter an access key ID.';
-      }
-
-      if (!s3SecretAccessKey) {
-        return 'Enter a secret access key.';
-      }
-    }
-
-    return null;
   };
 
   const handleSubmit = async () => {
@@ -406,9 +159,8 @@ export function StoragePicker({
       return;
     }
 
-    const validationError = validateSelection();
-    if (validationError) {
-      setErrorMessage(validationError);
+    if (!selectedConfigUndebounced || !isSelectionValid) {
+      setErrorMessage(validationMessage ?? 'Please check the details and try again.');
       return;
     }
 
@@ -416,53 +168,7 @@ export function StoragePicker({
     setIsSubmitting(true);
 
     try {
-      let selection: StorageConfig | null = null;
-
-      if (selectedType === 'filesystem-access' && filesystemRootHandle) {
-        const handle = await resolveDirectoryHandle(filesystemRootHandle, filesystemDirectoryPath);
-        selection = { kind: 'filesystem', provider: 'filesystem-access', handle };
-      }
-
-      if (selectedType === 'opfs' && opfsRootHandle) {
-        const handle = await resolveDirectoryHandle(opfsRootHandle, opfsDirectoryPath);
-        selection = { kind: 'filesystem', provider: 'opfs', handle };
-      }
-
-      if (selectedType === 'webdav') {
-        const baseUrl = normalizeWebDavUrl(webDavUrl);
-        selection = {
-          kind: 'webdav',
-          url: toWebDavDirectoryUrl(baseUrl, webDavDirectoryPath),
-          auth: {
-            user: webDavUser.trim(),
-            pass: webDavPass,
-          },
-        };
-      }
-
-      if (selectedType === 's3') {
-        const region = s3Region.trim() || (s3Provider === 'r2' ? 'auto' : 'us-east-1');
-        selection = {
-          kind: 's3',
-          provider: s3Provider,
-          endpoint: normalizeS3Endpoint(s3Endpoint),
-          region,
-          bucket: normalizeS3Bucket(s3Bucket),
-          prefix: joinDirectoryPaths(normalizeS3Prefix(s3Prefix), s3DirectoryPath),
-          forcePathStyle: s3Provider !== 's3',
-          credentials: {
-            accessKeyId: s3AccessKeyId.trim(),
-            secretAccessKey: s3SecretAccessKey,
-            ...(s3SessionToken.trim() ? { sessionToken: s3SessionToken.trim() } : {}),
-          },
-        };
-      }
-
-      if (!selection) {
-        throw new Error('Please check the details and try again.');
-      }
-
-      await onSelect(selection);
+      await onSelect(selectedConfigUndebounced);
     } catch (error) {
       const fallback = 'Could not save storage settings. Please try again.';
       setErrorMessage(error instanceof Error ? error.message : fallback);
@@ -574,273 +280,42 @@ export function StoragePicker({
           </div>
 
           {selectedType === 'filesystem-access' && (
-            <div className="rounded-2xl border border-default-200 bg-surface/80 p-4 sm:p-5">
-              <div className="flex justify-between gap-2">
-                <div className="flex flex-col gap-1">
-                  <p className="text-sm font-semibold text-default-800">FileSystem Access API</p>
-                  <p className="mt-1 text-xs text-default-500">
-                    Pick a local folder. This app will request explicit permission for read/write
-                    access.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={pickDirectory}
-                  disabled={controlsLocked || isPickingDirectory}
-                  className="inline-flex items-center gap-2 rounded-xl border border-default-300
-                    bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground
-                    transition-colors duration-200 hover:bg-primary-hover
-                    disabled:cursor-not-allowed disabled:border-default-200 disabled:bg-default-300"
-                >
-                  {isPickingDirectory ? 'Opening...' : 'Select Folder'}
-                </button>
-              </div>
-
-              <p className="mt-3 text-xs text-default-500">
-                {filesystemRootHandle
-                  ? `Selected: ${filesystemRootHandle.name}`
-                  : 'No folder selected yet.'}
-              </p>
-            </div>
+            <StoragePickerFilesystemAccess
+              controlsLocked={controlsLocked}
+              directoryPath={directoryPath}
+              onDirectoryPathChange={handleDirectoryPathChange}
+              onConfigChange={onStorageConfigChange}
+            />
           )}
 
           {selectedType === 'opfs' && (
-            <div className="rounded-2xl border border-default-200 bg-surface/80 p-4 sm:p-5">
-              <p className="text-sm font-semibold text-default-800">
-                Origin Private File System (OPFS)
-              </p>
-              <p className="mt-2 text-xs text-default-500">
-                Data is stored in browser-managed private storage for this origin and profile.
-              </p>
-            </div>
+            <StoragePickerOpfs
+              directoryPath={directoryPath}
+              onConfigChange={onStorageConfigChange}
+            />
           )}
 
           {selectedType === 's3' && (
-            <div className="rounded-2xl border border-default-200 bg-surface/80 p-4 sm:p-5">
-              <div className="grid gap-4">
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <label className="text-sm font-semibold text-default-800" htmlFor={s3ProviderId}>
-                    Provider
-                    <select
-                      id={s3ProviderId}
-                      value={s3Provider}
-                      onChange={event => selectS3Provider(event.target.value as S3Provider)}
-                      disabled={controlsLocked}
-                      className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3
-                        py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
-                        outline-none focus:border-default-500 focus:bg-surface
-                        disabled:cursor-not-allowed disabled:border-default-200
-                        disabled:bg-default-100"
-                    >
-                      <option value="s3">Amazon S3</option>
-                      <option value="r2">Cloudflare R2</option>
-                      <option value="minio">MinIO</option>
-                    </select>
-                  </label>
-
-                  <label className="text-sm font-semibold text-default-800" htmlFor={s3RegionId}>
-                    Region
-                    <input
-                      id={s3RegionId}
-                      type="text"
-                      value={s3Region}
-                      onChange={event => setS3Region(event.target.value)}
-                      disabled={controlsLocked}
-                      placeholder={s3Provider === 'r2' ? 'auto' : 'us-east-1'}
-                      className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3
-                        py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
-                        outline-none placeholder:text-default-400 focus:border-default-500
-                        focus:bg-surface disabled:cursor-not-allowed disabled:border-default-200
-                        disabled:bg-default-100"
-                    />
-                  </label>
-
-                  <label className="text-sm font-semibold text-default-800" htmlFor={s3BucketId}>
-                    Bucket
-                    <input
-                      id={s3BucketId}
-                      type="text"
-                      value={s3Bucket}
-                      onChange={event => setS3Bucket(event.target.value)}
-                      disabled={controlsLocked}
-                      placeholder="my-bucket"
-                      className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3
-                        py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
-                        outline-none placeholder:text-default-400 focus:border-default-500
-                        focus:bg-surface disabled:cursor-not-allowed disabled:border-default-200
-                        disabled:bg-default-100"
-                    />
-                  </label>
-                </div>
-
-                <label className="text-sm font-semibold text-default-800" htmlFor={s3EndpointId}>
-                  S3 Endpoint
-                  <input
-                    id={s3EndpointId}
-                    type="url"
-                    value={s3Endpoint}
-                    onChange={event => setS3Endpoint(event.target.value)}
-                    disabled={controlsLocked}
-                    placeholder={s3EndpointPlaceholder}
-                    className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3
-                      py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
-                      outline-none placeholder:text-default-400 focus:border-default-500
-                      focus:bg-surface disabled:cursor-not-allowed disabled:border-default-200
-                      disabled:bg-default-100"
-                  />
-                </label>
-
-                <label className="text-sm font-semibold text-default-800" htmlFor={s3PrefixId}>
-                  Root Prefix (optional)
-                  <input
-                    id={s3PrefixId}
-                    type="text"
-                    value={s3Prefix}
-                    onChange={event => setS3Prefix(event.target.value)}
-                    disabled={controlsLocked}
-                    placeholder="apps/clxdb"
-                    className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3
-                      py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
-                      outline-none placeholder:text-default-400 focus:border-default-500
-                      focus:bg-surface disabled:cursor-not-allowed disabled:border-default-200
-                      disabled:bg-default-100"
-                  />
-                </label>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label
-                    className="text-sm font-semibold text-default-800"
-                    htmlFor={s3AccessKeyIdId}
-                  >
-                    Access Key ID
-                    <input
-                      id={s3AccessKeyIdId}
-                      type="text"
-                      value={s3AccessKeyId}
-                      onChange={event => setS3AccessKeyId(event.target.value)}
-                      disabled={controlsLocked}
-                      autoComplete="username"
-                      placeholder="AKIA..."
-                      className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3
-                        py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
-                        outline-none placeholder:text-default-400 focus:border-default-500
-                        focus:bg-surface disabled:cursor-not-allowed disabled:border-default-200
-                        disabled:bg-default-100"
-                    />
-                  </label>
-
-                  <label
-                    className="text-sm font-semibold text-default-800"
-                    htmlFor={s3SecretAccessKeyId}
-                  >
-                    Secret Access Key
-                    <input
-                      id={s3SecretAccessKeyId}
-                      type="password"
-                      value={s3SecretAccessKey}
-                      onChange={event => setS3SecretAccessKey(event.target.value)}
-                      disabled={controlsLocked}
-                      autoComplete="current-password"
-                      placeholder="••••••••"
-                      className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3
-                        py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
-                        outline-none placeholder:text-default-400 focus:border-default-500
-                        focus:bg-surface disabled:cursor-not-allowed disabled:border-default-200
-                        disabled:bg-default-100"
-                    />
-                  </label>
-                </div>
-
-                <label
-                  className="text-sm font-semibold text-default-800"
-                  htmlFor={s3SessionTokenId}
-                >
-                  Session Token (optional)
-                  <input
-                    id={s3SessionTokenId}
-                    type="password"
-                    value={s3SessionToken}
-                    onChange={event => setS3SessionToken(event.target.value)}
-                    disabled={controlsLocked}
-                    placeholder="Temporary credentials only"
-                    className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3
-                      py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
-                      outline-none placeholder:text-default-400 focus:border-default-500
-                      focus:bg-surface disabled:cursor-not-allowed disabled:border-default-200
-                      disabled:bg-default-100"
-                  />
-                </label>
-              </div>
-            </div>
+            <StoragePickerS3
+              controlsLocked={controlsLocked}
+              directoryPath={directoryPath}
+              onConfigChange={onStorageConfigChange}
+            />
           )}
 
           {selectedType === 'webdav' && (
-            <div className="rounded-2xl border border-default-200 bg-surface/80 p-4 sm:p-5">
-              <div className="grid gap-4">
-                <label className="text-sm font-semibold text-default-800" htmlFor={webDavUrlId}>
-                  WebDAV Endpoint
-                  <input
-                    id={webDavUrlId}
-                    type="url"
-                    value={webDavUrl}
-                    onChange={event => setWebDavUrl(event.target.value)}
-                    disabled={controlsLocked}
-                    placeholder="https://cloud.example.com/remote.php/dav/files/user"
-                    className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3
-                      py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
-                      outline-none placeholder:text-default-400 focus:border-default-500
-                      focus:bg-surface disabled:cursor-not-allowed disabled:border-default-200
-                      disabled:bg-default-100"
-                  />
-                </label>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="text-sm font-semibold text-default-800" htmlFor={webDavUserId}>
-                    WebDAV Username
-                    <input
-                      id={webDavUserId}
-                      type="text"
-                      value={webDavUser}
-                      onChange={event => setWebDavUser(event.target.value)}
-                      disabled={controlsLocked}
-                      autoComplete="username"
-                      placeholder="my-user"
-                      className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3
-                        py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
-                        outline-none placeholder:text-default-400 focus:border-default-500
-                        focus:bg-surface disabled:cursor-not-allowed disabled:border-default-200
-                        disabled:bg-default-100"
-                    />
-                  </label>
-
-                  <label className="text-sm font-semibold text-default-800" htmlFor={webDavPassId}>
-                    Password
-                    <input
-                      id={webDavPassId}
-                      type="password"
-                      value={webDavPass}
-                      onChange={event => setWebDavPass(event.target.value)}
-                      disabled={controlsLocked}
-                      autoComplete="current-password"
-                      placeholder="••••••••"
-                      className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3
-                        py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
-                        outline-none placeholder:text-default-400 focus:border-default-500
-                        focus:bg-surface disabled:cursor-not-allowed disabled:border-default-200
-                        disabled:bg-default-100"
-                    />
-                  </label>
-                </div>
-              </div>
-            </div>
+            <StoragePickerWebdav
+              controlsLocked={controlsLocked}
+              directoryPath={directoryPath}
+              onConfigChange={onStorageConfigChange}
+            />
           )}
 
           {rootStorageBackend ? (
             <DirectoryPicker
               storage={rootStorageBackend}
               value={directoryPath}
-              onChange={setDirectoryPath}
+              onChange={handleDirectoryPathChange}
               disabled={controlsLocked}
             />
           ) : (

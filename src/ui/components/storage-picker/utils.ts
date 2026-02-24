@@ -44,8 +44,6 @@ export const normalizeS3Endpoint = (value: string): string => {
 
 export const normalizeS3Bucket = (value: string): string => value.trim();
 
-export const normalizeS3Prefix = (value: string): string => normalizeDirectoryPath(value);
-
 export const resolveDirectoryHandle = async (
   rootHandle: FileSystemDirectoryHandle,
   directoryPath: string
