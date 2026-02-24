@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { createStorageBackend } from '@/storages';
 import { useDebouncedValue } from '@/ui/hooks/use-debounced-value';
 import { classes } from '@/utils/classes';
+import { CorsGuideMessage } from './cors-guide';
 import { DirectoryPicker } from './directory-picker';
 import { FileSystemIcon, OPFSIcon, S3Icon, WebDAVIcon } from './icons';
 import { StoragePickerFilesystemAccess } from './storage-picker-filesystem-access';
@@ -278,6 +279,10 @@ export function StoragePicker({
               );
             })}
           </div>
+
+          {(selectedType === 's3' || selectedType === 'webdav') && (
+            <CorsGuideMessage disabled={controlsLocked} />
+          )}
 
           {selectedType === 'filesystem-access' && (
             <StoragePickerFilesystemAccess

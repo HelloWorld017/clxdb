@@ -1,0 +1,64 @@
+.documents {
+  color: var(--color-default-900);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+
+  a {
+    text-decoration: underline;
+    text-underline-offset: 0.6rem;
+  }
+
+  p {
+    margin: 2rem 0;
+  }
+
+  h1 {
+    font-size: 3rem;
+    line-height: 4rem;
+    font-weight: 600;
+  }
+
+  h2 {
+    font-size: 2.2rem;
+    line-height: 3rem;
+    font-weight: 600;
+  }
+
+  h3,
+  h4 {
+    font-size: 2rem;
+    line-height: 3rem;
+    font-weight: 600;
+    margin-top: 3.6rem;
+  }
+
+  h4 {
+    font-size: 1.8rem;
+    line-height: 2.6rem;
+  }
+
+  strong,
+  b {
+    font-weight: 600;
+  }
+
+  ul,
+  ol {
+    margin-left: 2rem;
+  }
+
+  code {
+    display: inline-block;
+    padding: 0.05rem 0.7rem;
+    margin: 0.05rem 0;
+    border-radius: 0.4rem;
+    background: var(--color-default-100);
+  }
+
+  blockquote {
+    margin-top: 2rem;
+    padding: 0.4rem 2.4rem;
+    background: var(--color-default-100);
+    border-left: 4px solid var(--color-default-900);
+  }
+}

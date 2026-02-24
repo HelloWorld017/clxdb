@@ -60,6 +60,11 @@ declare global {
         | 'videos';
     }): Promise<FileSystemDirectoryHandle>;
   }
+
+  declare module '*.css?inline&shadow' {
+    declare const style: string;
+    export default style;
+  }
 }
 
 export {};

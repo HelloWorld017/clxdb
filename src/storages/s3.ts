@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { invalidateCache } from '@/utils/fetch-cors';
 import { StorageError } from '@/utils/storage-error';
 import type { StorageBackend, StorageBackendMetadata } from '../types';
 
@@ -251,9 +252,13 @@ export class S3Backend implements StorageBackend {
 
   async stat(path: string): Promise<{ etag: string; size: number; lastModified?: Date } | null> {
     const key = this.getObjectKey(path);
+
+    /*
+     * Cached stat can cause infinite sync on versioned storage
+     */
     const response = await this.signedRequest({
       method: 'HEAD',
-      url: this.getObjectUrl(key),
+      url: invalidateCache(this.getObjectUrl(key)),
       cache: 'no-store',
     });
 

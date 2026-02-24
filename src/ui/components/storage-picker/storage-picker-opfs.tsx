@@ -43,6 +43,7 @@ export const StoragePickerOpfs = ({ directoryPath, onConfigChange }: StoragePick
       .catch(error => {
         if (!cancelled) {
           const fallback = 'Could not access Origin Private File System.';
+          console.error(error);
           setOpfsLoadErrorMessage(error instanceof Error ? error.message : fallback);
         }
       })

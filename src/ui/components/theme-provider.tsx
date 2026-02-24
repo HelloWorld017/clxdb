@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { classes } from '@/utils/classes';
 import type { CSSProperties, ReactNode } from 'react';
 
@@ -128,6 +128,12 @@ const getThemeVariables = (
 };
 
 const DEFAULT_PRIMARY_COLOR = 'oklch(0.2 0 250)';
+const ThemeContext = createContext<Pick<ThemeProviderProps, 'mode' | 'palette' | 'fontFamily'>>({
+  mode: 'system',
+  palette: {},
+  fontFamily: {},
+});
+
 export function ThemeProvider({
   children,
   className,
@@ -181,9 +187,15 @@ export function ThemeProvider({
     [resolvedMode, primaryColor, defaultColor, darkPrimaryColor, darkDefaultColor]
   );
 
+  const themeContext = useMemo(() => ({ mode, palette, fontFamily }), [mode, palette, fontFamily]);
+
   return (
-    <div className={classes(className, 'font-sans', resolvedMode)} style={style}>
-      {children}
-    </div>
+    <ThemeContext.Provider value={themeContext}>
+      <div className={classes(className, 'font-sans', resolvedMode)} style={style}>
+        {children}
+      </div>
+    </ThemeContext.Provider>
   );
 }
+
+export const useThemeContext = () => useContext(ThemeContext);

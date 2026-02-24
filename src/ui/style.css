@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './components/storage-picker/cors-guide/documents.css';
 
 @theme {
   --color-primary: #0080ff;

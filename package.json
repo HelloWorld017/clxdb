@@ -18,7 +18,9 @@
   },
   "main": "dist/clxdb.cjs",
   "module": "dist/clxdb.js",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
       "types": "./dist/clxdb.d.ts",
@@ -37,8 +39,12 @@
   "types": "./dist/clxdb.d.ts",
   "typesVersions": {
     "*": {
-      ".": ["./dist/clxdb.d.ts"],
-      "ui": ["./dist/ui.d.ts"]
+      ".": [
+        "./dist/clxdb.d.ts"
+      ],
+      "ui": [
+        "./dist/ui.d.ts"
+      ]
     }
   },
   "packageManager": "pnpm@10.18.3",
@@ -46,8 +52,10 @@
   "license": "MIT",
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@mdx-js/rollup": "^3.1.1",
     "@stylistic/eslint-plugin": "^5.8.0",
     "@tailwindcss/vite": "^4.1.18",
+    "@types/mdx": "^2.0.13",
     "@types/node": "^25.2.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -74,6 +82,7 @@
     "vite-plugin-dts": "^4.5.4"
   },
   "dependencies": {
+    "cors-unblock": "^0.1.1",
     "tailwind-merge": "^3.4.0",
     "zod": "^4.3.6"
   },

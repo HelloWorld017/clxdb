@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { invalidateCache } from '@/utils/fetch-cors';
 import { StorageError } from '@/utils/storage-error';
 import type { StorageBackend, StorageBackendMetadata } from '../types';
 
@@ -165,7 +166,7 @@ export class WebDAVBackend implements StorageBackend {
 
   async stat(path: string): Promise<{ etag: string; size: number; lastModified?: Date } | null> {
     const url = this.getUrl(path);
-    const response = await fetch(url, {
+    const response = await fetch(invalidateCache(url), {
       method: 'HEAD',
       headers: this.getHeaders(),
       cache: 'no-store',

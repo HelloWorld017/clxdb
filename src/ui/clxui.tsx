@@ -5,7 +5,7 @@ import { DatabaseUnlock } from './components/database-unlock';
 import { StoragePicker } from './components/storage-picker';
 import { SyncIndicator } from './components/sync-indicator';
 import { ThemeProvider } from './components/theme-provider';
-import uiStyles from './style.css?inline';
+import uiStyles from './style.css?inline&shadow';
 import type { DatabaseUnlockOperation } from './components/database-unlock';
 import type { StoragePickerBackendType } from './components/storage-picker';
 import type { ThemeFontFamily, ThemePalette } from './components/theme-provider';

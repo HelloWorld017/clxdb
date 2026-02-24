@@ -5,7 +5,7 @@ import type { Plugin } from 'vite';
 const WEBKIT_HYPHENS_DOUBLE_PAREN = /\(\(-webkit-hyphens:\s*none\)\)\s*and\s*/g;
 const WEBKIT_HYPHENS_SINGLE_PAREN = /\(-webkit-hyphens:\s*none\)\s*and\s*/g;
 const ROOT_SELECTOR = /:root\b/g;
-const CSS_MODULE_PATTERN = /\.css\?inline/;
+const CSS_MODULE_PATTERN = /\.css\?inline&shadow/;
 
 function tailwindShadowDOM(): Plugin {
   return {
