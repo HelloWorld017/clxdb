@@ -6,6 +6,14 @@ export type StorageBackendMetadata =
       endpoint: string;
     }
   | {
+      kind: 's3';
+      provider: 's3' | 'r2' | 'minio';
+      endpoint: string;
+      region: string;
+      bucket: string;
+      prefix: string;
+    }
+  | {
       kind: 'filesystem';
       provider: 'filesystem-access' | 'opfs';
       directoryName: string;

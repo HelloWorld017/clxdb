@@ -3,9 +3,13 @@ import { createStorageBackend } from '@/storages';
 import { useDebouncedValue } from '@/ui/hooks/use-debounced-value';
 import { classes } from '@/utils/classes';
 import { DirectoryPicker } from './directory-picker';
-import { FileSystemIcon, OPFSIcon, WebDAVIcon } from './icons';
+import { FileSystemIcon, OPFSIcon, S3Icon, WebDAVIcon } from './icons';
 import {
   getNavigatorStorageWithDirectory,
+  joinDirectoryPaths,
+  normalizeS3Bucket,
+  normalizeS3Endpoint,
+  normalizeS3Prefix,
   normalizeWebDavUrl,
   resolveDirectoryHandle,
   supportsFileSystemAccess,
@@ -15,7 +19,9 @@ import {
 import type { StorageConfig } from '@/storages';
 import type { StorageBackend } from '@/types';
 
-export type StoragePickerBackendType = 'filesystem-access' | 'opfs' | 'webdav';
+type S3Provider = 's3' | 'r2' | 'minio';
+
+export type StoragePickerBackendType = 'filesystem-access' | 'opfs' | 'webdav' | 's3';
 
 export interface StoragePickerProps {
   onSelect: (selection: StorageConfig) => Promise<void> | void;
@@ -42,6 +48,15 @@ export function StoragePicker({
   const [webDavUser, setWebDavUser] = useState('');
   const [webDavPass, setWebDavPass] = useState('');
   const [webDavDirectoryPath, setWebDavDirectoryPath] = useState('');
+  const [s3Provider, setS3Provider] = useState<S3Provider>('s3');
+  const [s3Endpoint, setS3Endpoint] = useState('');
+  const [s3Region, setS3Region] = useState('us-east-1');
+  const [s3Bucket, setS3Bucket] = useState('');
+  const [s3Prefix, setS3Prefix] = useState('');
+  const [s3AccessKeyId, setS3AccessKeyId] = useState('');
+  const [s3SecretAccessKey, setS3SecretAccessKey] = useState('');
+  const [s3SessionToken, setS3SessionToken] = useState('');
+  const [s3DirectoryPath, setS3DirectoryPath] = useState('');
   const [opfsRootHandle, setOpfsRootHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [opfsDirectoryPath, setOpfsDirectoryPath] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -54,12 +69,26 @@ export function StoragePicker({
   const webDavUrlId = `${pickerId}-webdav-url`;
   const webDavUserId = `${pickerId}-webdav-user`;
   const webDavPassId = `${pickerId}-webdav-pass`;
+  const s3ProviderId = `${pickerId}-s3-provider`;
+  const s3EndpointId = `${pickerId}-s3-endpoint`;
+  const s3RegionId = `${pickerId}-s3-region`;
+  const s3BucketId = `${pickerId}-s3-bucket`;
+  const s3PrefixId = `${pickerId}-s3-prefix`;
+  const s3AccessKeyIdId = `${pickerId}-s3-access-key`;
+  const s3SecretAccessKeyId = `${pickerId}-s3-secret-key`;
+  const s3SessionTokenId = `${pickerId}-s3-session-token`;
 
   const filesystemSupported = supportsFileSystemAccess();
   const opfsSupported = supportsOpfs();
+  const s3EndpointPlaceholder =
+    s3Provider === 'r2'
+      ? 'https://<account-id>.r2.cloudflarestorage.com'
+      : s3Provider === 'minio'
+        ? 'https://minio.example.com'
+        : 'https://s3.ap-northeast-2.amazonaws.com';
 
   const availableTypes = useMemo(() => {
-    const types: StoragePickerBackendType[] = ['webdav'];
+    const types: StoragePickerBackendType[] = ['s3', 'webdav'];
 
     if (opfsSupported) {
       types.unshift('opfs');
@@ -135,6 +164,14 @@ export function StoragePicker({
       unsupportedReason: 'Origin Private File System is not supported in this browser.',
     },
     {
+      type: 's3' as const,
+      label: 'S3 Compatible',
+      description: 'Connect Amazon S3, Cloudflare R2, MinIO, and S3-compatible APIs.',
+      icon: S3Icon,
+      supported: true,
+      unsupportedReason: '',
+    },
+    {
       type: 'webdav' as const,
       label: 'WebDAV',
       description: 'Connect a WebDAV endpoint to sync data across devices.',
@@ -179,8 +216,50 @@ export function StoragePicker({
         return null;
       }
     }
+
+    if (selectedType === 's3') {
+      if (!s3Endpoint.trim() || !s3Bucket.trim() || !s3AccessKeyId.trim() || !s3SecretAccessKey) {
+        return null;
+      }
+
+      try {
+        const region = s3Region.trim() || (s3Provider === 'r2' ? 'auto' : 'us-east-1');
+        return createStorageBackend({
+          kind: 's3',
+          provider: s3Provider,
+          endpoint: normalizeS3Endpoint(s3Endpoint),
+          region,
+          bucket: normalizeS3Bucket(s3Bucket),
+          prefix: normalizeS3Prefix(s3Prefix),
+          forcePathStyle: s3Provider !== 's3',
+          credentials: {
+            accessKeyId: s3AccessKeyId.trim(),
+            secretAccessKey: s3SecretAccessKey,
+            ...(s3SessionToken.trim() ? { sessionToken: s3SessionToken.trim() } : {}),
+          },
+        });
+      } catch {
+        return null;
+      }
+    }
+
     return null;
-  }, [selectedType, webDavUrl, webDavUser, webDavPass, filesystemRootHandle, opfsRootHandle]);
+  }, [
+    selectedType,
+    webDavUrl,
+    webDavUser,
+    webDavPass,
+    s3Provider,
+    s3Endpoint,
+    s3Region,
+    s3Bucket,
+    s3Prefix,
+    s3AccessKeyId,
+    s3SecretAccessKey,
+    s3SessionToken,
+    filesystemRootHandle,
+    opfsRootHandle,
+  ]);
 
   const rootStorageBackend = useDebouncedValue(rootStorageBackendUndebounced, 500, selectedType);
   const [directoryPath, setDirectoryPath] = (() => {
@@ -194,6 +273,10 @@ export function StoragePicker({
 
     if (selectedType === 'webdav') {
       return [webDavDirectoryPath, setWebDavDirectoryPath];
+    }
+
+    if (selectedType === 's3') {
+      return [s3DirectoryPath, setS3DirectoryPath];
     }
 
     return ['', () => {}];
@@ -225,6 +308,21 @@ export function StoragePicker({
   const selectStorageType = (nextType: StoragePickerBackendType) => {
     setSelectedType(nextType);
     setErrorMessage(null);
+  };
+
+  const selectS3Provider = (provider: S3Provider) => {
+    setS3Provider(provider);
+    if (provider === 'r2') {
+      if (!s3Region.trim() || s3Region.trim() === 'us-east-1') {
+        setS3Region('auto');
+      }
+
+      return;
+    }
+
+    if (s3Region.trim() === 'auto') {
+      setS3Region('us-east-1');
+    }
   };
 
   const validateSelection = () => {
@@ -262,6 +360,41 @@ export function StoragePicker({
 
       if (!webDavPass) {
         return 'Enter your password.';
+      }
+    }
+
+    if (selectedType === 's3') {
+      if (!s3Endpoint.trim()) {
+        return 'Enter an S3 endpoint URL.';
+      }
+
+      try {
+        const parsed = new URL(s3Endpoint.trim());
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+          return 'S3 endpoint must start with http:// or https://.';
+        }
+      } catch {
+        return 'Enter a valid S3 endpoint URL.';
+      }
+
+      if (!s3Bucket.trim()) {
+        return 'Enter an S3 bucket name.';
+      }
+
+      if (s3Bucket.trim().includes('/')) {
+        return 'Bucket name cannot include slashes.';
+      }
+
+      if (!s3Region.trim()) {
+        return 'Enter a region (use auto for Cloudflare R2).';
+      }
+
+      if (!s3AccessKeyId.trim()) {
+        return 'Enter an access key ID.';
+      }
+
+      if (!s3SecretAccessKey) {
+        return 'Enter a secret access key.';
       }
     }
 
@@ -307,6 +440,24 @@ export function StoragePicker({
         };
       }
 
+      if (selectedType === 's3') {
+        const region = s3Region.trim() || (s3Provider === 'r2' ? 'auto' : 'us-east-1');
+        selection = {
+          kind: 's3',
+          provider: s3Provider,
+          endpoint: normalizeS3Endpoint(s3Endpoint),
+          region,
+          bucket: normalizeS3Bucket(s3Bucket),
+          prefix: joinDirectoryPaths(normalizeS3Prefix(s3Prefix), s3DirectoryPath),
+          forcePathStyle: s3Provider !== 's3',
+          credentials: {
+            accessKeyId: s3AccessKeyId.trim(),
+            secretAccessKey: s3SecretAccessKey,
+            ...(s3SessionToken.trim() ? { sessionToken: s3SessionToken.trim() } : {}),
+          },
+        };
+      }
+
       if (!selection) {
         throw new Error('Please check the details and try again.');
       }
@@ -344,13 +495,13 @@ export function StoragePicker({
             Choose storage and folder
           </h2>
           <p className="max-w-2xl text-sm leading-relaxed text-default-600">
-            Pick FileSystem Access API, Origin Private File System, or WebDAV, then choose where
-            ClxDB should store its files.
+            Pick FileSystem Access API, Origin Private File System, WebDAV, or an S3-compatible
+            provider, then choose where ClxDB should store its files.
           </p>
         </header>
 
         <div className="flex flex-1 flex-col space-y-6">
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {storageOptions.map(option => {
               const active = selectedType === option.type;
               const isDisabled = controlsLocked || !option.supported;
@@ -462,6 +613,165 @@ export function StoragePicker({
               <p className="mt-2 text-xs text-default-500">
                 Data is stored in browser-managed private storage for this origin and profile.
               </p>
+            </div>
+          )}
+
+          {selectedType === 's3' && (
+            <div className="rounded-2xl border border-default-200 bg-surface/80 p-4 sm:p-5">
+              <div className="grid gap-4">
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <label className="text-sm font-semibold text-default-800" htmlFor={s3ProviderId}>
+                    Provider
+                    <select
+                      id={s3ProviderId}
+                      value={s3Provider}
+                      onChange={event => selectS3Provider(event.target.value as S3Provider)}
+                      disabled={controlsLocked}
+                      className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3
+                        py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
+                        outline-none focus:border-default-500 focus:bg-surface
+                        disabled:cursor-not-allowed disabled:border-default-200
+                        disabled:bg-default-100"
+                    >
+                      <option value="s3">Amazon S3</option>
+                      <option value="r2">Cloudflare R2</option>
+                      <option value="minio">MinIO</option>
+                    </select>
+                  </label>
+
+                  <label className="text-sm font-semibold text-default-800" htmlFor={s3RegionId}>
+                    Region
+                    <input
+                      id={s3RegionId}
+                      type="text"
+                      value={s3Region}
+                      onChange={event => setS3Region(event.target.value)}
+                      disabled={controlsLocked}
+                      placeholder={s3Provider === 'r2' ? 'auto' : 'us-east-1'}
+                      className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3
+                        py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
+                        outline-none placeholder:text-default-400 focus:border-default-500
+                        focus:bg-surface disabled:cursor-not-allowed disabled:border-default-200
+                        disabled:bg-default-100"
+                    />
+                  </label>
+
+                  <label className="text-sm font-semibold text-default-800" htmlFor={s3BucketId}>
+                    Bucket
+                    <input
+                      id={s3BucketId}
+                      type="text"
+                      value={s3Bucket}
+                      onChange={event => setS3Bucket(event.target.value)}
+                      disabled={controlsLocked}
+                      placeholder="my-bucket"
+                      className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3
+                        py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
+                        outline-none placeholder:text-default-400 focus:border-default-500
+                        focus:bg-surface disabled:cursor-not-allowed disabled:border-default-200
+                        disabled:bg-default-100"
+                    />
+                  </label>
+                </div>
+
+                <label className="text-sm font-semibold text-default-800" htmlFor={s3EndpointId}>
+                  S3 Endpoint
+                  <input
+                    id={s3EndpointId}
+                    type="url"
+                    value={s3Endpoint}
+                    onChange={event => setS3Endpoint(event.target.value)}
+                    disabled={controlsLocked}
+                    placeholder={s3EndpointPlaceholder}
+                    className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3
+                      py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
+                      outline-none placeholder:text-default-400 focus:border-default-500
+                      focus:bg-surface disabled:cursor-not-allowed disabled:border-default-200
+                      disabled:bg-default-100"
+                  />
+                </label>
+
+                <label className="text-sm font-semibold text-default-800" htmlFor={s3PrefixId}>
+                  Root Prefix (optional)
+                  <input
+                    id={s3PrefixId}
+                    type="text"
+                    value={s3Prefix}
+                    onChange={event => setS3Prefix(event.target.value)}
+                    disabled={controlsLocked}
+                    placeholder="apps/clxdb"
+                    className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3
+                      py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
+                      outline-none placeholder:text-default-400 focus:border-default-500
+                      focus:bg-surface disabled:cursor-not-allowed disabled:border-default-200
+                      disabled:bg-default-100"
+                  />
+                </label>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label
+                    className="text-sm font-semibold text-default-800"
+                    htmlFor={s3AccessKeyIdId}
+                  >
+                    Access Key ID
+                    <input
+                      id={s3AccessKeyIdId}
+                      type="text"
+                      value={s3AccessKeyId}
+                      onChange={event => setS3AccessKeyId(event.target.value)}
+                      disabled={controlsLocked}
+                      autoComplete="username"
+                      placeholder="AKIA..."
+                      className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3
+                        py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
+                        outline-none placeholder:text-default-400 focus:border-default-500
+                        focus:bg-surface disabled:cursor-not-allowed disabled:border-default-200
+                        disabled:bg-default-100"
+                    />
+                  </label>
+
+                  <label
+                    className="text-sm font-semibold text-default-800"
+                    htmlFor={s3SecretAccessKeyId}
+                  >
+                    Secret Access Key
+                    <input
+                      id={s3SecretAccessKeyId}
+                      type="password"
+                      value={s3SecretAccessKey}
+                      onChange={event => setS3SecretAccessKey(event.target.value)}
+                      disabled={controlsLocked}
+                      autoComplete="current-password"
+                      placeholder="••••••••"
+                      className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3
+                        py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
+                        outline-none placeholder:text-default-400 focus:border-default-500
+                        focus:bg-surface disabled:cursor-not-allowed disabled:border-default-200
+                        disabled:bg-default-100"
+                    />
+                  </label>
+                </div>
+
+                <label
+                  className="text-sm font-semibold text-default-800"
+                  htmlFor={s3SessionTokenId}
+                >
+                  Session Token (optional)
+                  <input
+                    id={s3SessionTokenId}
+                    type="password"
+                    value={s3SessionToken}
+                    onChange={event => setS3SessionToken(event.target.value)}
+                    disabled={controlsLocked}
+                    placeholder="Temporary credentials only"
+                    className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3
+                      py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
+                      outline-none placeholder:text-default-400 focus:border-default-500
+                      focus:bg-surface disabled:cursor-not-allowed disabled:border-default-200
+                      disabled:bg-default-100"
+                  />
+                </label>
+              </div>
             </div>
           )}
 

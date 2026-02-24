@@ -44,6 +44,24 @@ export const WebDAVIcon = ({ className }: IconProps) => (
   </svg>
 );
 
+export const S3Icon = ({ className }: IconProps) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
+    <title>S3 Compatible</title>
+    <path d="M6.5 18.5h10.8a3.2 3.2 0 0 0 .5-6.36A5.55 5.55 0 0 0 7.2 9.6a4.1 4.1 0 0 0-.7 8.9Z" />
+    <path d="M12 7.5v8" />
+    <path d="m9.5 10 2.5-2.5L14.5 10" />
+  </svg>
+);
+
 export const FolderIcon = ({ className }: IconProps) => (
   <svg
     className={className}

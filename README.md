@@ -8,7 +8,7 @@
 
 ### Description
 
-A serverless synchronization engine that uses WebDAV or the FileSystem Access API for storage.  
+A serverless synchronization engine that uses WebDAV, S3-Compatible or the FileSystem Access API for storage.  
 Sync documents and blobs via _your own cloud_. Designed for single-html applications.
 
 ### Features

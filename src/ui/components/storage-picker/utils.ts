@@ -1,6 +1,20 @@
 export const normalizeDirectoryPath = (path: string): string =>
   path.trim().split('/').filter(Boolean).join('/');
 
+export const joinDirectoryPaths = (basePath: string, nestedPath: string): string => {
+  const normalizedBasePath = normalizeDirectoryPath(basePath);
+  const normalizedNestedPath = normalizeDirectoryPath(nestedPath);
+  if (!normalizedBasePath) {
+    return normalizedNestedPath;
+  }
+
+  if (!normalizedNestedPath) {
+    return normalizedBasePath;
+  }
+
+  return `${normalizedBasePath}/${normalizedNestedPath}`;
+};
+
 export const normalizeWebDavUrl = (value: string) => {
   const parsed = new URL(value.trim());
   return parsed.toString().replace(/\/$/, '');
@@ -22,6 +36,15 @@ export const toWebDavDirectoryUrl = (baseUrl: string, directoryPath: string): st
   parsed.pathname = `${pathname}/${encodedPath}`;
   return parsed.toString().replace(/\/$/, '');
 };
+
+export const normalizeS3Endpoint = (value: string): string => {
+  const parsed = new URL(value.trim());
+  return parsed.toString().replace(/\/$/, '');
+};
+
+export const normalizeS3Bucket = (value: string): string => value.trim();
+
+export const normalizeS3Prefix = (value: string): string => normalizeDirectoryPath(value);
 
 export const resolveDirectoryHandle = async (
   rootHandle: FileSystemDirectoryHandle,

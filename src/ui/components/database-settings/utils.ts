@@ -48,6 +48,23 @@ export const getStorageOverview = (metadata: StorageBackendMetadata | null): Sto
     };
   }
 
+  if (metadata.kind === 's3') {
+    const providerLabel =
+      metadata.provider === 'r2'
+        ? 'Cloudflare R2'
+        : metadata.provider === 'minio'
+          ? 'MinIO'
+          : 'Amazon S3';
+    const bucketPath = metadata.prefix ? `${metadata.bucket}/${metadata.prefix}` : metadata.bucket;
+
+    return {
+      backendLabel: providerLabel,
+      detailLabel: 'Bucket / Prefix',
+      detailValue: bucketPath,
+      description: `Your database reads and writes through an S3-compatible endpoint (${metadata.endpoint}, ${metadata.region}).`,
+    };
+  }
+
   const providerLabel =
     metadata.provider === 'opfs' ? 'Origin Private File System' : 'FileSystem Access API';
 

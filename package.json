@@ -2,9 +2,22 @@
   "name": "clxdb",
   "version": "0.3.0",
   "description": "The BYOC(Bring your own cloud) local-first synchronized db",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "clean": "rm -rf dist",
+    "build": "pnpm run clean && concurrently pnpm:build:*",
+    "build:default": "vite build",
+    "build:umd": "BUILD_UMD=true vite build",
+    "build:lint": "pnpm run lint",
+    "build:typecheck": "pnpm run typecheck",
+    "analyze": "BUILD_ANALYZE=true vite build",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run build",
+    "lint": "eslint ."
+  },
   "main": "dist/clxdb.cjs",
   "module": "dist/clxdb.js",
-  "type": "module",
   "files": ["dist"],
   "exports": {
     ".": {
@@ -28,30 +41,9 @@
       "ui": ["./dist/ui.d.ts"]
     }
   },
-  "scripts": {
-    "dev": "vite",
-    "clean": "rm -rf dist",
-    "build": "pnpm run clean && concurrently pnpm:build:*",
-    "build:default": "vite build",
-    "build:umd": "BUILD_UMD=true vite build",
-    "build:lint": "pnpm run lint",
-    "build:typecheck": "pnpm run typecheck",
-    "analyze": "BUILD_ANALYZE=true vite build",
-    "typecheck": "tsc --noEmit",
-    "prepublishOnly": "pnpm run build",
-    "lint": "eslint ."
-  },
-  "keywords": [
-    "database",
-    "local-first",
-    "offline-first",
-    "sync",
-    "replication",
-    "webdav"
-  ],
+  "packageManager": "pnpm@10.18.3",
   "author": "nenw* <khi@nenw.dev>",
   "license": "MIT",
-  "packageManager": "pnpm@10.18.3",
   "devDependencies": {
     "@eslint/js": "^9.39.2",
     "@stylistic/eslint-plugin": "^5.8.0",
@@ -96,5 +88,13 @@
     "react-dom": {
       "optional": true
     }
-  }
+  },
+  "keywords": [
+    "database",
+    "local-first",
+    "offline-first",
+    "sync",
+    "replication",
+    "webdav"
+  ]
 }

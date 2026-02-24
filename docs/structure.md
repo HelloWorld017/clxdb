@@ -8,7 +8,7 @@ This document describes the current architectural decisions of **clxdb**.
 
 ### 1.1 Design Philosophy
 
-- **Bring Your Own Cloud (BYOC):** clxdb does not require a central service. Storage is provided by user-owned backends (WebDAV or browser file systems).
+- **Bring Your Own Cloud (BYOC):** clxdb does not require a central service. Storage is provided by user-owned backends (WebDAV, S3-Compatible or browser file systems).
 - **Immutable data files + single mutable index:** shard/blob files are immutable; `manifest.json` is the only mutable coordination file.
 - **Local-first convergence:** local changes are accepted immediately by the host database and reconciled through periodic pull/push.
 - **Pluggable boundaries:** both storage and local database are adapter-based so host apps can integrate their existing stacks.
