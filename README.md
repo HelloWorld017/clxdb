@@ -117,7 +117,7 @@ If deleting hinders you, consider using a soft-delete instead.
      This does not need to be replicated, but doing so won't cause any errors.
 
 Lastly, your database should support data persistence.  
-While you can use the { databasePersistent: false } option, it is not recommended;
+While you can use the `{ databasePersistent: false }` option, it is not recommended;
 this setting forces all rows to be redownloaded every time a user opens the app, and any unsynced rows may be lost.
 
 ### Expected Workload
