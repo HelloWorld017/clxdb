@@ -116,6 +116,10 @@ If deleting hinders you, consider using a soft-delete instead.
   2. After the ClxDB sync, it commits the real deletion.  
      This does not need to be replicated, but doing so won't cause any errors.
 
+Lastly, your database should support data persistence.  
+While you can use the { databasePersistent: false } option, it is not recommended;
+this setting forces all rows to be redownloaded every time a user opens the app, and any unsynced rows may be lost.
+
 ### Expected Workload
 
 - **Documents:** 100 creations/hr, 10 updates/hr, 1 deletion/hr. Total ~20,000 docs, expected to grow up to 100MB.
