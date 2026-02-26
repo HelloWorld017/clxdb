@@ -419,6 +419,21 @@ export function DatabaseUnlock({
               {modeTitle}
             </h2>
             <p className="text-sm leading-relaxed text-default-600">{modeDescription}</p>
+
+            {allowStorageChange && (
+              <button
+                type="button"
+                onClick={handleChangeStorage}
+                disabled={controlsLocked}
+                className="mt-2 inline-flex items-center justify-center rounded-xl border
+                  border-default-300 bg-surface px-4 py-2.5 text-sm font-semibold text-default-700
+                  shadow-xs transition-colors duration-200 hover:border-default-400
+                  hover:bg-default-100 disabled:cursor-not-allowed disabled:border-default-200
+                  disabled:bg-default-100 disabled:text-default-400"
+              >
+                Choose Different Storage
+              </button>
+            )}
           </div>
         </header>
 
@@ -580,23 +595,6 @@ export function DatabaseUnlock({
               </>
             )}
           </form>
-        )}
-
-        {allowStorageChange && (
-          <div className="mt-4 flex justify-end">
-            <button
-              type="button"
-              onClick={handleChangeStorage}
-              disabled={controlsLocked}
-              className="inline-flex items-center justify-center rounded-xl border
-                border-default-300 bg-surface px-4 py-2.5 text-sm font-medium text-default-700
-                shadow-xs transition-colors duration-200 hover:border-default-400
-                hover:bg-default-100 disabled:cursor-not-allowed disabled:border-default-200
-                disabled:bg-default-100 disabled:text-default-400"
-            >
-              Choose Different Storage
-            </button>
-          </div>
         )}
       </div>
     </section>

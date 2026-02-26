@@ -40,11 +40,9 @@ const encrypt = async (key: CryptoKey, input: Uint8Array<ArrayBuffer>) => {
 const decrypt = async (key: CryptoKey, input: Uint8Array) => {
   const iv = input.slice(0, CRYPTO_ENCRYPTION_IV_SIZE);
   const ciphertext = input.slice(CRYPTO_ENCRYPTION_IV_SIZE);
-  const plaintext = await crypto.subtle.decrypt(
-    { name: CRYPTO_ENCRYPTION_ALGORITHM, iv },
-    key,
-    ciphertext
-  );
+  const plaintext = await crypto.subtle
+    .decrypt({ name: CRYPTO_ENCRYPTION_ALGORITHM, iv }, key, ciphertext)
+    .catch(cause => Promise.reject(new Error('Failed to decrypt with given key', { cause })));
 
   return new Uint8Array(plaintext);
 };
