@@ -1,0 +1,28 @@
+import { LocationOrigin } from '../location-origin.tsx';
+import { UntestedWarning } from '../warnings.tsx';
+
+<UntestedWarning />
+
+## Introduction
+
+Amazon S3 CORS is configured per bucket. To use the bucket as a database, it needs signed headers allowed and `ETag` exposed.
+
+## How-To
+
+1. Open AWS Console and go to your bucket settings: `Permissions > Cross-origin resource sharing (CORS)`.
+2. Apply a rule like this:
+
+  ```json
+  [
+    {
+      "AllowedOrigins": ["https://app.example.com"],
+      "AllowedMethods": ["GET", "PUT", "POST", "DELETE", "HEAD"],
+      "AllowedHeaders": ["*"],
+      "ExposeHeaders": ["ETag", "x-amz-request-id", "x-amz-id-2", "x-amz-version-id"],
+      "MaxAgeSeconds": 3600
+    }
+  ]
+  ```
+
+3. Replace `https://app.example.com` with this app origin: <LocationOrigin />.
+4. Save, wait for propagation, then retry.

@@ -1,0 +1,51 @@
+import { LocationOrigin } from '../location-origin.tsx';
+import { UntestedWarning } from '../warnings.tsx';
+
+<UntestedWarning />
+
+## Introduction
+
+Use Nginx as a CORS layer when your backend cannot expose the required headers directly.
+The method and header set below works for both WebDAV and S3-compatible requests.
+
+## How-To
+
+1. In the Nginx `http` block, define an origin allowlist:
+
+```nginx
+map $http_origin $allowed_cors_origin {
+  default "";
+  "https://app.example.com" $http_origin;
+}
+```
+
+2. In your `server` block, configure the proxy location:
+
+```nginx
+location /some-path-to-storage/ {
+  if ($allowed_cors_origin = "") {
+    return 403;
+  }
+
+  if ($request_method = OPTIONS) {
+    add_header Access-Control-Allow-Origin $allowed_cors_origin always;
+    add_header Access-Control-Allow-Methods "GET, PUT, POST, DELETE, HEAD, OPTIONS, PROPFIND, MKCOL" always;
+    add_header Access-Control-Allow-Headers "Authorization, Content-Type, Depth, Destination, If, If-Match, If-None-Match, Overwrite, Range, x-amz-content-sha256, x-amz-date, x-amz-security-token, x-amz-user-agent" always;
+    add_header Access-Control-Expose-Headers "ETag, Content-Length, Last-Modified, DAV, x-amz-request-id, x-amz-id-2, x-amz-version-id" always;
+    add_header Access-Control-Allow-Credentials "true" always;
+    add_header Access-Control-Max-Age "86400" always;
+    return 204;
+  }
+
+  add_header Access-Control-Allow-Origin $allowed_cors_origin always;
+  add_header Access-Control-Expose-Headers "ETag, Content-Length, Last-Modified, DAV, x-amz-request-id, x-amz-id-2, x-amz-version-id" always;
+  add_header Access-Control-Allow-Credentials "true" always;
+
+  proxy_set_header Host $http_host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_pass http://your-upstream;
+}
+```
+
+3. Replace `https://app.example.com` with this app origin: <LocationOrigin />.
+4. Reload Nginx and retry.

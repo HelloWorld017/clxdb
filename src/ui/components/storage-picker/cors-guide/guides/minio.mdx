@@ -1,0 +1,34 @@
+import { LocationOrigin } from '../location-origin.tsx';
+import { UntestedWarning } from '../warnings.tsx';
+
+<UntestedWarning />
+
+## Introduction
+
+MinIO supports S3-style CORS rules, and `mc cors set` is the standard way to apply them.
+
+## How-To
+
+1. Create a CORS policy file (`cors.json`):
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://app.example.com"],
+    "AllowedMethods": ["GET", "PUT", "POST", "DELETE", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag", "x-amz-request-id", "x-amz-id-2", "x-amz-version-id"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+2. Apply it with `mc`:
+
+```bash
+mc alias set local https://minio.example.com MINIO_ACCESS_KEY MINIO_SECRET_KEY
+mc cors set local/your-bucket /path/to/cors.json
+mc cors info local/your-bucket
+```
+
+3. Replace `https://app.example.com` with this app origin: <LocationOrigin />.

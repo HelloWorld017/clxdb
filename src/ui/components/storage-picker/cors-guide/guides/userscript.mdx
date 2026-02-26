@@ -1,0 +1,14 @@
+import { ThirdPartyCodeWarning } from '../warnings.tsx';
+
+<ThirdPartyCodeWarning />
+
+## Introduction
+
+`cors-manager` uses a userscript bridge (`GM.xmlHttpRequest`) so this app can access cross-origin storage endpoints without changing backend CORS settings.
+
+## How-To
+
+1. Install a userscript extension such as [Violentmonkey](https://violentmonkey.github.io/) or [Tampermonkey](https://www.tampermonkey.net/).
+2. Install the `cors-manager` userscript from [this link](https://cdn.jsdelivr.net/npm/cors-manager/dist/cors-manager.user.js), then keep it enabled.
+3. Reload this app and try your storage action again.
+4. Approve permission prompts for both this site origin and the target storage origin/host.

@@ -4,12 +4,19 @@ import { ThirdPartyCodeWarning, UntestedWarning } from '../warnings.tsx';
 <ThirdPartyCodeWarning />
 <UntestedWarning />
 
-## Description
-CORS Anywhere is a proxy, which allows applications to connect arbitrary servers.
+## Introduction
+
+CORS Anywhere is a Node.js proxy that appends CORS headers to proxied responses. Use a self-hosted instance when direct backend CORS changes are difficult.
 
 ## How-To
 
-1. **Deploy following docker image**  
-   [testcab/cors-anywhere](https://hub.docker.com/r/testcab/cors-anywhere)
+1. Deploy your own CORS Anywhere instance (example image: [testcab/cors-anywhere](https://hub.docker.com/r/testcab/cors-anywhere)).
 
-2. **Set `CORSANYWHERE_WHITELIST` environment as following:**<br /><LocationOrigin />
+    ```bash
+    docker run --rm -p 8080:8080 \
+      -e CORSANYWHERE_WHITELIST="https://app.example.com" \
+      testcab/cors-anywhere
+    ```
+
+2. Set `CORSANYWHERE_WHITELIST` to include this app origin: <LocationOrigin />.
+3. Point your storage endpoint through the proxy, for example `https://proxy.example.com/https://storage.example.com`.

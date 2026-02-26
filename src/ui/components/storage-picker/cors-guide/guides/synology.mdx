@@ -1,0 +1,25 @@
+import { LocationOrigin } from '../location-origin.tsx';
+import { UntestedWarning } from '../warnings.tsx';
+
+<UntestedWarning />
+
+## Introduction
+
+For Synology, the practical approach is adding CORS behavior on a DSM Reverse Proxy rule in front of WebDAV.
+
+## How-To
+
+1. Open DSM and go to `Control Panel > Login Portal > Advanced > Reverse Proxy`.
+2. Create or edit a rule for your public WebDAV endpoint and forward it to your internal WebDAV service.
+3. In the reverse proxy custom headers, add this set:
+
+```text
+Access-Control-Allow-Origin: https://app.example.com
+Access-Control-Allow-Methods: GET, PUT, POST, DELETE, HEAD, OPTIONS, PROPFIND, MKCOL
+Access-Control-Allow-Headers: Authorization, Content-Type, Depth, Destination, If, If-Match, If-None-Match, Overwrite, Range
+Access-Control-Expose-Headers: ETag, Content-Length, Last-Modified, DAV
+Access-Control-Allow-Credentials: true
+```
+
+4. Replace `https://app.example.com` with this app origin: <LocationOrigin />.
+5. Make sure preflight `OPTIONS` requests return `200` or `204`, then use the reverse-proxy URL.

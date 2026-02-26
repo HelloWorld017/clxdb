@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ThemeProvider, useThemeContext } from '@/ui/components/theme-provider';
 import uiStyles from '@/ui/style.css?inline';
@@ -6,7 +6,14 @@ import { classes } from '@/utils/classes';
 
 import CorsAnywhereGuide from './guides/cors-anywhere.mdx';
 import CorsUnblockGuide from './guides/cors-unblock.mdx';
+import MinioGuide from './guides/minio.mdx';
 import NextCloudGuide from './guides/nextcloud.mdx';
+import NginxGuide from './guides/nginx.mdx';
+import OpenCloudGuide from './guides/opencloud.mdx';
+import R2Guide from './guides/r2.mdx';
+import RustFSGuide from './guides/rustfs.mdx';
+import S3Guide from './guides/s3.mdx';
+import SynologyGuide from './guides/synology.mdx';
 import UserscriptGuide from './guides/userscript.mdx';
 import type { ReactNode } from 'react';
 
@@ -16,10 +23,11 @@ export type CorsGuideTabId =
   | 'userscript'
   | 'cors-unblock'
   | 'cors-anywhere'
+  | 'nginx'
   | 'nextcloud'
   | 'opencloud'
   | 'synology'
-  | 'amazon-s3'
+  | 's3'
   | 'r2'
   | 'minio'
   | 'rustfs';
@@ -44,13 +52,14 @@ const CORS_GUIDE_TAB_OPTIONS: CorsGuideTabOption[] = [
   },
   { id: 'cors-unblock', group: 'common', label: 'CORS Unblock', children: <CorsUnblockGuide /> },
   { id: 'cors-anywhere', group: 'common', label: 'CORS Anywhere', children: <CorsAnywhereGuide /> },
+  { id: 'nginx', group: 'common', label: 'Nginx', children: <NginxGuide /> },
   { id: 'nextcloud', group: 'webdav', label: 'NextCloud', children: <NextCloudGuide /> },
-  { id: 'opencloud', group: 'webdav', label: 'OpenCloud' },
-  { id: 'synology', group: 'webdav', label: 'Synology' },
-  { id: 'amazon-s3', group: 's3', label: 'Amazon S3' },
-  { id: 'r2', group: 's3', label: 'R2' },
-  { id: 'minio', group: 's3', label: 'Minio' },
-  { id: 'rustfs', group: 's3', label: 'RustFS' },
+  { id: 'opencloud', group: 'webdav', label: 'OpenCloud', children: <OpenCloudGuide /> },
+  { id: 'synology', group: 'webdav', label: 'Synology', children: <SynologyGuide /> },
+  { id: 's3', group: 's3', label: 'Amazon S3', children: <S3Guide /> },
+  { id: 'r2', group: 's3', label: 'Cloudflare R2', children: <R2Guide /> },
+  { id: 'minio', group: 's3', label: 'Minio', children: <MinioGuide /> },
+  { id: 'rustfs', group: 's3', label: 'RustFS', children: <RustFSGuide /> },
 ];
 
 const CORS_GUIDE_GROUP_LABELS: Record<CorsGuideGroupId, string> = {
@@ -64,7 +73,7 @@ const CORS_GUIDE_GROUP_ORDER: CorsGuideGroupId[] = ['common', 'webdav', 's3'];
 const DEFAULT_TAB_ID: CorsGuideTabId = 'userscript';
 
 const WINDOW_FEATURE_WIDTH = 1024;
-const WINDOW_FEATURE_HEIGHT = 720;
+const WINDOW_FEATURE_HEIGHT = 760;
 
 const getWindowFeatures = () => {
   if (typeof window === 'undefined') {
@@ -182,6 +191,9 @@ export const CorsGuide = ({
     };
   }, [onClose, popupWindow]);
 
+  const mainRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => mainRef.current?.scrollTo({ top: 0 }), [activeTab]);
+
   const theme = useThemeContext();
   if (!popupWindow || popupWindow.closed || !portalTarget) {
     return null;
@@ -194,8 +206,8 @@ export const CorsGuide = ({
       palette={theme.palette}
       fontFamily={theme.fontFamily}
     >
-      <div className="min-h-full bg-default-100 text-default-900">
-        <div className="mx-auto max-w-[1200px] p-5">
+      <div className="h-full bg-default-100 text-default-900">
+        <div className="mx-auto flex h-full max-w-[1200px] flex-col p-5">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold tracking-[0.2em] text-default-500 uppercase">
@@ -222,12 +234,12 @@ export const CorsGuide = ({
           </div>
 
           <div
-            className="grid min-h-[35rem] overflow-hidden rounded-3xl border border-default-200
-              bg-surface shadow-ui-soft md:grid-cols-[17.5rem_minmax(0,1fr)]"
+            className="grid min-h-[35rem] flex-1 overflow-hidden rounded-3xl border
+              border-default-200 bg-surface shadow-ui-soft md:grid-cols-[17.5rem_minmax(0,1fr)]"
           >
             <aside
-              className="overflow-y-auto border-b border-default-200 bg-default-50 p-4 md:border-r
-                md:border-b-0"
+              className="min-h-0 overflow-y-auto border-b border-default-200 bg-default-50 p-4
+                md:border-r md:border-b-0"
             >
               {groupedTabs.map(group => (
                 <section key={group.groupId} className="mb-4 last:mb-0">
@@ -265,7 +277,7 @@ export const CorsGuide = ({
               ))}
             </aside>
 
-            <main className="overflow-y-auto p-5 sm:p-6">
+            <main className="min-h-0 overflow-y-auto p-5 sm:p-6" ref={mainRef}>
               <p className="text-xs font-semibold tracking-[0.2em] text-default-500 uppercase">
                 {CORS_GUIDE_GROUP_LABELS[activeTab.group]}
               </p>

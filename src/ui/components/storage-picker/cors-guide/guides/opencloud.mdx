@@ -1,0 +1,16 @@
+import { LocationOrigin } from '../location-origin.tsx';
+
+## Introduction
+
+OpenCloud can allow browser cross-origin access through the `OC_CORS_ALLOW_ORIGINS` environment variable.
+
+## How-To
+
+1. Set `OC_CORS_ALLOW_ORIGINS` to include your cloud domain and app origin.
+
+```bash
+OC_CORS_ALLOW_ORIGINS=https://your.cloud.domain,https://location.origin.domain
+```
+
+2. Replace `https://location.origin.domain` with this app origin: <LocationOrigin />.
+3. Restart OpenCloud to apply the new environment value.

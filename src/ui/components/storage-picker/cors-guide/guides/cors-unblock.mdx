@@ -1,0 +1,16 @@
+import { LocationOrigin } from '../location-origin.tsx';
+import { ThirdPartyCodeWarning } from '../warnings.tsx';
+
+<ThirdPartyCodeWarning />
+
+## Introduction
+
+CORS Unblock is a browser extension that grants cross-origin access per host. This is useful when you cannot edit the storage server CORS rules directly.
+
+## How-To
+
+1. Install CORS Unblock for your browser: [Chrome](https://chromewebstore.google.com/detail/odkadbffomicljkjfepnggiibcjmkogc), [Firefox](https://addons.mozilla.org/en-US/firefox/addon/cors-unblock2/), or [Safari](https://apps.apple.com/en/app/cors-unblock/id6744779652).
+2. Reload this app (current origin: <LocationOrigin />).
+3. Retry the storage action and approve the requested host permission when the extension prompt appears.
+4. Retry again and confirm requests succeed.
+5. Manage or revoke granted hosts from the CORS Unblock extension UI.

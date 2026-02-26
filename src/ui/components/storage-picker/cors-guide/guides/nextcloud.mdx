@@ -1,0 +1,21 @@
+import { LocationOrigin } from '../location-origin.tsx';
+import { ThirdPartyCodeWarning, UntestedWarning } from '../warnings.tsx';
+
+<ThirdPartyCodeWarning />
+<UntestedWarning />
+
+## Introduction
+
+Nextcloud can expose WebDAV with browser CORS support via the `webapppassword` app. This is usually easier than editing low-level server headers.
+
+## How-To
+
+1. Install [WebAppPassword](https://apps.nextcloud.com/apps/webapppassword) from Nextcloud App Store.
+2. Open `Settings > Administration > WebAppPassword`.
+3. In the **WebDAV/CalDAV** origin setting (the section shown in your screenshot), add this app origin: <LocationOrigin />.
+4. Save the settings.
+5. Optional (`config/config.php`) fallback:
+
+```php
+'webapppassword.origins' => ['https://app.example.com'],
+```

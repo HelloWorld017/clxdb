@@ -1,0 +1,17 @@
+import { LocationOrigin } from '../location-origin.tsx';
+
+## Introduction
+
+RustFS supports browser origin allowlisting through `RUSTFS_CORS_ALLOWED_ORIGINS`.
+
+## How-To
+
+1. Set the environment variable:
+
+```bash
+RUSTFS_CORS_ALLOWED_ORIGINS=https://location.origin.domain
+```
+
+2. Use this app origin value: <LocationOrigin />.
+3. For multiple origins, use a comma-separated list.
+4. Restart RustFS and retry.

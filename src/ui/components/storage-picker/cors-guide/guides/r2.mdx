@@ -1,0 +1,28 @@
+import { LocationOrigin } from '../location-origin.tsx';
+import { UntestedWarning } from '../warnings.tsx';
+
+<UntestedWarning />
+
+## Introduction
+
+Cloudflare R2 uses an S3-compatible CORS policy configured per bucket.
+
+## How-To
+
+1. Open Cloudflare Dashboard and go to `R2 > <bucket> > Settings > CORS policy`.
+2. Add a rule like this:
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://app.example.com"],
+    "AllowedMethods": ["GET", "PUT", "POST", "DELETE", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag", "x-amz-request-id", "x-amz-id-2", "x-amz-version-id"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+3. Replace `https://app.example.com` with this app origin: <LocationOrigin />.
+4. Save and retry the same request.

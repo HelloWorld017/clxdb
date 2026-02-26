@@ -50,6 +50,8 @@
     ul,
     ol {
       margin-left: 1.2rem;
+      margin-top: 1rem;
+      margin-bottom: 1rem;
     }
 
     ul {
@@ -60,12 +62,45 @@
       list-style-type: decimal;
     }
 
+    li {
+      margin: 0.4rem 0;
+
+      p {
+        margin: 0.2rem 0;
+      }
+    }
+
     code {
+      position: relative;
       display: inline-block;
-      padding: 0.05rem 0.7rem;
-      margin: 0.05rem 0;
-      border-radius: 0.4rem;
+      padding: 0 0.4rem;
+      z-index: 0;
+
+      &::before {
+        content: '';
+        position: absolute;
+        display: inline-block;
+        top: -0.05rem;
+        left: 0;
+        right: 0;
+        bottom: -0.05rem;
+        z-index: -1;
+        border-radius: 0.4rem;
+        background: var(--color-default-100);
+      }
+    }
+
+    pre {
+      width: 100%;
+      padding: 0.6rem;
+      border-radius: 0.6rem;
       background: var(--color-default-100);
+      margin: 1rem 0;
+      overflow-x: auto;
+
+      code::before {
+        display: none;
+      }
     }
 
     blockquote {
