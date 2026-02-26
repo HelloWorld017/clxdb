@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { invalidateCache } from '@/utils/fetch-cors';
+import { fetchCors, invalidateCache } from '@/utils/fetch-cors';
 import { StorageError } from '@/utils/storage-error';
 import type { StorageBackend, StorageBackendMetadata } from '../types';
 
@@ -569,7 +569,7 @@ export class S3Backend implements StorageBackend {
     });
     fetchHeaders.set('authorization', authorization);
 
-    return fetch(url, {
+    return fetchCors(url, {
       method,
       headers: fetchHeaders,
       body: body as Uint8Array<ArrayBuffer> | undefined,

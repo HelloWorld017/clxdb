@@ -273,7 +273,7 @@ export const CorsGuide = ({
                 {activeTab.label}
               </h2>
 
-              <div className="documents">{activeTab.children}</div>
+              <div className="documents mt-5">{activeTab.children}</div>
             </main>
           </div>
         </div>

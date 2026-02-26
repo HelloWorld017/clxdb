@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { invalidateCache } from '@/utils/fetch-cors';
+import { fetchCors, invalidateCache } from '@/utils/fetch-cors';
 import { StorageError } from '@/utils/storage-error';
 import type { StorageBackend, StorageBackendMetadata } from '../types';
 
@@ -84,7 +84,7 @@ export class WebDAVBackend implements StorageBackend {
       headers['Range'] = `bytes=${range.start}-${range.end}`;
     }
 
-    const response = await fetch(url, { headers });
+    const response = await fetchCors(url, { headers });
 
     if (!response.ok) {
       if (response.status === 404) {
@@ -110,7 +110,7 @@ export class WebDAVBackend implements StorageBackend {
     let currentPath = '';
     for (const segment of segments) {
       currentPath = currentPath ? `${currentPath}/${segment}` : segment;
-      const response = await fetch(`${this.url}/${currentPath}/`, {
+      const response = await fetchCors(`${this.url}/${currentPath}/`, {
         method: 'MKCOL',
         headers: this.getHeaders(),
       });
@@ -135,7 +135,7 @@ export class WebDAVBackend implements StorageBackend {
       throw new StorageError('EEXIST', `File already exists: ${path}`);
     }
 
-    const response = await fetch(url, {
+    const response = await fetchCors(url, {
       method: 'PUT',
       headers: this.getHeaders(),
       body: content as Uint8Array<ArrayBuffer>,
@@ -151,7 +151,7 @@ export class WebDAVBackend implements StorageBackend {
 
   async delete(path: string): Promise<void> {
     const url = this.getUrl(path);
-    const response = await fetch(url, {
+    const response = await fetchCors(url, {
       method: 'DELETE',
       headers: this.getHeaders(),
     });
@@ -166,7 +166,7 @@ export class WebDAVBackend implements StorageBackend {
 
   async stat(path: string): Promise<{ etag: string; size: number; lastModified?: Date } | null> {
     const url = this.getUrl(path);
-    const response = await fetch(invalidateCache(url), {
+    const response = await fetchCors(invalidateCache(url), {
       method: 'HEAD',
       headers: this.getHeaders(),
       cache: 'no-store',
@@ -208,7 +208,7 @@ export class WebDAVBackend implements StorageBackend {
       'Content-Type': 'application/json',
     };
 
-    const response = await fetch(url, {
+    const response = await fetchCors(url, {
       method: 'PUT',
       headers,
       body: content as Uint8Array<ArrayBuffer>,
@@ -230,7 +230,7 @@ export class WebDAVBackend implements StorageBackend {
   }
 
   async readDirectory(path: string): Promise<string[]> {
-    const response = await fetch(this.getUrl(path, true), {
+    const response = await fetchCors(this.getUrl(path, true), {
       method: 'PROPFIND',
       headers: {
         ...this.getHeaders(),
@@ -278,7 +278,7 @@ export class WebDAVBackend implements StorageBackend {
   }
 
   async list(path: string): Promise<string[]> {
-    const response = await fetch(this.getUrl(path, true), {
+    const response = await fetchCors(this.getUrl(path, true), {
       method: 'PROPFIND',
       headers: {
         ...this.getHeaders(),

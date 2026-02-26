@@ -1,64 +1,78 @@
-.documents {
-  color: var(--color-default-900);
-  font-family: var(--font-sans);
-  line-height: 1.5;
+@layer base {
+  .documents {
+    color: var(--color-default-900);
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    line-height: 1.5;
 
-  a {
-    text-decoration: underline;
-    text-underline-offset: 0.6rem;
-  }
+    a {
+      text-decoration: underline;
+      text-underline-offset: 0.4em;
+    }
 
-  p {
-    margin: 2rem 0;
-  }
+    p {
+      margin: 1rem 0;
+    }
 
-  h1 {
-    font-size: 3rem;
-    line-height: 4rem;
-    font-weight: 600;
-  }
+    h1 {
+      font-size: 1.5rem;
+      line-height: 2.2rem;
+      font-weight: 700;
+      margin-top: 3rem;
+    }
 
-  h2 {
-    font-size: 2.2rem;
-    line-height: 3rem;
-    font-weight: 600;
-  }
+    h2 {
+      font-size: 1.25rem;
+      line-height: 1.8rem;
+      font-weight: 600;
+      margin-top: 2.5rem;
+    }
 
-  h3,
-  h4 {
-    font-size: 2rem;
-    line-height: 3rem;
-    font-weight: 600;
-    margin-top: 3.6rem;
-  }
+    h3 {
+      font-size: 1.15rem;
+      line-height: 1.7rem;
+      font-weight: 600;
+      margin-top: 2.3rem;
+    }
 
-  h4 {
-    font-size: 1.8rem;
-    line-height: 2.6rem;
-  }
+    h4 {
+      font-size: 1rem;
+      line-height: 1.5rem;
+      font-weight: 600;
+      margin-top: 2rem;
+    }
 
-  strong,
-  b {
-    font-weight: 600;
-  }
+    strong,
+    b {
+      font-weight: 600;
+    }
 
-  ul,
-  ol {
-    margin-left: 2rem;
-  }
+    ul,
+    ol {
+      margin-left: 1.2rem;
+    }
 
-  code {
-    display: inline-block;
-    padding: 0.05rem 0.7rem;
-    margin: 0.05rem 0;
-    border-radius: 0.4rem;
-    background: var(--color-default-100);
-  }
+    ul {
+      list-style-type: disc;
+    }
 
-  blockquote {
-    margin-top: 2rem;
-    padding: 0.4rem 2.4rem;
-    background: var(--color-default-100);
-    border-left: 4px solid var(--color-default-900);
+    ol {
+      list-style-type: decimal;
+    }
+
+    code {
+      display: inline-block;
+      padding: 0.05rem 0.7rem;
+      margin: 0.05rem 0;
+      border-radius: 0.4rem;
+      background: var(--color-default-100);
+    }
+
+    blockquote {
+      margin-top: 1rem;
+      padding: 0.4rem 2.4rem;
+      background: var(--color-default-100);
+      border-left: 4px solid var(--color-default-900);
+    }
   }
 }

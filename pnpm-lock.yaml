@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      cors-manager:
+        specifier: ^1.0.3
+        version: 1.0.3
       cors-unblock:
         specifier: ^0.1.1
         version: 0.1.1
@@ -1130,6 +1133,9 @@ packages:
 
   confbox@0.2.4:
     resolution: {integrity: sha512-ysOGlgTFbN2/Y6Cg3Iye8YKulHw+R2fNXHrgSmXISQdMnomY6eNDprVdW9R5xBguEqI954+S6709UyiO7B+6OQ==}
+
+  cors-manager@1.0.3:
+    resolution: {integrity: sha512-VOwT9QqUyeVmIHGhdO/Ap9RsVIsrokbuGWRc+8kfnLcczm7eE/S78U/k960wNiWkzd21Q7KFTokRHyUq8miMvg==}
 
   cors-unblock@0.1.1:
     resolution: {integrity: sha512-0kTPp1P5ff8Wq0Uzni6Eyc64xVuMtOZufRh7bHfJWi/gXRAU1u1/0HQwxK5hrqKKM5indKenXbY8knLZbQ9LVQ==}
@@ -3228,6 +3234,8 @@ snapshots:
   confbox@0.1.8: {}
 
   confbox@0.2.4: {}
+
+  cors-manager@1.0.3: {}
 
   cors-unblock@0.1.1:
     dependencies:

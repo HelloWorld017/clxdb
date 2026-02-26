@@ -21,6 +21,7 @@
       "node",
       "react",
       "react-dom",
+      "mdx",
       "vite/client"
     ],
     "typeRoots": ["./node_modules", "./node_modules/@types"],
@@ -30,10 +31,8 @@
     "allowJs": true,
     "skipLibCheck": true,
     "emitDeclarationOnly": true,
+    "declaration": true,
     "outDir": "./dist",
-    "tsBuildInfoFile": "./tsconfig.tsbuildinfo",
-    "incremental": true,
-    "composite": true
   },
 
   "include": [
