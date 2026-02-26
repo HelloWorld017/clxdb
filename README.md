@@ -30,10 +30,7 @@ const databaseAdapter = createDatabaseClxDBAdapter(database);
 const client = await startClxDBWithUI({ database: databaseAdapter });
 
 // Write blobs
-const blobDigest = await client.blobs.putBlob(
-  new Blob(['hello clxdb']),
-  { name: 'hello.txt' }
-);
+const blobDigest = await client.blobs.putBlob(new Blob(['hello clxdb']), { name: 'hello.txt' });
 
 // Update using your own database API. They will be synced automatically.
 await database.updateDocument('doc-1', {
@@ -43,6 +40,7 @@ await database.updateDocument('doc-1', {
 ```
 
 ### CDN
+
 As ClxDB is intended to be used in single-html applications, we provide ways to import it via CDNs.
 
 ```html
@@ -107,11 +105,11 @@ If deleting hinders you, consider using a soft-delete instead.
 > There is one single rule:  
 > The user-originated updates are always `seq: null`
 
-* Insertion / Update
+- Insertion / Update
   1. Mark as `seq: null`
   2. After the ClxDB sync, the ClxDB calls `upsert()` and updates the seq.  
      This does not need to be replicated, but doing so won't cause any errors.
-* Deletion
+- Deletion
   1. Mark as `del: true`, `seq: null`
   2. After the ClxDB sync, it commits the real deletion.  
      This does not need to be replicated, but doing so won't cause any errors.
@@ -129,6 +127,21 @@ this setting forces all rows to be redownloaded every time a user opens the app,
 These are not hard limits, but exceeding them may lead to performance degradation.
 
 ### Storage Structure
+
+ClxDB is local-first and immutable-by-default: document changes are written into append-only shard files,
+blobs are digest-addressed, and only `manifest.json` is mutable.
+This keeps remote storage simple (any static object store works) while enabling safe, resumable sync on unreliable networks.
+
+At a high level, synchronization is pull-then-push.
+A client first reads the latest manifest and missing shards/blobs to apply remote updates locally,
+then publishes its own pending local changes (`seq: null`) as new immutable shard files
+and atomically updates `manifest.json` to advertise them.
+For conflicting document versions, the merge strategy is "latest one wins".
+
+To control long-term storage growth, ClxDB also runs background maintenance:
+compaction merges many small/overlapping shards into fewer higher-level shards,
+and vacuum rewrites shards when dead-data ratio is high so deleted/overwritten records
+stop occupying active shard space (with old shards later cleaned by garbage collection).
 
 ```
 /
