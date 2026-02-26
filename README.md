@@ -42,6 +42,31 @@ await database.updateDocument('doc-1', {
 });
 ```
 
+### CDN
+As ClxDB is intended to be used in single-html applications, we provide ways to import it via CDNs.
+
+```html
+<script type="module">
+  // esm.sh is the recommended way to import ClxDB.
+  //
+  // > In production, please pin your version.
+  //   e.g. clxdb@0 (Bad) clxdb@0.4.0 (Good)
+  //
+  // > If the react already exists, you should specify it to reduce fetches.
+  //   e.g. https://esm.sh/clxdb@0/ui?deps=react@19.1.0,react-dom@19.1.0
+  //
+
+  import { startClxDBWithUI } from 'https://esm.sh/clxdb@0/ui';
+  startClxDBWithUI({ database });
+</script>
+
+<!-- UMD build is also supported -->
+<script src="https://unpkg.com/clxdb@0/dist/clxdb.umd.cjs"></script>
+<script>
+  clxdb.startClxDBWithUI({ database });
+</script>
+```
+
 ### Database Interface
 
 You should implement these methods to integrate your own backend with ClxDB.
