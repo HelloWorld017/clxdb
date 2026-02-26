@@ -1,4 +1,5 @@
-import { cloneElement, isValidElement, useEffect, useEffectEvent, useRef, useState } from 'react';
+import { cloneElement, isValidElement, useEffect, useRef, useState } from 'react';
+import { useEffectEvent } from '@/ui/hooks/use-effect-event';
 import { classes } from '@/utils/classes';
 import type { AnimationEventHandler, ReactElement, TransitionEventHandler } from 'react';
 
