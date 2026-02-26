@@ -13,7 +13,7 @@ import type { EngineContext } from '../types';
 import type { BlobFooter, BlobMetadata, StorageBackend, StoredBlob } from '@/types';
 
 interface BlobFileData {
-  payload: Uint8Array;
+  payload: Uint8Array<ArrayBuffer>;
   footer: BlobFooter;
 }
 
@@ -40,7 +40,7 @@ export class ClxBlobs {
     const path = this.getBlobPath(digest);
     let footerPromise: Promise<BlobFooter> | null = null;
     let filePromise: Promise<BlobFileData> | null = null;
-    let plainBytesPromise: Promise<Uint8Array> | null = null;
+    let plainBytesPromise: Promise<Uint8Array<ArrayBuffer>> | null = null;
 
     const getFooter = () => {
       if (!footerPromise) {
@@ -77,7 +77,7 @@ export class ClxBlobs {
       stream: () => this.createBlobStream(digest, getFile),
       arrayBuffer: async () => {
         const plainBytes = await getPlainBytes();
-        return this.toArrayBuffer(plainBytes);
+        return plainBytes.buffer;
       },
       file: async () => {
         const [{ footer }, plainBytes] = await Promise.all([getFile(), getPlainBytes()]);
@@ -86,9 +86,8 @@ export class ClxBlobs {
           footer.metadata.mimeType ??
           this.inferContentTypeFromPath(name) ??
           'application/octet-stream';
-        const plainBuffer = this.toArrayBuffer(plainBytes);
 
-        return new File([plainBuffer], name, {
+        return new File([plainBytes.buffer], name, {
           type: mimeType,
           lastModified: footer.metadata.createdAt ?? Date.now(),
         });
@@ -106,7 +105,7 @@ export class ClxBlobs {
     const encryptChunk = await this.cryptoManager.encryptBlobChunk(digest);
     const chunkSize = BLOB_CHUNK_SIZE;
     const storedChunkSize = this.cryptoManager.getBlobChunkSize(chunkSize);
-    const storedChunks: Uint8Array[] = [];
+    const storedChunks: Uint8Array<ArrayBuffer>[] = [];
 
     let payloadLength = 0;
     for (let offset = 0; offset < plainBytes.length; offset += chunkSize) {
@@ -186,8 +185,8 @@ export class ClxBlobs {
     return getMimeTypeByExtension(extension);
   }
 
-  private async calculateDigest(data: Uint8Array): Promise<string> {
-    const digestBuffer = await crypto.subtle.digest('SHA-256', data as Uint8Array<ArrayBuffer>);
+  private async calculateDigest(data: Uint8Array<ArrayBuffer>): Promise<string> {
+    const digestBuffer = await crypto.subtle.digest('SHA-256', data);
     return Array.from(new Uint8Array(digestBuffer))
       .map(byte => byte.toString(16).padStart(2, '0'))
       .join('');
@@ -369,9 +368,9 @@ export class ClxBlobs {
 
   private async *iteratePlainChunks(
     digest: string,
-    payload: Uint8Array,
+    payload: Uint8Array<ArrayBuffer>,
     footer: BlobFooter
-  ): AsyncGenerator<Uint8Array, void, undefined> {
+  ): AsyncGenerator<Uint8Array<ArrayBuffer>, void, undefined> {
     const layout = this.getChunkLayout(footer, payload.length);
     if (layout.chunkCount === 0) {
       return;
@@ -418,9 +417,9 @@ export class ClxBlobs {
 
   private async decodePayloadToPlainBytes(
     digest: string,
-    payload: Uint8Array,
+    payload: Uint8Array<ArrayBuffer>,
     footer: BlobFooter
-  ): Promise<Uint8Array> {
+  ): Promise<Uint8Array<ArrayBuffer>> {
     const plainBytes = new Uint8Array(footer.plainSize);
     let cursor = 0;
 
@@ -439,10 +438,10 @@ export class ClxBlobs {
   private createBlobStream(
     digest: string,
     getBlobFile: () => Promise<BlobFileData>
-  ): ReadableStream<Uint8Array> {
-    let iterator: AsyncGenerator<Uint8Array, void, undefined> | null = null;
+  ): ReadableStream<Uint8Array<ArrayBuffer>> {
+    let iterator: AsyncGenerator<Uint8Array<ArrayBuffer>, void, undefined> | null = null;
 
-    return new ReadableStream<Uint8Array>({
+    return new ReadableStream<Uint8Array<ArrayBuffer>>({
       pull: async controller => {
         try {
           if (!iterator) {
@@ -467,10 +466,5 @@ export class ClxBlobs {
         }
       },
     });
-  }
-
-  private toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-    const copy = new Uint8Array(bytes);
-    return copy.buffer;
   }
 }

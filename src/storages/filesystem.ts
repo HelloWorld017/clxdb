@@ -57,7 +57,10 @@ export class FileSystemBackend implements StorageBackend {
     }
   }
 
-  async read(path: string, range?: { start: number; end: number }): Promise<Uint8Array> {
+  async read(
+    path: string,
+    range?: { start: number; end: number }
+  ): Promise<Uint8Array<ArrayBuffer>> {
     const handle = await this.getFileHandle(path);
     if (!handle) {
       throw new StorageError('ENOENT', `File not found: ${path}`);
@@ -106,7 +109,7 @@ export class FileSystemBackend implements StorageBackend {
     }
   }
 
-  async write(path: string, content: Uint8Array): Promise<void> {
+  async write(path: string, content: Uint8Array<ArrayBuffer>): Promise<void> {
     // Check if file exists
     const existing = await this.getFileHandle(path);
     if (existing) {
@@ -119,7 +122,7 @@ export class FileSystemBackend implements StorageBackend {
     }
 
     const writable = await handle.createWritable();
-    await writable.write(content as Uint8Array<ArrayBuffer>);
+    await writable.write(content);
     await writable.close();
   }
 

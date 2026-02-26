@@ -40,7 +40,7 @@ interface SignedRequestParams {
   method: 'GET' | 'HEAD' | 'PUT' | 'DELETE';
   url: URL;
   headers?: Record<string, string>;
-  body?: Uint8Array;
+  body?: Uint8Array<ArrayBuffer>;
   cache?: RequestCache;
 }
 
@@ -64,7 +64,7 @@ const safeDecodeURIComponent = (value: string): string => {
   }
 };
 
-const toHex = (value: ArrayBuffer | Uint8Array): string => {
+const toHex = (value: ArrayBuffer | Uint8Array<ArrayBuffer>): string => {
   const bytes = value instanceof Uint8Array ? value : new Uint8Array(value);
   return Array.from(bytes)
     .map(byte => byte.toString(16).padStart(2, '0'))
@@ -75,16 +75,19 @@ const toAmzDate = (date: Date): string => date.toISOString().replace(/[:-]|\.\d{
 
 const toDateStamp = (amzDate: string): string => amzDate.slice(0, 8);
 
-const sha256Hex = async (value: string | Uint8Array): Promise<string> => {
+const sha256Hex = async (value: string | Uint8Array<ArrayBuffer>): Promise<string> => {
   const bytes = typeof value === 'string' ? textEncoder.encode(value) : value;
-  const digest = await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
   return toHex(digest);
 };
 
-const hmacSha256 = async (key: Uint8Array, value: string): Promise<Uint8Array> => {
+const hmacSha256 = async (
+  key: Uint8Array<ArrayBuffer>,
+  value: string
+): Promise<Uint8Array<ArrayBuffer>> => {
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
-    key as Uint8Array<ArrayBuffer>,
+    key,
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign']
@@ -136,7 +139,10 @@ export class S3Backend implements StorageBackend {
     }
   }
 
-  async read(path: string, range?: { start: number; end: number }): Promise<Uint8Array> {
+  async read(
+    path: string,
+    range?: { start: number; end: number }
+  ): Promise<Uint8Array<ArrayBuffer>> {
     const key = this.getObjectKey(path);
     const response = await this.signedRequest({
       method: 'GET',
@@ -207,7 +213,7 @@ export class S3Backend implements StorageBackend {
     return Array.from(directories).sort((left, right) => left.localeCompare(right));
   }
 
-  async write(path: string, content: Uint8Array): Promise<void> {
+  async write(path: string, content: Uint8Array<ArrayBuffer>): Promise<void> {
     const existing = await this.stat(path);
     if (existing) {
       throw new StorageError('EEXIST', `File already exists: ${path}`);
@@ -289,7 +295,7 @@ export class S3Backend implements StorageBackend {
 
   async atomicUpdate(
     path: string,
-    content: Uint8Array,
+    content: Uint8Array<ArrayBuffer>,
     previousEtag: string
   ): Promise<{ success: boolean; newEtag?: string }> {
     if (!previousEtag) {
@@ -572,7 +578,7 @@ export class S3Backend implements StorageBackend {
     return fetchCors(url, {
       method,
       headers: fetchHeaders,
-      body: body as Uint8Array<ArrayBuffer> | undefined,
+      body,
       cache,
     });
   }

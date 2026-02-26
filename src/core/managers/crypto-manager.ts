@@ -16,22 +16,13 @@ import type { CacheManager } from './cache-manager';
 import type { ManifestManager } from './manifest-manager';
 import type { Manifest, ClxDBCrypto, DeviceKeyStore, ManifestDeviceKeyRegistry } from '@/types';
 
-const toArrayBackedUint8 = (bytes: Uint8Array): Uint8Array<ArrayBuffer> => {
-  if (bytes.buffer instanceof ArrayBuffer) {
-    return bytes as Uint8Array<ArrayBuffer>;
-  }
-
-  return new Uint8Array(bytes);
-};
-
 export interface RegisteredDevice {
   deviceId: string;
   deviceName: string;
   lastUsedAt: number;
 }
 
-const encrypt = async (key: CryptoKey, plaintext: Uint8Array) => {
-  const input = toArrayBackedUint8(plaintext);
+const encrypt = async (key: CryptoKey, input: Uint8Array<ArrayBuffer>) => {
   const iv = crypto.getRandomValues(new Uint8Array(CRYPTO_ENCRYPTION_IV_SIZE));
   const ciphertext = await crypto.subtle.encrypt(
     { name: CRYPTO_ENCRYPTION_ALGORITHM, iv },
@@ -58,23 +49,11 @@ const decrypt = async (key: CryptoKey, input: Uint8Array) => {
   return new Uint8Array(plaintext);
 };
 
-const importRootKey = (plaintext: Uint8Array) =>
-  crypto.subtle.importKey(
-    'raw',
-    toArrayBackedUint8(plaintext),
-    CRYPTO_DERIVATION_ALGORITHM,
-    false,
-    ['deriveKey']
-  );
+const importRootKey = (plaintext: Uint8Array<ArrayBuffer>) =>
+  crypto.subtle.importKey('raw', plaintext, CRYPTO_DERIVATION_ALGORITHM, false, ['deriveKey']);
 
-const importDeviceKey = (plaintext: Uint8Array) =>
-  crypto.subtle.importKey(
-    'raw',
-    toArrayBackedUint8(plaintext),
-    CRYPTO_DERIVATION_ALGORITHM,
-    false,
-    ['deriveKey']
-  );
+const importDeviceKey = (plaintext: Uint8Array<ArrayBuffer>) =>
+  crypto.subtle.importKey('raw', plaintext, CRYPTO_DERIVATION_ALGORITHM, false, ['deriveKey']);
 
 const deriveMasterKey = async (password: string, salt: Uint8Array<ArrayBuffer>) => {
   const encoder = new TextEncoder();
@@ -558,20 +537,20 @@ export class CryptoManager {
 
   async encryptShardPart(shardHash: string) {
     if (!this.rootKey) {
-      return (part: Uint8Array) => part;
+      return (part: Uint8Array<ArrayBuffer>) => part;
     }
 
     const shardKey = await deriveShardKey(this.rootKey, shardHash);
-    return (part: Uint8Array) => encrypt(shardKey, part);
+    return (part: Uint8Array<ArrayBuffer>) => encrypt(shardKey, part);
   }
 
   async decryptShardPart(shardHash: string) {
     if (!this.rootKey) {
-      return (part: Uint8Array) => part;
+      return (part: Uint8Array<ArrayBuffer>) => part;
     }
 
     const shardKey = await deriveShardKey(this.rootKey, shardHash);
-    return (part: Uint8Array) => decrypt(shardKey, part);
+    return (part: Uint8Array<ArrayBuffer>) => decrypt(shardKey, part);
   }
 
   isEncryptionEnabled(): boolean {
@@ -580,20 +559,20 @@ export class CryptoManager {
 
   async encryptBlobChunk(digest: string) {
     if (!this.rootKey) {
-      return (chunk: Uint8Array) => chunk;
+      return (chunk: Uint8Array<ArrayBuffer>) => chunk;
     }
 
     const blobKey = await deriveBlobKey(this.rootKey, digest);
-    return (chunk: Uint8Array) => encrypt(blobKey, chunk);
+    return (chunk: Uint8Array<ArrayBuffer>) => encrypt(blobKey, chunk);
   }
 
   async decryptBlobChunk(digest: string) {
     if (!this.rootKey) {
-      return (chunk: Uint8Array) => chunk;
+      return (chunk: Uint8Array<ArrayBuffer>) => chunk;
     }
 
     const blobKey = await deriveBlobKey(this.rootKey, digest);
-    return (chunk: Uint8Array) => decrypt(blobKey, chunk);
+    return (chunk: Uint8Array<ArrayBuffer>) => decrypt(blobKey, chunk);
   }
 
   getBlobChunkSize(originalSize: number): number {

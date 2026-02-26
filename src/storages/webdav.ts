@@ -76,7 +76,10 @@ export class WebDAVBackend implements StorageBackend {
     }
   }
 
-  async read(path: string, range?: { start: number; end: number }): Promise<Uint8Array> {
+  async read(
+    path: string,
+    range?: { start: number; end: number }
+  ): Promise<Uint8Array<ArrayBuffer>> {
     const url = this.getUrl(path);
     const headers: HeadersInit = this.getHeaders();
 
@@ -126,7 +129,7 @@ export class WebDAVBackend implements StorageBackend {
     }
   }
 
-  async write(path: string, content: Uint8Array): Promise<void> {
+  async write(path: string, content: Uint8Array<ArrayBuffer>): Promise<void> {
     const url = this.getUrl(path);
 
     // Check if file exists first
@@ -138,7 +141,7 @@ export class WebDAVBackend implements StorageBackend {
     const response = await fetchCors(url, {
       method: 'PUT',
       headers: this.getHeaders(),
-      body: content as Uint8Array<ArrayBuffer>,
+      body: content,
     });
 
     if (!response.ok) {
@@ -198,7 +201,7 @@ export class WebDAVBackend implements StorageBackend {
 
   async atomicUpdate(
     path: string,
-    content: Uint8Array,
+    content: Uint8Array<ArrayBuffer>,
     previousEtag: string
   ): Promise<{ success: boolean; newEtag?: string }> {
     const url = this.getUrl(path);
@@ -211,7 +214,7 @@ export class WebDAVBackend implements StorageBackend {
     const response = await fetchCors(url, {
       method: 'PUT',
       headers,
-      body: content as Uint8Array<ArrayBuffer>,
+      body: content,
     });
 
     if (response.status === 412) {

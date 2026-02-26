@@ -21,10 +21,10 @@ export type StorageBackendMetadata =
     };
 
 export interface StorageBackend {
-  read(path: string, range?: { start: number; end: number }): Promise<Uint8Array>;
+  read(path: string, range?: { start: number; end: number }): Promise<Uint8Array<ArrayBuffer>>;
   readDirectory?(path: string): Promise<string[]>;
   ensureDirectory?(path: string): Promise<void>;
-  write(path: string, content: Uint8Array): Promise<void>;
+  write(path: string, content: Uint8Array<ArrayBuffer>): Promise<void>;
   delete(path: string): Promise<void>;
   stat(path: string): Promise<{ etag: string; size: number; lastModified?: Date } | null>;
   atomicUpdate(
