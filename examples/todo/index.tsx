@@ -447,7 +447,7 @@ const TodoExampleApp = () => {
     let nextDatabase: TodoDatabaseBackend | null = null;
 
     try {
-      const storageSettings = await clxUI.openStoragePicker({ submitLabel: 'Connect storage' });
+      const storageSettings = await clxUI.openStoragePicker({});
       if (!storageSettings) {
         return;
       }

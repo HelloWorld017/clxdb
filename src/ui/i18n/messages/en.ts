@@ -33,7 +33,7 @@ export const en = {
   'storagePicker.eyebrow': 'Storage Backend',
   'storagePicker.title': 'Choose storage and folder',
   'storagePicker.description':
-    'Pick FileSystem Access API, Origin Private File System, WebDAV, or an S3-compatible provider, then choose where ClxDB should store its files.',
+    'Pick FileSystem Access API, Origin Private File System, WebDAV, or an S3-compatible provider, then choose where to store its files.',
   'storagePicker.submit.default': 'Save storage settings',
   'storagePicker.error.invalidSelection': 'Please check the details and try again.',
   'storagePicker.error.saveFailed': 'Could not save storage settings. Please try again.',
