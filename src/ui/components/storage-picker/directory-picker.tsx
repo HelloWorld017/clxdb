@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Presence } from '@/ui/components/common/presence';
 import { _t, useI18n } from '@/ui/i18n';
 import { classes } from '@/utils/classes';
-import { FolderIcon, FolderPlusIcon, UpIcon } from './icons';
+import { FolderIcon, FolderPlusIcon, RefreshIcon, UpIcon } from './icons';
 import { normalizeDirectoryPath } from './utils';
 import type { StorageBackend } from '@/types';
 import type { SubmitEvent } from 'react';
@@ -108,6 +108,7 @@ export function DirectoryPicker({
     };
   }, [isCreateFolderPopoverOpen]);
 
+  const [refreshKey, setRefreshKey] = useState(0);
   useEffect(() => {
     let cancelled = false;
 
@@ -146,7 +147,7 @@ export function DirectoryPicker({
     return () => {
       cancelled = true;
     };
-  }, [canBrowseDirectories, storage, t]);
+  }, [refreshKey, canBrowseDirectories, storage, t]);
 
   const pathSegments = useMemo(
     () => normalizeDirectoryPath(normalizedValue).split('/').filter(Boolean),
@@ -235,13 +236,28 @@ export function DirectoryPicker({
             disabled={disabled || !normalizedValue}
             onClick={() => navigateTo(getParentDirectoryPath(normalizedValue))}
             aria-label={t('directoryPicker.button.parentDirectoryAria')}
-            className="mr-2 inline-flex items-center rounded-lg border border-default-300 bg-surface
+            className="inline-flex items-center rounded-lg border border-default-300 bg-surface
               px-1.5 py-1.5 text-sm font-medium text-default-700 transition-colors duration-200
               hover:border-default-400 hover:bg-default-100 disabled:cursor-not-allowed
               disabled:border-default-200 disabled:bg-default-100 disabled:text-default-400"
           >
             <UpIcon />
           </button>
+          {canBrowseDirectories && (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => setRefreshKey(prevKey => prevKey + 1)}
+              aria-label={t('directoryPicker.button.refreshAria')}
+              className="mr-2 inline-flex items-center rounded-lg border border-default-300
+                bg-surface px-1.5 py-1.5 text-sm font-medium text-default-700 transition-colors
+                duration-200 hover:border-default-400 hover:bg-default-100
+                disabled:cursor-not-allowed disabled:border-default-200 disabled:bg-default-100
+                disabled:text-default-400"
+            >
+              <RefreshIcon />
+            </button>
+          )}
           {['/'].concat(pathSegments).map((segment, index) => {
             const partialPath = pathSegments.slice(0, index).join('/') || '/';
             return (
