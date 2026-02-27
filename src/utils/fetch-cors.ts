@@ -30,7 +30,7 @@ export const fetchCors: typeof fetch = async (input, init) => {
     return fetch(input, init);
   }
 
-  const { origin: requestOrigin, host: requestHost } = requestURL;
+  const { origin: requestOrigin, hostname: requestHost } = requestURL;
 
   // Use Native Fetch
   const requestMethod = (requestOrigin && state.originMap.get(requestOrigin)) || 'default';
