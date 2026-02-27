@@ -1,5 +1,6 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { DEFAULT_Z_INDEX } from '@/ui/constants';
+import { _t, useI18n } from '@/ui/i18n';
 import { classes } from '@/utils/classes';
 import { Presence } from './presence';
 
@@ -22,7 +23,9 @@ function CloseIcon() {
       strokeLinejoin="round"
       aria-hidden
     >
-      <title>Close dialog</title>
+      <title>
+        <_t>dialog.closeTitle</_t>
+      </title>
       <path d="m6 6 12 12" />
       <path d="m18 6-12 12" />
     </svg>
@@ -30,8 +33,9 @@ function CloseIcon() {
 }
 
 export function DialogFrame({ className, children, onClose, zIndex }: DialogFrameProps) {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(true);
-  const close = () => setIsOpen(false);
+  const close = useCallback(() => setIsOpen(false), []);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') {
@@ -62,7 +66,7 @@ export function DialogFrame({ className, children, onClose, zIndex }: DialogFram
             className="clx-dialog-backdrop absolute inset-0 cursor-default border-0 bg-black/10 p-0
               backdrop-blur-[8px]"
             onClick={close}
-            aria-label="Close dialog"
+            aria-label={t('dialog.closeAria')}
           />
           <div
             className="clx-dialog-panel relative max-h-[calc(100vh-2rem)] w-full max-w-4xl"
@@ -71,7 +75,7 @@ export function DialogFrame({ className, children, onClose, zIndex }: DialogFram
           >
             <button
               type="button"
-              aria-label="Close dialog"
+              aria-label={t('dialog.closeAria')}
               onClick={close}
               className="absolute top-4 right-4 z-10 inline-flex h-8 w-8 items-center justify-center
                 rounded-[0.8rem] border

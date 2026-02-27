@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from 'react';
+import { _t, useI18n } from '@/ui/i18n';
 import { normalizeDirectoryPath, normalizeS3Bucket, normalizeS3Endpoint } from './utils';
 import type { OnStoragePickerConfigChange } from './types';
 import type { S3Provider } from '@/storages/s3';
@@ -14,6 +15,7 @@ export const StoragePickerS3 = ({
   directoryPath,
   onConfigChange,
 }: StoragePickerS3Props) => {
+  const { t } = useI18n();
   const [provider, setProvider] = useState<S3Provider>('s3');
   const [endpoint, setEndpoint] = useState('');
   const [region, setRegion] = useState('us-east-1');
@@ -31,10 +33,10 @@ export const StoragePickerS3 = ({
   const s3SessionTokenId = `${sectionId}-session-token`;
   const s3EndpointPlaceholder =
     provider === 's3'
-      ? 'https://s3.ap-northeast-2.amazonaws.com'
+      ? t('storagePicker.s3.placeholder.endpoint.s3')
       : provider === 'r2'
-        ? 'https://<account-id>.r2.cloudflarestorage.com'
-        : 'https://your-own-s3-compatible-storage.example.com';
+        ? t('storagePicker.s3.placeholder.endpoint.r2')
+        : t('storagePicker.s3.placeholder.endpoint.custom');
 
   useEffect(() => {
     const debounceKey = `s3:${normalizeDirectoryPath(directoryPath)}`;
@@ -43,7 +45,7 @@ export const StoragePickerS3 = ({
       onConfigChange({
         config: null,
         isValid: false,
-        validationMessage: 'Enter an S3 endpoint URL.',
+        validationMessage: t('storagePicker.s3.validation.enterEndpoint'),
         debounceKey,
       });
       return;
@@ -55,7 +57,7 @@ export const StoragePickerS3 = ({
         onConfigChange({
           config: null,
           isValid: false,
-          validationMessage: 'S3 endpoint must start with http:// or https://.',
+          validationMessage: t('storagePicker.s3.validation.invalidProtocol'),
           debounceKey,
         });
         return;
@@ -64,7 +66,7 @@ export const StoragePickerS3 = ({
       onConfigChange({
         config: null,
         isValid: false,
-        validationMessage: 'Enter a valid S3 endpoint URL.',
+        validationMessage: t('storagePicker.s3.validation.invalidEndpoint'),
         debounceKey,
       });
       return;
@@ -74,7 +76,7 @@ export const StoragePickerS3 = ({
       onConfigChange({
         config: null,
         isValid: false,
-        validationMessage: 'Enter an S3 bucket name.',
+        validationMessage: t('storagePicker.s3.validation.enterBucket'),
         debounceKey,
       });
       return;
@@ -84,7 +86,7 @@ export const StoragePickerS3 = ({
       onConfigChange({
         config: null,
         isValid: false,
-        validationMessage: 'Bucket name cannot include slashes.',
+        validationMessage: t('storagePicker.s3.validation.bucketNoSlash'),
         debounceKey,
       });
       return;
@@ -94,7 +96,7 @@ export const StoragePickerS3 = ({
       onConfigChange({
         config: null,
         isValid: false,
-        validationMessage: 'Enter a region.',
+        validationMessage: t('storagePicker.s3.validation.enterRegion'),
         debounceKey,
       });
       return;
@@ -104,7 +106,7 @@ export const StoragePickerS3 = ({
       onConfigChange({
         config: null,
         isValid: false,
-        validationMessage: 'Enter an access key ID.',
+        validationMessage: t('storagePicker.s3.validation.enterAccessKeyId'),
         debounceKey,
       });
       return;
@@ -114,7 +116,7 @@ export const StoragePickerS3 = ({
       onConfigChange({
         config: null,
         isValid: false,
-        validationMessage: 'Enter a secret access key.',
+        validationMessage: t('storagePicker.s3.validation.enterSecretAccessKey'),
         debounceKey,
       });
       return;
@@ -145,7 +147,7 @@ export const StoragePickerS3 = ({
       onConfigChange({
         config: null,
         isValid: false,
-        validationMessage: 'Enter valid S3 settings.',
+        validationMessage: t('storagePicker.s3.validation.invalidSettings'),
         debounceKey,
       });
     }
@@ -159,6 +161,7 @@ export const StoragePickerS3 = ({
     region,
     secretAccessKey,
     sessionToken,
+    t,
   ]);
 
   const selectS3Provider = (nextProvider: S3Provider) => {
@@ -180,7 +183,7 @@ export const StoragePickerS3 = ({
       <div className="grid gap-4">
         <div className="grid gap-4 sm:grid-cols-3">
           <label className="text-sm font-semibold text-default-800" htmlFor={s3ProviderId}>
-            Provider
+            <_t>storagePicker.s3.field.provider</_t>
             <select
               id={s3ProviderId}
               value={provider}
@@ -191,22 +194,26 @@ export const StoragePickerS3 = ({
                 focus:border-default-500 focus:bg-surface disabled:cursor-not-allowed
                 disabled:border-default-200 disabled:bg-default-100"
             >
-              <option value="s3">Amazon S3</option>
-              <option value="r2">Cloudflare R2</option>
-              <option value="minio">MinIO</option>
-              <option value="unknown">Unknown</option>
+              <option value="s3">{t('storagePicker.s3.option.provider.s3')}</option>
+              <option value="r2">{t('storagePicker.s3.option.provider.r2')}</option>
+              <option value="minio">{t('storagePicker.s3.option.provider.minio')}</option>
+              <option value="unknown">{t('storagePicker.s3.option.provider.unknown')}</option>
             </select>
           </label>
 
           <label className="text-sm font-semibold text-default-800" htmlFor={s3RegionId}>
-            Region
+            <_t>storagePicker.s3.field.region</_t>
             <input
               id={s3RegionId}
               type="text"
               value={region}
               onChange={event => setRegion(event.target.value)}
               disabled={controlsLocked}
-              placeholder={provider === 'r2' || provider === 'unknown' ? 'auto' : 'us-east-1'}
+              placeholder={
+                provider === 'r2' || provider === 'unknown'
+                  ? t('storagePicker.s3.placeholder.region.auto')
+                  : t('storagePicker.s3.placeholder.region.default')
+              }
               className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3 py-2.5
                 text-sm font-normal text-default-800 transition-colors duration-200 outline-none
                 placeholder:text-default-400 focus:border-default-500 focus:bg-surface
@@ -215,14 +222,14 @@ export const StoragePickerS3 = ({
           </label>
 
           <label className="text-sm font-semibold text-default-800" htmlFor={s3BucketId}>
-            Bucket
+            <_t>storagePicker.s3.field.bucket</_t>
             <input
               id={s3BucketId}
               type="text"
               value={bucket}
               onChange={event => setBucket(event.target.value)}
               disabled={controlsLocked}
-              placeholder="my-bucket"
+              placeholder={t('storagePicker.s3.placeholder.bucket')}
               className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3 py-2.5
                 text-sm font-normal text-default-800 transition-colors duration-200 outline-none
                 placeholder:text-default-400 focus:border-default-500 focus:bg-surface
@@ -232,7 +239,7 @@ export const StoragePickerS3 = ({
         </div>
 
         <label className="text-sm font-semibold text-default-800" htmlFor={s3EndpointId}>
-          S3 Endpoint
+          <_t>storagePicker.s3.field.endpoint</_t>
           <input
             id={s3EndpointId}
             type="url"
@@ -249,7 +256,7 @@ export const StoragePickerS3 = ({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="text-sm font-semibold text-default-800" htmlFor={s3AccessKeyIdId}>
-            Access Key ID
+            <_t>storagePicker.s3.field.accessKeyId</_t>
             <input
               id={s3AccessKeyIdId}
               type="text"
@@ -257,7 +264,7 @@ export const StoragePickerS3 = ({
               onChange={event => setAccessKeyId(event.target.value)}
               disabled={controlsLocked}
               autoComplete="username"
-              placeholder="AKIA..."
+              placeholder={t('storagePicker.s3.placeholder.accessKeyId')}
               className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3 py-2.5
                 text-sm font-normal text-default-800 transition-colors duration-200 outline-none
                 placeholder:text-default-400 focus:border-default-500 focus:bg-surface
@@ -266,7 +273,7 @@ export const StoragePickerS3 = ({
           </label>
 
           <label className="text-sm font-semibold text-default-800" htmlFor={s3SecretAccessKeyId}>
-            Secret Access Key
+            <_t>storagePicker.s3.field.secretAccessKey</_t>
             <input
               id={s3SecretAccessKeyId}
               type="password"
@@ -274,7 +281,7 @@ export const StoragePickerS3 = ({
               onChange={event => setSecretAccessKey(event.target.value)}
               disabled={controlsLocked}
               autoComplete="current-password"
-              placeholder="••••••••"
+              placeholder={t('storagePicker.s3.placeholder.secretAccessKey')}
               className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3 py-2.5
                 text-sm font-normal text-default-800 transition-colors duration-200 outline-none
                 placeholder:text-default-400 focus:border-default-500 focus:bg-surface
@@ -284,14 +291,14 @@ export const StoragePickerS3 = ({
         </div>
 
         <label className="text-sm font-semibold text-default-800" htmlFor={s3SessionTokenId}>
-          Session Token (optional)
+          <_t>storagePicker.s3.field.sessionTokenOptional</_t>
           <input
             id={s3SessionTokenId}
             type="password"
             value={sessionToken}
             onChange={event => setSessionToken(event.target.value)}
             disabled={controlsLocked}
-            placeholder="Temporary credentials only"
+            placeholder={t('storagePicker.s3.placeholder.sessionToken')}
             className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3 py-2.5
               text-sm font-normal text-default-800 transition-colors duration-200 outline-none
               placeholder:text-default-400 focus:border-default-500 focus:bg-surface

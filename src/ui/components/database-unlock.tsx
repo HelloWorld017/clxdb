@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { inspectClxDBStatus } from '@/core/utils/inspect';
+import { _t, useI18n } from '@/ui/i18n';
 import { classes } from '@/utils/classes';
 import {
   PIN_LENGTH,
@@ -108,16 +109,6 @@ type UnlockMode =
   | 'unsupported'
   | 'inspection-error';
 
-const getInspectErrorMessage = (error: unknown) => {
-  const fallback = 'Unable to inspect storage metadata. Check connectivity and try again.';
-  return error instanceof Error ? error.message : fallback;
-};
-
-const getSubmitErrorMessage = (error: unknown) => {
-  const fallback = 'Unlock request failed. Verify credentials and retry.';
-  return error instanceof Error ? error.message : fallback;
-};
-
 const resolveMode = (
   status: ClxDBStatus | null,
   isInspecting: boolean,
@@ -159,6 +150,7 @@ export function DatabaseUnlock({
   className,
   disabled = false,
 }: DatabaseUnlockProps) {
+  const { t } = useI18n();
   const [status, setStatus] = useState<ClxDBStatus | null>(null);
   const [isInspecting, setIsInspecting] = useState(true);
   const [inspectError, setInspectError] = useState<string | null>(null);
@@ -204,13 +196,15 @@ export function DatabaseUnlock({
       setMasterPassword('');
       setQuickUnlockPinDigits(createEmptyPin());
       setSaveDeviceKeyOnRecovery(true);
-      setInspectError(getInspectErrorMessage(error));
+      setInspectError(
+        error instanceof Error ? error.message : t('databaseUnlock.error.inspectFallback')
+      );
     } finally {
       if (sequence === inspectionSequenceRef.current) {
         setIsInspecting(false);
       }
     }
-  }, [options, onStatusChange, storage]);
+  }, [options, onStatusChange, storage, t]);
 
   useEffect(() => {
     void inspect();
@@ -227,52 +221,52 @@ export function DatabaseUnlock({
 
   const modeTitle =
     mode === 'inspecting'
-      ? 'Checking this storage backend'
+      ? t('databaseUnlock.mode.inspecting.title')
       : mode === 'create'
-        ? 'Create your database'
+        ? t('databaseUnlock.mode.create.title')
         : mode === 'quick-unlock'
-          ? 'Enter your quick unlock PIN'
+          ? t('databaseUnlock.mode.quickUnlock.title')
           : mode === 'master-recovery'
-            ? 'Recover access with master password'
+            ? t('databaseUnlock.mode.masterRecovery.title')
             : mode === 'unsupported'
-              ? 'Unsupported database state'
-              : 'Inspection failed';
+              ? t('databaseUnlock.mode.unsupported.title')
+              : t('databaseUnlock.mode.inspectError.title');
 
   const modeDescription =
     mode === 'inspecting'
-      ? 'Reading storage metadata to pick the correct unlock flow.'
+      ? t('databaseUnlock.mode.inspecting.description')
       : mode === 'create'
-        ? 'Set master password and PIN, or create a passwordless database for this storage.'
+        ? t('databaseUnlock.mode.create.description')
         : mode === 'quick-unlock'
-          ? 'Enter the 6-digit PIN for this device.'
+          ? t('databaseUnlock.mode.quickUnlock.description')
           : mode === 'master-recovery'
-            ? 'Unlock with master password. You can optionally register a new quick unlock PIN.'
+            ? t('databaseUnlock.mode.masterRecovery.description')
             : mode === 'unsupported'
-              ? 'This backend contains an unencrypted database. This screen supports encrypted flows only.'
-              : 'Storage inspection failed. Try re-scanning after checking storage settings.';
+              ? t('databaseUnlock.mode.unsupported.description')
+              : t('databaseUnlock.mode.inspectError.description');
 
   const submitLabel =
     mode === 'create'
-      ? 'Create Encrypted Database'
+      ? t('databaseUnlock.submit.create')
       : mode === 'quick-unlock'
-        ? 'Unlock Database'
+        ? t('databaseUnlock.submit.unlock')
         : mode === 'master-recovery'
           ? recoveryWithDeviceKey
-            ? 'Unlock and Save PIN'
-            : 'Unlock with Master Password'
-          : 'Continue';
+            ? t('databaseUnlock.submit.unlockAndSavePin')
+            : t('databaseUnlock.submit.unlockWithMaster')
+          : t('common.continue');
 
   const validateForm = () => {
     if (!status) {
-      return 'Database status is unavailable. Run re-scan and try again.';
+      return t('databaseUnlock.validation.statusUnavailable');
     }
 
     if (requiresMaster && masterPassword.length === 0) {
-      return 'Enter your master password.';
+      return t('databaseUnlock.validation.masterRequired');
     }
 
     if (requiresPin && !isCompletePin(quickUnlockPinDigits)) {
-      return `Enter all ${PIN_LENGTH} PIN digits.`;
+      return t('databaseUnlock.validation.pinRequired', { count: PIN_LENGTH });
     }
 
     return null;
@@ -293,7 +287,9 @@ export function DatabaseUnlock({
       setQuickUnlockPinDigits(createEmptyPin());
       await inspect();
     } catch (error) {
-      setSubmitError(getSubmitErrorMessage(error));
+      setSubmitError(
+        error instanceof Error ? error.message : t('databaseUnlock.error.submitFallback')
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -360,7 +356,9 @@ export function DatabaseUnlock({
       setQuickUnlockPinDigits(createEmptyPin());
       await inspect();
     } catch (error) {
-      setSubmitError(getSubmitErrorMessage(error));
+      setSubmitError(
+        error instanceof Error ? error.message : t('databaseUnlock.error.submitFallback')
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -377,7 +375,9 @@ export function DatabaseUnlock({
     try {
       await onSubmit({ mode: 'change-storage' });
     } catch (error) {
-      setSubmitError(getSubmitErrorMessage(error));
+      setSubmitError(
+        error instanceof Error ? error.message : t('databaseUnlock.error.submitFallback')
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -385,7 +385,11 @@ export function DatabaseUnlock({
 
   const formRef = useRef<HTMLFormElement | null>(null);
   useEffect(() => {
-    formRef.current?.querySelector<HTMLElement>('*[autofocus]')?.focus();
+    if (!formVisible) {
+      return;
+    }
+
+    formRef.current?.querySelector<HTMLElement>('*[data-clxui-autofocus="true"]')?.focus();
   }, [formVisible]);
 
   if (mode === 'inspecting') {
@@ -413,7 +417,7 @@ export function DatabaseUnlock({
         <header className="mb-6 flex flex-wrap items-center gap-4 sm:mb-7">
           <div className="max-w-2xl space-y-2">
             <p className="text-xs font-semibold tracking-[0.2em] text-default-500 uppercase">
-              Open Database
+              <_t>databaseUnlock.eyebrow</_t>
             </p>
             <h2 className="text-2xl font-semibold tracking-tight text-default-900 sm:text-3xl">
               {modeTitle}
@@ -431,7 +435,7 @@ export function DatabaseUnlock({
                   hover:bg-default-100 disabled:cursor-not-allowed disabled:border-default-200
                   disabled:bg-default-100 disabled:text-default-400"
               >
-                Choose Different Storage
+                <_t>databaseUnlock.button.changeStorage</_t>
               </button>
             )}
           </div>
@@ -448,7 +452,7 @@ export function DatabaseUnlock({
             className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm
               text-amber-800"
           >
-            This backend appears to host an unencrypted database.
+            <_t>databaseUnlock.unsupportedMessage</_t>
           </p>
         )}
 
@@ -465,7 +469,7 @@ export function DatabaseUnlock({
                   className="mt-2 mb-3 ml-1 text-xs font-semibold tracking-[0.14em] text-default-600
                     uppercase"
                 >
-                  Unlock Mode
+                  <_t>databaseUnlock.recovery.modeLabel</_t>
                 </p>
                 <div
                   className="grid grid-cols-2 gap-1 rounded-xl border border-default-200
@@ -484,7 +488,7 @@ export function DatabaseUnlock({
                           disabled:hover:bg-transparent disabled:hover:text-default-500`
                     )}
                   >
-                    Unlock Only
+                    <_t>databaseUnlock.recovery.unlockOnly</_t>
                   </button>
                   <button
                     type="button"
@@ -499,13 +503,13 @@ export function DatabaseUnlock({
                           disabled:hover:bg-transparent disabled:hover:text-default-500`
                     )}
                   >
-                    Save PIN
+                    <_t>databaseUnlock.recovery.savePin</_t>
                   </button>
                 </div>
                 <p className="mt-1 ml-1 text-xs leading-relaxed text-default-500">
                   {saveDeviceKeyOnRecovery
-                    ? 'Adds a new device key so next unlock can use quick unlock PIN.'
-                    : 'Unlocks with master password only and keeps device key registry unchanged.'}
+                    ? t('databaseUnlock.recovery.withPinDescription')
+                    : t('databaseUnlock.recovery.masterOnlyDescription')}
                 </p>
               </div>
             )}
@@ -516,16 +520,16 @@ export function DatabaseUnlock({
                   text-default-800"
                 htmlFor={`${baseId}-master`}
               >
-                <span>Master Password</span>
+                <span>{t('databaseUnlock.masterPassword.label')}</span>
                 <input
                   id={`${baseId}-master`}
                   type="password"
                   value={masterPassword}
                   onChange={event => setMasterPassword(event.target.value)}
                   autoComplete={mode === 'create' ? 'new-password' : 'current-password'}
-                  autoFocus
+                  data-clxui-autofocus="true"
                   disabled={controlsLocked}
-                  placeholder="Enter your master password"
+                  placeholder={t('databaseUnlock.masterPassword.placeholder')}
                   className="mt-6 w-[324px] rounded-xl border border-default-300 bg-default-50 px-3
                     py-2.5 text-sm font-normal text-default-800 transition-colors duration-200
                     outline-none placeholder:text-default-400 focus:border-default-500
@@ -538,8 +542,12 @@ export function DatabaseUnlock({
             {requiresPin && (
               <PinInput
                 idPrefix={`${baseId}-pin`}
-                label={mode === 'master-recovery' ? 'New Quick Unlock PIN' : 'Quick Unlock PIN'}
-                hint="PIN is local to this device and unlocks your database without re-entering the master password."
+                label={
+                  mode === 'master-recovery'
+                    ? t('databaseUnlock.pin.newLabel')
+                    : t('databaseUnlock.pin.label')
+                }
+                hint={t('databaseUnlock.pin.hint')}
                 autoFocus
                 digits={quickUnlockPinDigits}
                 disabled={controlsLocked}
@@ -564,7 +572,7 @@ export function DatabaseUnlock({
                 transition-colors duration-200 hover:bg-primary-hover disabled:cursor-not-allowed
                 disabled:bg-default-300"
             >
-              {isSubmitting ? 'Applying...' : submitLabel}
+              {isSubmitting ? <_t>common.applying</_t> : submitLabel}
             </button>
 
             {mode === 'create' && (
@@ -575,7 +583,7 @@ export function DatabaseUnlock({
                     className="text-[11px] font-semibold tracking-[0.2em] text-default-500
                       uppercase"
                   >
-                    Or
+                    <_t>common.or</_t>
                   </span>
                   <span className="h-px flex-1 bg-default-200" />
                 </div>
@@ -590,7 +598,7 @@ export function DatabaseUnlock({
                     disabled:cursor-not-allowed disabled:border-default-200 disabled:bg-default-100
                     disabled:text-default-400"
                 >
-                  Create Database Without Password
+                  <_t>databaseUnlock.button.createWithoutPassword</_t>
                 </button>
               </>
             )}

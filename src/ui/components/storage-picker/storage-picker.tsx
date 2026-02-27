@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { createStorageBackend } from '@/storages';
 import { useDebouncedValue } from '@/ui/hooks/use-debounced-value';
+import { _t, useI18n } from '@/ui/i18n';
 import { classes } from '@/utils/classes';
 import { CorsGuideMessage } from './cors-guide';
 import { DirectoryPicker } from './directory-picker';
@@ -31,8 +32,9 @@ export function StoragePicker({
   className,
   disabled = false,
   initialType = 'filesystem-access',
-  submitLabel = 'Save storage settings',
+  submitLabel,
 }: StoragePickerProps) {
+  const { t } = useI18n();
   const [selectedType, setSelectedType] = useState<StoragePickerBackendType>(initialType);
   const [directoryPath, setDirectoryPath] = useState('');
   const [selectedConfigUndebounced, setSelectedConfigUndebounced] = useState<StorageConfig | null>(
@@ -78,36 +80,37 @@ export function StoragePicker({
   }, [availableTypes, selectedType]);
 
   const controlsLocked = disabled || isSubmitting;
+  const resolvedSubmitLabel = submitLabel ?? t('storagePicker.submit.default');
 
   const storageOptions = [
     {
       type: 'filesystem-access' as const,
-      label: 'FileSystem Access API',
-      description: 'Save to a local folder with explicit read/write permission.',
+      label: t('storagePicker.option.filesystem.label'),
+      description: t('storagePicker.option.filesystem.description'),
       icon: FileSystemIcon,
       supported: filesystemSupported,
-      unsupportedReason: 'FileSystem Access API is not supported in this browser.',
+      unsupportedReason: t('storagePicker.option.filesystem.unsupportedReason'),
     },
     {
       type: 'opfs' as const,
-      label: 'Origin Private File System',
-      description: 'Use browser-managed private storage for this origin and profile.',
+      label: t('storagePicker.option.opfs.label'),
+      description: t('storagePicker.option.opfs.description'),
       icon: OPFSIcon,
       supported: opfsSupported,
-      unsupportedReason: 'Origin Private File System is not supported in this browser.',
+      unsupportedReason: t('storagePicker.option.opfs.unsupportedReason'),
     },
     {
       type: 's3' as const,
-      label: 'S3 Compatible',
-      description: 'Connect Amazon S3, Cloudflare R2, MinIO, and S3-compatible APIs.',
+      label: t('storagePicker.option.s3.label'),
+      description: t('storagePicker.option.s3.description'),
       icon: S3Icon,
       supported: true,
       unsupportedReason: '',
     },
     {
       type: 'webdav' as const,
-      label: 'WebDAV',
-      description: 'Connect a WebDAV endpoint to sync data across devices.',
+      label: t('storagePicker.option.webdav.label'),
+      description: t('storagePicker.option.webdav.description'),
       icon: WebDAVIcon,
       supported: true,
       unsupportedReason: '',
@@ -161,7 +164,7 @@ export function StoragePicker({
     }
 
     if (!selectedConfigUndebounced || !isSelectionValid) {
-      setErrorMessage(validationMessage ?? 'Please check the details and try again.');
+      setErrorMessage(validationMessage ?? t('storagePicker.error.invalidSelection'));
       return;
     }
 
@@ -171,7 +174,7 @@ export function StoragePicker({
     try {
       await onSelect(selectedConfigUndebounced);
     } catch (error) {
-      const fallback = 'Could not save storage settings. Please try again.';
+      const fallback = t('storagePicker.error.saveFailed');
       setErrorMessage(error instanceof Error ? error.message : fallback);
     } finally {
       setIsSubmitting(false);
@@ -196,14 +199,13 @@ export function StoragePicker({
       <div className="flex h-full flex-col overflow-auto p-3 pb-0 sm:p-5 sm:pb-0">
         <header className="mb-8 space-y-2">
           <p className="text-xs font-semibold tracking-[0.2em] text-default-500 uppercase">
-            Storage Backend
+            <_t>storagePicker.eyebrow</_t>
           </p>
           <h2 className="text-2xl font-semibold tracking-tight text-default-900 sm:text-3xl">
-            Choose storage and folder
+            <_t>storagePicker.title</_t>
           </h2>
           <p className="max-w-2xl text-sm leading-relaxed text-default-600">
-            Pick FileSystem Access API, Origin Private File System, WebDAV, or an S3-compatible
-            provider, then choose where ClxDB should store its files.
+            <_t>storagePicker.description</_t>
           </p>
         </header>
 
@@ -251,7 +253,7 @@ export function StoragePicker({
                         className="rounded-full border border-default-300 px-2 py-0.5 text-[10px]
                           font-semibold tracking-wide text-default-500 uppercase"
                       >
-                        Unsupported
+                        <_t>storagePicker.unsupportedBadge</_t>
                       </span>
                     )}
                   </div>
@@ -325,8 +327,12 @@ export function StoragePicker({
             />
           ) : (
             <div className="rounded-2xl border border-default-200 bg-surface/80 p-4 sm:p-5">
-              <p className="text-sm font-semibold text-default-800">Select Directory</p>
-              <p className="mt-1 text-xs text-default-500">Choose storage first.</p>
+              <p className="text-sm font-semibold text-default-800">
+                <_t>storagePicker.selectDirectory.title</_t>
+              </p>
+              <p className="mt-1 text-xs text-default-500">
+                <_t>storagePicker.selectDirectory.chooseStorageFirst</_t>
+              </p>
             </div>
           )}
 
@@ -356,7 +362,7 @@ export function StoragePicker({
                   hover:bg-default-100 disabled:cursor-not-allowed disabled:border-default-200
                   disabled:bg-default-100 disabled:text-default-400"
               >
-                Cancel
+                <_t>common.cancel</_t>
               </button>
             )}
 
@@ -369,7 +375,7 @@ export function StoragePicker({
                 duration-200 hover:bg-primary-hover disabled:cursor-not-allowed
                 disabled:bg-default-300"
             >
-              {isSubmitting ? 'Applying...' : submitLabel}
+              {isSubmitting ? <_t>common.applying</_t> : resolvedSubmitLabel}
             </button>
           </div>
         </div>

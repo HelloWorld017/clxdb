@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { _t, useI18n } from '@/ui/i18n';
 import { formatDeviceId, formatLastUsedAt, getErrorMessage } from './utils';
 import type { ClxDBStatus } from '@/core/utils/inspect';
 
@@ -15,6 +16,7 @@ export const DevicesTab = ({
   disabled,
   onRemoveDevice,
 }: DevicesTabProps) => {
+  const { locale, t } = useI18n();
   const [removingDeviceId, setRemovingDeviceId] = useState<string | null>(null);
   const [deviceError, setDeviceError] = useState<string | null>(null);
 
@@ -26,11 +28,7 @@ export const DevicesTab = ({
     }
 
     const shouldRemove =
-      typeof window === 'undefined'
-        ? true
-        : window.confirm(
-            'Remove this device from quick unlock access? It will need master password recovery to unlock again.'
-          );
+      typeof window === 'undefined' ? true : window.confirm(t('devicesTab.confirmRemove'));
 
     if (!shouldRemove) {
       return;
@@ -42,7 +40,7 @@ export const DevicesTab = ({
     try {
       await onRemoveDevice(deviceId);
     } catch (error) {
-      setDeviceError(getErrorMessage(error, 'Unable to remove this device. Please try again.'));
+      setDeviceError(getErrorMessage(error, t('devicesTab.error.removeFallback')));
     } finally {
       setRemovingDeviceId(null);
     }
@@ -51,9 +49,11 @@ export const DevicesTab = ({
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-lg font-semibold text-default-900">Trusted devices</h3>
+        <h3 className="text-lg font-semibold text-default-900">
+          <_t>devicesTab.title</_t>
+        </h3>
         <p className="mt-1 text-sm text-default-600">
-          Remove device keys that should no longer unlock this database.
+          <_t>devicesTab.description</_t>
         </p>
       </div>
 
@@ -62,7 +62,7 @@ export const DevicesTab = ({
           className="rounded-xl border border-default-300 bg-default-100 px-3 py-2 text-sm
             text-default-700"
         >
-          No database detected for this storage backend yet.
+          <_t>devicesTab.noDatabase</_t>
         </p>
       ) : status.isEncrypted ? (
         <>
@@ -77,7 +77,7 @@ export const DevicesTab = ({
               className="rounded-xl border border-dashed border-default-300 bg-default-50 px-3 py-4
                 text-sm text-default-500"
             >
-              No registered quick-unlock devices yet.
+              <_t>devicesTab.empty</_t>
             </p>
           ) : (
             <div className="space-y-3">
@@ -96,10 +96,15 @@ export const DevicesTab = ({
                           {device.deviceName}
                         </p>
                         <p className="mt-1 font-monospace text-xs text-default-500">
-                          ID: {formatDeviceId(device.deviceId)}
+                          {t('devicesTab.field.idPrefix', { id: formatDeviceId(device.deviceId) })}
                         </p>
                         <p className="mt-1 text-xs text-default-500">
-                          Last used: {formatLastUsedAt(device.lastUsedAt)}
+                          {t('devicesTab.field.lastUsed', {
+                            value: formatLastUsedAt(device.lastUsedAt, {
+                              locale,
+                              unknownLabel: t('common.unknown'),
+                            }),
+                          })}
                         </p>
                       </div>
 
@@ -109,7 +114,7 @@ export const DevicesTab = ({
                             className="rounded-full border border-emerald-300 bg-emerald-50 px-2.5
                               py-1 text-[11px] font-semibold text-emerald-700"
                           >
-                            This device
+                            <_t>devicesTab.badge.current</_t>
                           </span>
                         )}
 
@@ -124,7 +129,11 @@ export const DevicesTab = ({
                             disabled:border-default-200 disabled:bg-default-100
                             disabled:text-default-400"
                         >
-                          {isRemoving ? 'Removing...' : 'Remove'}
+                          {isRemoving ? (
+                            <_t>devicesTab.button.removing</_t>
+                          ) : (
+                            <_t>devicesTab.button.remove</_t>
+                          )}
                         </button>
                       </div>
                     </div>
@@ -139,7 +148,7 @@ export const DevicesTab = ({
           className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm
             text-amber-800"
         >
-          Device registry is only available for encrypted databases.
+          <_t>devicesTab.unencryptedNotice</_t>
         </p>
       )}
     </div>

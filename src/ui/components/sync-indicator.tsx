@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { useI18n } from '@/ui/i18n';
 import { classes } from '@/utils/classes';
 import { DEFAULT_Z_INDEX } from '../constants';
 import { Presence } from './common/presence';
@@ -7,8 +8,6 @@ import type { SyncState } from '@/types';
 
 type SyncIndicatorPhase = 'hidden' | 'pending' | 'syncing' | 'success' | 'error';
 type VisibleSyncIndicatorPhase = Exclude<SyncIndicatorPhase, 'hidden'>;
-
-const DEFAULT_SYNC_ERROR_TEXT = 'Sync failed. Please try again.';
 
 export type SyncIndicatorVerticalPosition = 'top' | 'bottom';
 export type SyncIndicatorHorizontalPosition = 'left' | 'center' | 'right';
@@ -34,96 +33,111 @@ const resolveInitialPhase = (state: SyncState): SyncIndicatorPhase => {
   return 'hidden';
 };
 
-const PendingIcon = () => (
-  <svg
-    width="1em"
-    height="1em"
-    viewBox="0 0 20 20"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.75}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
-    <title>Pending sync</title>
-    <circle cx="10" cy="10" r="6.5" />
-    <circle className="clx-sync-indicator-pulse" cx="10" cy="10" r="1.25" fill="currentColor" />
-  </svg>
-);
+const PendingIcon = () => {
+  const { t } = useI18n();
+  return (
+    <svg
+      width="1em"
+      height="1em"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <title>{t('syncIndicator.icon.pending')}</title>
+      <circle cx="10" cy="10" r="6.5" />
+      <circle className="clx-sync-indicator-pulse" cx="10" cy="10" r="1.25" fill="currentColor" />
+    </svg>
+  );
+};
 
-const SyncingIcon = () => (
-  <svg
-    className="clx-sync-indicator-spin"
-    width="1em"
-    height="1em"
-    viewBox="0 0 20 20"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.75}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
-    <title>Syncing</title>
-    <path d="M4 10a6 6 0 0 1 10.4-4.04" />
-    <path d="M14.4 3.6v3.2h-3.2" />
-    <path d="M16 10a6 6 0 0 1-10.4 4.04" />
-    <path d="M5.6 16.4v-3.2h3.2" />
-  </svg>
-);
+const SyncingIcon = () => {
+  const { t } = useI18n();
+  return (
+    <svg
+      className="clx-sync-indicator-spin"
+      width="1em"
+      height="1em"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <title>{t('syncIndicator.icon.syncing')}</title>
+      <path d="M4 10a6 6 0 0 1 10.4-4.04" />
+      <path d="M14.4 3.6v3.2h-3.2" />
+      <path d="M16 10a6 6 0 0 1-10.4 4.04" />
+      <path d="M5.6 16.4v-3.2h3.2" />
+    </svg>
+  );
+};
 
-const SuccessIcon = () => (
-  <svg
-    width="1em"
-    height="1em"
-    viewBox="0 0 20 20"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.75}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
-    <title>Sync complete</title>
-    <circle cx="10" cy="10" r="6.5" />
-    <path className="clx-sync-indicator-check" d="m6.6 10.3 2.2 2.2 4.6-4.6" />
-  </svg>
-);
+const SuccessIcon = () => {
+  const { t } = useI18n();
+  return (
+    <svg
+      width="1em"
+      height="1em"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <title>{t('syncIndicator.icon.success')}</title>
+      <circle cx="10" cy="10" r="6.5" />
+      <path className="clx-sync-indicator-check" d="m6.6 10.3 2.2 2.2 4.6-4.6" />
+    </svg>
+  );
+};
 
-const ErrorIcon = () => (
-  <svg
-    width="1em"
-    height="1em"
-    viewBox="0 0 20 20"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.75}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
-    <title>Sync failed</title>
-    <circle cx="10" cy="10" r="6.5" />
-    <path d="M10 6.4v4.6" />
-    <circle cx="10" cy="13.8" r="0.75" fill="currentColor" stroke="none" />
-  </svg>
-);
+const ErrorIcon = () => {
+  const { t } = useI18n();
+  return (
+    <svg
+      width="1em"
+      height="1em"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <title>{t('syncIndicator.icon.error')}</title>
+      <circle cx="10" cy="10" r="6.5" />
+      <path d="M10 6.4v4.6" />
+      <circle cx="10" cy="13.8" r="0.75" fill="currentColor" stroke="none" />
+    </svg>
+  );
+};
 
-const getIndicatorLabel = (phase: VisibleSyncIndicatorPhase) => {
+const getIndicatorLabel = (
+  phase: VisibleSyncIndicatorPhase,
+  t: ReturnType<typeof useI18n>['t']
+) => {
   if (phase === 'pending') {
-    return 'Sync pending';
+    return t('syncIndicator.label.pending');
   }
 
   if (phase === 'syncing') {
-    return 'Syncing in progress';
+    return t('syncIndicator.label.syncing');
   }
 
   if (phase === 'success') {
-    return 'Sync completed';
+    return t('syncIndicator.label.success');
   }
 
-  return 'Sync failed. Click for details.';
+  return t('syncIndicator.label.error');
 };
 
 const getIndicatorToneClasses = (phase: VisibleSyncIndicatorPhase) => {
@@ -166,6 +180,7 @@ export function SyncIndicator({
   className,
   zIndex,
 }: SyncIndicatorProps) {
+  const { t } = useI18n();
   const [phase, setPhase] = useState<SyncIndicatorPhase>(() =>
     resolveInitialPhase(client.getState())
   );
@@ -248,7 +263,7 @@ export function SyncIndicator({
 
       trackedSyncRef.current = false;
       setIsErrorOpen(false);
-      setErrorMessage(error?.message || DEFAULT_SYNC_ERROR_TEXT);
+      setErrorMessage(error?.message || t('syncIndicator.defaultError'));
       setPhase('error');
     });
 
@@ -258,7 +273,7 @@ export function SyncIndicator({
       offSyncComplete();
       offSyncError();
     };
-  }, [client]);
+  }, [client, t]);
 
   useEffect(() => {
     if (phase !== 'success') {
@@ -275,7 +290,7 @@ export function SyncIndicator({
   }, [phase, successDuration]);
 
   const isVisible = phase !== 'hidden';
-  const label = getIndicatorLabel(displayPhase);
+  const label = getIndicatorLabel(displayPhase, t);
   const positionClasses = classes(
     'fixed',
     vertical === 'top' ? 'top-4 sm:top-5' : 'bottom-4 sm:bottom-5',
@@ -362,7 +377,7 @@ export function SyncIndicator({
             >
               {displayPhase === 'error' && isErrorOpen ? (
                 <p id={errorPanelId} className={messageClasses} role="alert">
-                  {errorMessage ?? DEFAULT_SYNC_ERROR_TEXT}
+                  {errorMessage ?? t('syncIndicator.defaultError')}
                 </p>
               ) : null}
             </Presence>

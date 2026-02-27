@@ -1,5 +1,6 @@
 import type { StorageOverview } from './types';
 import type { StorageBackend, StorageBackendMetadata } from '@/types';
+import type { ClxUITranslate } from '@/ui/i18n';
 
 export const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
@@ -7,17 +8,20 @@ export const getErrorMessage = (error: unknown, fallback: string) =>
 export const formatDeviceId = (deviceId: string) =>
   deviceId.length > 18 ? `${deviceId.slice(0, 10)}...${deviceId.slice(-6)}` : deviceId;
 
-export const formatLastUsedAt = (value: number) => {
+export const formatLastUsedAt = (
+  value: number,
+  { locale, unknownLabel }: { locale: string; unknownLabel: string }
+) => {
   if (!Number.isFinite(value)) {
-    return 'Unknown';
+    return unknownLabel;
   }
 
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
-    return 'Unknown';
+    return unknownLabel;
   }
 
-  return parsed.toLocaleString();
+  return parsed.toLocaleString(locale);
 };
 
 export const resolveStorageMetadata = (storage: StorageBackend): StorageBackendMetadata | null => {
@@ -28,53 +32,60 @@ export const resolveStorageMetadata = (storage: StorageBackend): StorageBackendM
   }
 };
 
-export const getStorageOverview = (metadata: StorageBackendMetadata | null): StorageOverview => {
+export const getStorageOverview = (
+  metadata: StorageBackendMetadata | null,
+  t: ClxUITranslate
+): StorageOverview => {
   if (!metadata) {
     return {
-      backendLabel: 'Custom backend',
-      detailLabel: 'Connection details',
-      detailValue: 'Not exposed by this storage adapter',
-      description:
-        'This storage adapter does not provide self-describing metadata. Connection details are managed by the host app.',
+      backendLabel: t('storageOverview.custom.backendLabel'),
+      detailLabel: t('storageOverview.custom.detailLabel'),
+      detailValue: t('storageOverview.custom.detailValue'),
+      description: t('storageOverview.custom.description'),
     };
   }
 
   if (metadata.kind === 'webdav') {
     return {
-      backendLabel: 'WebDAV',
-      detailLabel: 'Endpoint',
+      backendLabel: t('storageOverview.webdav.backendLabel'),
+      detailLabel: t('storageOverview.webdav.detailLabel'),
       detailValue: metadata.endpoint,
-      description: 'Your database reads and writes through a remote WebDAV endpoint.',
+      description: t('storageOverview.webdav.description'),
     };
   }
 
   if (metadata.kind === 's3') {
     const providerLabel =
       metadata.provider === 'r2'
-        ? 'Cloudflare R2'
+        ? t('storageOverview.s3.provider.r2')
         : metadata.provider === 'minio'
-          ? 'MinIO'
-          : 'Amazon S3';
+          ? t('storageOverview.s3.provider.minio')
+          : t('storageOverview.s3.provider.s3');
     const bucketPath = metadata.prefix ? `${metadata.bucket}/${metadata.prefix}` : metadata.bucket;
 
     return {
       backendLabel: providerLabel,
-      detailLabel: 'Bucket / Prefix',
+      detailLabel: t('storageOverview.s3.detailLabel'),
       detailValue: bucketPath,
-      description: `Your database reads and writes through an S3-compatible endpoint (${metadata.endpoint}, ${metadata.region}).`,
+      description: t('storageOverview.s3.description', {
+        endpoint: metadata.endpoint,
+        region: metadata.region,
+      }),
     };
   }
 
   const providerLabel =
-    metadata.provider === 'opfs' ? 'Origin Private File System' : 'FileSystem Access API';
+    metadata.provider === 'opfs'
+      ? t('storageOverview.filesystem.opfs.backendLabel')
+      : t('storageOverview.filesystem.access.backendLabel');
 
   return {
     backendLabel: providerLabel,
-    detailLabel: 'Directory',
+    detailLabel: t('storageOverview.filesystem.detailLabel'),
     detailValue: metadata.directoryName,
     description:
       metadata.provider === 'opfs'
-        ? 'Your database is stored in browser-managed private storage for this origin.'
-        : 'Your database is stored in a user-selected local directory.',
+        ? t('storageOverview.filesystem.opfs.description')
+        : t('storageOverview.filesystem.access.description'),
   };
 };

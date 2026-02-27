@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from 'react';
+import { _t, useI18n } from '@/ui/i18n';
 import { normalizeDirectoryPath, normalizeWebDavUrl, toWebDavDirectoryUrl } from './utils';
 import type { OnStoragePickerConfigChange } from './types';
 
@@ -13,6 +14,7 @@ export const StoragePickerWebdav = ({
   directoryPath,
   onConfigChange,
 }: StoragePickerWebdavProps) => {
+  const { t } = useI18n();
   const [url, setUrl] = useState('');
   const [user, setUser] = useState('');
   const [pass, setPass] = useState('');
@@ -28,7 +30,7 @@ export const StoragePickerWebdav = ({
       onConfigChange({
         config: null,
         isValid: false,
-        validationMessage: 'Enter a WebDAV endpoint URL.',
+        validationMessage: t('storagePicker.webdav.validation.enterEndpoint'),
         debounceKey,
       });
       return;
@@ -40,7 +42,7 @@ export const StoragePickerWebdav = ({
         onConfigChange({
           config: null,
           isValid: false,
-          validationMessage: 'WebDAV endpoint must start with http:// or https://.',
+          validationMessage: t('storagePicker.webdav.validation.invalidProtocol'),
           debounceKey,
         });
         return;
@@ -49,7 +51,7 @@ export const StoragePickerWebdav = ({
       onConfigChange({
         config: null,
         isValid: false,
-        validationMessage: 'Enter a valid WebDAV endpoint URL.',
+        validationMessage: t('storagePicker.webdav.validation.invalidEndpoint'),
         debounceKey,
       });
       return;
@@ -59,7 +61,7 @@ export const StoragePickerWebdav = ({
       onConfigChange({
         config: null,
         isValid: false,
-        validationMessage: 'Enter a WebDAV username.',
+        validationMessage: t('storagePicker.webdav.validation.enterUser'),
         debounceKey,
       });
       return;
@@ -69,7 +71,7 @@ export const StoragePickerWebdav = ({
       onConfigChange({
         config: null,
         isValid: false,
-        validationMessage: 'Enter your password.',
+        validationMessage: t('storagePicker.webdav.validation.enterPassword'),
         debounceKey,
       });
       return;
@@ -94,24 +96,24 @@ export const StoragePickerWebdav = ({
       onConfigChange({
         config: null,
         isValid: false,
-        validationMessage: 'Enter valid WebDAV settings.',
+        validationMessage: t('storagePicker.webdav.validation.invalidSettings'),
         debounceKey,
       });
     }
-  }, [directoryPath, onConfigChange, pass, url, user]);
+  }, [directoryPath, onConfigChange, pass, t, url, user]);
 
   return (
     <div className="rounded-2xl border border-default-200 bg-surface/80 p-4 sm:p-5">
       <div className="grid gap-4">
         <label className="text-sm font-semibold text-default-800" htmlFor={webDavUrlId}>
-          WebDAV Endpoint
+          <_t>storagePicker.webdav.field.endpoint</_t>
           <input
             id={webDavUrlId}
             type="url"
             value={url}
             onChange={event => setUrl(event.target.value)}
             disabled={controlsLocked}
-            placeholder="https://cloud.example.com/remote.php/dav/files/user"
+            placeholder={t('storagePicker.webdav.placeholder.endpoint')}
             className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3 py-2.5
               text-sm font-normal text-default-800 transition-colors duration-200 outline-none
               placeholder:text-default-400 focus:border-default-500 focus:bg-surface
@@ -121,7 +123,7 @@ export const StoragePickerWebdav = ({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="text-sm font-semibold text-default-800" htmlFor={webDavUserId}>
-            WebDAV Username
+            <_t>storagePicker.webdav.field.user</_t>
             <input
               id={webDavUserId}
               type="text"
@@ -129,7 +131,7 @@ export const StoragePickerWebdav = ({
               onChange={event => setUser(event.target.value)}
               disabled={controlsLocked}
               autoComplete="username"
-              placeholder="my-user"
+              placeholder={t('storagePicker.webdav.placeholder.user')}
               className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3 py-2.5
                 text-sm font-normal text-default-800 transition-colors duration-200 outline-none
                 placeholder:text-default-400 focus:border-default-500 focus:bg-surface
@@ -138,7 +140,7 @@ export const StoragePickerWebdav = ({
           </label>
 
           <label className="text-sm font-semibold text-default-800" htmlFor={webDavPassId}>
-            Password
+            <_t>storagePicker.webdav.field.password</_t>
             <input
               id={webDavPassId}
               type="password"
@@ -146,7 +148,7 @@ export const StoragePickerWebdav = ({
               onChange={event => setPass(event.target.value)}
               disabled={controlsLocked}
               autoComplete="current-password"
-              placeholder="••••••••"
+              placeholder={t('storagePicker.webdav.placeholder.password')}
               className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3 py-2.5
                 text-sm font-normal text-default-800 transition-colors duration-200 outline-none
                 placeholder:text-default-400 focus:border-default-500 focus:bg-surface

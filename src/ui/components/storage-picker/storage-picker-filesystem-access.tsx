@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { _t, useI18n } from '@/ui/i18n';
 import { normalizeDirectoryPath, resolveDirectoryHandle, supportsFileSystemAccess } from './utils';
 import type { OnStoragePickerConfigChange } from './types';
 
@@ -15,6 +16,7 @@ export const StoragePickerFilesystemAccess = ({
   onDirectoryPathChange,
   onConfigChange,
 }: StoragePickerFilesystemAccessProps) => {
+  const { t } = useI18n();
   const [filesystemRootHandle, setFilesystemRootHandle] =
     useState<FileSystemDirectoryHandle | null>(null);
   const [isPickingDirectory, setIsPickingDirectory] = useState(false);
@@ -29,7 +31,7 @@ export const StoragePickerFilesystemAccess = ({
       onConfigChange({
         config: null,
         isValid: false,
-        validationMessage: 'FileSystem Access API is not supported in this browser.',
+        validationMessage: t('storagePicker.filesystem.validation.unsupported'),
         debounceKey,
       });
       return;
@@ -39,7 +41,7 @@ export const StoragePickerFilesystemAccess = ({
       onConfigChange({
         config: null,
         isValid: false,
-        validationMessage: 'Select a root folder to continue.',
+        validationMessage: t('storagePicker.filesystem.validation.selectRoot'),
         debounceKey,
       });
       return;
@@ -71,7 +73,7 @@ export const StoragePickerFilesystemAccess = ({
         onConfigChange({
           config: null,
           isValid: false,
-          validationMessage: 'Selected folder does not exist in the chosen root.',
+          validationMessage: t('storagePicker.filesystem.validation.selectedFolderMissing'),
           debounceKey,
         });
       });
@@ -79,11 +81,11 @@ export const StoragePickerFilesystemAccess = ({
     return () => {
       cancelled = true;
     };
-  }, [directoryPath, filesystemRootHandle, filesystemSupported, onConfigChange]);
+  }, [directoryPath, filesystemRootHandle, filesystemSupported, onConfigChange, t]);
 
   const pickDirectory = async () => {
     if (!filesystemSupported || !window.showDirectoryPicker) {
-      setPickerErrorMessage('FileSystem Access API is not available in this browser.');
+      setPickerErrorMessage(t('storagePicker.filesystem.error.apiUnavailable'));
       return;
     }
 
@@ -96,7 +98,7 @@ export const StoragePickerFilesystemAccess = ({
       onDirectoryPathChange('');
     } catch (error) {
       if (!(error instanceof Error) || error.name !== 'AbortError') {
-        const fallback = 'Could not open FileSystem Access folder picker.';
+        const fallback = t('storagePicker.filesystem.error.openPickerFailed');
         setPickerErrorMessage(error instanceof Error ? error.message : fallback);
       }
     } finally {
@@ -108,9 +110,11 @@ export const StoragePickerFilesystemAccess = ({
     <div className="rounded-2xl border border-default-200 bg-surface/80 p-4 sm:p-5">
       <div className="flex justify-between gap-2">
         <div className="flex flex-col gap-1">
-          <p className="text-sm font-semibold text-default-800">FileSystem Access API</p>
+          <p className="text-sm font-semibold text-default-800">
+            <_t>storagePicker.filesystem.title</_t>
+          </p>
           <p className="mt-1 text-xs text-default-500">
-            Pick a local folder. This app will request explicit permission for read/write access.
+            <_t>storagePicker.filesystem.description</_t>
           </p>
         </div>
 
@@ -123,14 +127,18 @@ export const StoragePickerFilesystemAccess = ({
             hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-default-200
             disabled:bg-default-300"
         >
-          {isPickingDirectory ? 'Opening...' : 'Select Folder'}
+          {isPickingDirectory ? (
+            <_t>common.opening</_t>
+          ) : (
+            <_t>storagePicker.filesystem.button.selectFolder</_t>
+          )}
         </button>
       </div>
 
       <p className="mt-3 text-xs text-default-500">
         {filesystemRootHandle
-          ? `Selected: ${filesystemRootHandle.name}`
-          : 'No folder selected yet.'}
+          ? t('storagePicker.filesystem.selectedRoot', { name: filesystemRootHandle.name })
+          : t('storagePicker.filesystem.selectedRoot.empty')}
       </p>
 
       {pickerErrorMessage && (

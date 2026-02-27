@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Presence } from '@/ui/components/common/presence';
+import { _t, useI18n } from '@/ui/i18n';
 import { classes } from '@/utils/classes';
 import { FolderIcon, FolderPlusIcon, UpIcon } from './icons';
 import { normalizeDirectoryPath } from './utils';
@@ -47,6 +48,7 @@ export function DirectoryPicker({
   disabled = false,
   className,
 }: DirectoryPickerProps) {
+  const { t } = useI18n();
   const [directories, setDirectories] = useState<string[]>([]);
   const [isLoadingDirectories, setIsLoadingDirectories] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -132,7 +134,7 @@ export function DirectoryPicker({
           return;
         }
 
-        const fallback = 'Could not read folders for this location.';
+        const fallback = t('directoryPicker.error.readFoldersFailed');
         setErrorMessage(error instanceof Error ? error.message : fallback);
       })
       .finally(() => {
@@ -144,7 +146,7 @@ export function DirectoryPicker({
     return () => {
       cancelled = true;
     };
-  }, [canBrowseDirectories, storage]);
+  }, [canBrowseDirectories, storage, t]);
 
   const pathSegments = useMemo(
     () => normalizeDirectoryPath(normalizedValue).split('/').filter(Boolean),
@@ -164,12 +166,12 @@ export function DirectoryPicker({
 
     const folderName = newFolderName.trim();
     if (!folderName) {
-      setErrorMessage('Enter a folder name.');
+      setErrorMessage(t('directoryPicker.error.enterFolderName'));
       return;
     }
 
     if (folderName === '.' || folderName === '..' || folderName.includes('/')) {
-      setErrorMessage('Folder names cannot include slashes or relative path markers.');
+      setErrorMessage(t('directoryPicker.error.invalidFolderName'));
       return;
     }
 
@@ -183,7 +185,7 @@ export function DirectoryPicker({
       setIsCreateFolderPopoverOpen(false);
       navigateTo(joinDirectoryPath(normalizedValue, folderName));
     } catch (error) {
-      const fallback = 'Could not create this folder.';
+      const fallback = t('directoryPicker.error.createFolderFailed');
       setErrorMessage(error instanceof Error ? error.message : fallback);
     } finally {
       setIsCreatingDirectory(false);
@@ -222,7 +224,9 @@ export function DirectoryPicker({
         className
       )}
     >
-      <p className="text-sm font-semibold text-default-800">Select Directory</p>
+      <p className="text-sm font-semibold text-default-800">
+        <_t>directoryPicker.title</_t>
+      </p>
 
       <div className="mt-4 flex items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1 text-xs">
@@ -230,6 +234,7 @@ export function DirectoryPicker({
             type="button"
             disabled={disabled || !normalizedValue}
             onClick={() => navigateTo(getParentDirectoryPath(normalizedValue))}
+            aria-label={t('directoryPicker.button.parentDirectoryAria')}
             className="mr-2 inline-flex items-center rounded-lg border border-default-300 bg-surface
               px-1.5 py-1.5 text-sm font-medium text-default-700 transition-colors duration-200
               hover:border-default-400 hover:bg-default-100 disabled:cursor-not-allowed
@@ -263,6 +268,7 @@ export function DirectoryPicker({
                 type="button"
                 disabled={disabled}
                 onClick={toggleCreateFolderPopover}
+                aria-label={t('directoryPicker.button.createFolderAria')}
                 className="inline-flex items-center rounded-lg border border-default-300 bg-surface
                   px-1.5 py-1.5 text-sm font-medium text-default-700 transition-colors duration-200
                   hover:border-default-400 hover:bg-default-100 disabled:cursor-not-allowed
@@ -280,14 +286,14 @@ export function DirectoryPicker({
                 >
                   <form onSubmit={handleCreateDirectory} className="space-y-3">
                     <label className="block text-xs font-medium text-default-700">
-                      Folder name
+                      <_t>directoryPicker.popover.folderNameLabel</_t>
                       <input
                         ref={newFolderInputRef}
                         type="text"
                         value={newFolderName}
                         disabled={disabled || isCreatingDirectory}
                         onChange={event => setNewFolderName(event.target.value)}
-                        placeholder="New Folder"
+                        placeholder={t('directoryPicker.popover.folderNamePlaceholder')}
                         className="mt-1.5 w-full rounded-lg border border-default-300 bg-default-50
                           px-2.5 py-2 text-xs text-default-800 outline-none
                           placeholder:text-default-400 focus:border-default-500
@@ -308,7 +314,7 @@ export function DirectoryPicker({
                           disabled:border-default-200 disabled:bg-default-100
                           disabled:text-default-400"
                       >
-                        Cancel
+                        <_t>common.cancel</_t>
                       </button>
 
                       <button
@@ -319,7 +325,11 @@ export function DirectoryPicker({
                           duration-200 hover:bg-primary-hover disabled:cursor-not-allowed
                           disabled:bg-default-300"
                       >
-                        {isCreatingDirectory ? 'Creating...' : 'Create'}
+                        {isCreatingDirectory ? (
+                          <_t>common.creating</_t>
+                        ) : (
+                          <_t>directoryPicker.button.create</_t>
+                        )}
                       </button>
                     </div>
                   </form>
@@ -333,7 +343,9 @@ export function DirectoryPicker({
       {canBrowseDirectories ? (
         <div className="mt-3 h-50 overflow-auto rounded-lg border border-default-200 bg-surface p-2">
           {isLoadingDirectories ? (
-            <p className="px-2 py-3 text-xs text-default-500">Loading folders...</p>
+            <p className="px-2 py-3 text-xs text-default-500">
+              <_t>directoryPicker.loadingFolders</_t>
+            </p>
           ) : directories.length > 0 ? (
             <div className="grid gap-1">
               {directories.map(directoryName => {
@@ -356,7 +368,7 @@ export function DirectoryPicker({
             </div>
           ) : (
             <p className="px-2 py-3 text-xs text-default-500">
-              No subfolders in this location yet.
+              <_t>directoryPicker.emptyFolders</_t>
             </p>
           )}
         </div>
@@ -367,7 +379,7 @@ export function DirectoryPicker({
             value={manualPath}
             disabled={disabled}
             onChange={event => setManualPath(event.target.value)}
-            placeholder="folder/subfolder"
+            placeholder={t('directoryPicker.placeholder.manualPath')}
             className="w-full rounded-lg border border-default-300 bg-surface px-3 py-2 text-xs
               text-default-800 outline-none placeholder:text-default-400 focus:border-default-500
               disabled:cursor-not-allowed disabled:border-default-200 disabled:bg-default-100"
@@ -381,7 +393,7 @@ export function DirectoryPicker({
               duration-200 hover:border-default-400 hover:bg-default-100 disabled:cursor-not-allowed
               disabled:border-default-200 disabled:bg-default-100 disabled:text-default-400"
           >
-            Apply path
+            <_t>directoryPicker.button.applyPath</_t>
           </button>
         </div>
       )}

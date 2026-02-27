@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { inspectClxDBStatus } from '@/core/utils/inspect';
+import { _t, useI18n } from '@/ui/i18n';
 import { classes } from '@/utils/classes';
 import { DevicesTab } from './devices-tab';
 import { EncryptionTab } from './encryption-tab';
@@ -10,19 +11,13 @@ import { getErrorMessage, getStorageOverview, resolveStorageMetadata } from './u
 import type { DatabaseSettingsProps, SettingsTab, TabOption } from './types';
 import type { ClxDBStatus } from '@/core/utils/inspect';
 
-export const TAB_OPTIONS: TabOption[] = [
-  { id: 'overview', label: 'Overview', icon: <OverviewIcon /> },
-  { id: 'encryption', label: 'Encryption', icon: <EncryptionIcon /> },
-  { id: 'devices', label: 'Devices', icon: <DevicesIcon /> },
-  // { id: 'export', label: 'Export', icon: <ExportIcon /> },
-];
-
 export function DatabaseSettings({
   client,
   options,
   className,
   disabled = false,
 }: DatabaseSettingsProps) {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<SettingsTab>('overview');
 
   const [status, setStatus] = useState<ClxDBStatus | null>(null);
@@ -34,7 +29,19 @@ export function DatabaseSettings({
 
   const storage = client.storage;
   const storageMetadata = useMemo(() => resolveStorageMetadata(storage), [storage]);
-  const storageOverview = useMemo(() => getStorageOverview(storageMetadata), [storageMetadata]);
+  const storageOverview = useMemo(
+    () => getStorageOverview(storageMetadata, t),
+    [storageMetadata, t]
+  );
+  const tabOptions: TabOption[] = useMemo(
+    () => [
+      { id: 'overview', label: t('databaseSettings.tab.overview'), icon: <OverviewIcon /> },
+      { id: 'encryption', label: t('databaseSettings.tab.encryption'), icon: <EncryptionIcon /> },
+      { id: 'devices', label: t('databaseSettings.tab.devices'), icon: <DevicesIcon /> },
+      // { id: 'export', label: t('databaseSettings.tab.export'), icon: <ExportIcon /> },
+    ],
+    [t]
+  );
 
   const refreshStatus = useCallback(async () => {
     const sequence = ++inspectionSequenceRef.current;
@@ -64,15 +71,13 @@ export function DatabaseSettings({
 
       setStatus(null);
       setCurrentDeviceId(null);
-      setInspectError(
-        getErrorMessage(error, 'Failed to inspect database metadata. Check connection and retry.')
-      );
+      setInspectError(getErrorMessage(error, t('databaseSettings.error.inspectFallback')));
     } finally {
       if (sequence === inspectionSequenceRef.current) {
         setIsInspecting(false);
       }
     }
-  }, [client, options, storage]);
+  }, [client, options, storage, t]);
 
   useEffect(() => {
     void refreshStatus();
@@ -124,14 +129,14 @@ export function DatabaseSettings({
           sm:mb-4"
       >
         <p className="text-xs font-semibold tracking-[0.2em] text-default-500 uppercase">
-          Database Settings
+          <_t>databaseSettings.title</_t>
         </p>
       </header>
 
       <div className="grid min-h-0 flex-1 gap-1 md:grid-cols-[13rem_minmax(0,1fr)]">
         <aside className="p-4 pt-0">
           <div className="grid grid-cols-2 md:grid-cols-1">
-            {TAB_OPTIONS.map(option => {
+            {tabOptions.map(option => {
               const isActive = activeTab === option.id;
               return (
                 <button
@@ -175,7 +180,7 @@ export function DatabaseSettings({
                   bg-default-100 px-3 py-2 text-sm text-default-600"
               >
                 <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-default-500" />
-                Refreshing database metadata...
+                <_t>databaseSettings.status.refreshing</_t>
               </div>
             )}
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { _t, useI18n } from '@/ui/i18n';
 import { classes } from '@/utils/classes';
 import type { ChangeEvent, KeyboardEvent, SyntheticEvent } from 'react';
 
@@ -70,7 +71,9 @@ const ShowIcon = () => (
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <title>Show</title>
+    <title>
+      <_t>pinInput.show</_t>
+    </title>
     <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
     <circle cx="12" cy="12" r="3" />
   </svg>
@@ -88,7 +91,9 @@ const HideIcon = () => (
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <title>Hide</title>
+    <title>
+      <_t>pinInput.hide</_t>
+    </title>
     <path d="m15 18-.722-3.25" />
     <path d="M2 8a10.645 10.645 0 0 0 20 0" />
     <path d="m20 15-1.726-2.05" />
@@ -108,6 +113,7 @@ export const PinInput = ({
   className,
   onChange,
 }: PinInputProps) => {
+  const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isFocused, setIsFocused] = useState(false);
   const [isHidden, setIsHidden] = useState(digitsHidden);
@@ -139,6 +145,22 @@ export const PinInput = ({
 
     setSelectionIndex(start);
   };
+
+  useEffect(() => {
+    if (!autoFocus || disabled) {
+      return;
+    }
+
+    const input = inputRef.current;
+    if (!input) {
+      return;
+    }
+
+    const { start, end } = getSelectionRange(pinValue.length, pinValue.length);
+    input.focus();
+    input.setSelectionRange(start, end);
+    setSelectionIndex(start);
+  }, [autoFocus, disabled, pinValue.length]);
 
   const setCaretIndex = (index: number) => {
     const input = inputRef.current;
@@ -200,7 +222,7 @@ export const PinInput = ({
             event.preventDefault();
           }}
           onClick={() => setIsHidden(value => !value)}
-          aria-label={isHidden ? 'Show PIN digits' : 'Hide PIN digits'}
+          aria-label={isHidden ? t('pinInput.showAria') : t('pinInput.hideAria')}
           aria-pressed={!isHidden}
           tabIndex={-1}
           className="rounded-md px-1 py-0.5 font-semibold text-default-500 transition-colors
@@ -224,7 +246,6 @@ export const PinInput = ({
           maxLength={PIN_LENGTH}
           aria-label={label}
           aria-describedby={`${idPrefix}-hint`}
-          autoFocus={autoFocus}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           onClick={syncSelectionIndex}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { _t, useI18n } from '@/ui/i18n';
 import {
   getNavigatorStorageWithDirectory,
   normalizeDirectoryPath,
@@ -13,6 +14,7 @@ export interface StoragePickerOpfsProps {
 }
 
 export const StoragePickerOpfs = ({ directoryPath, onConfigChange }: StoragePickerOpfsProps) => {
+  const { t } = useI18n();
   const [opfsRootHandle, setOpfsRootHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [isLoadingOpfsRoot, setIsLoadingOpfsRoot] = useState(false);
   const [opfsLoadErrorMessage, setOpfsLoadErrorMessage] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export const StoragePickerOpfs = ({ directoryPath, onConfigChange }: StoragePick
       })
       .catch(error => {
         if (!cancelled) {
-          const fallback = 'Could not access Origin Private File System.';
+          const fallback = t('storagePicker.opfs.error.accessFailed');
           console.error(error);
           setOpfsLoadErrorMessage(error instanceof Error ? error.message : fallback);
         }
@@ -56,7 +58,7 @@ export const StoragePickerOpfs = ({ directoryPath, onConfigChange }: StoragePick
     return () => {
       cancelled = true;
     };
-  }, [isLoadingOpfsRoot, opfsRootHandle, opfsSupported]);
+  }, [isLoadingOpfsRoot, opfsRootHandle, opfsSupported, t]);
 
   useEffect(() => {
     const debounceKey = `opfs:${normalizeDirectoryPath(directoryPath)}`;
@@ -65,7 +67,7 @@ export const StoragePickerOpfs = ({ directoryPath, onConfigChange }: StoragePick
       onConfigChange({
         config: null,
         isValid: false,
-        validationMessage: 'Origin Private File System is not supported in this browser.',
+        validationMessage: t('storagePicker.opfs.validation.unsupported'),
         debounceKey,
       });
       return;
@@ -86,8 +88,8 @@ export const StoragePickerOpfs = ({ directoryPath, onConfigChange }: StoragePick
         config: null,
         isValid: false,
         validationMessage: isLoadingOpfsRoot
-          ? 'OPFS is still loading. Please wait a moment and try again.'
-          : 'Could not access Origin Private File System.',
+          ? t('storagePicker.opfs.validation.loading')
+          : t('storagePicker.opfs.validation.cannotAccess'),
         debounceKey,
       });
       return;
@@ -119,7 +121,7 @@ export const StoragePickerOpfs = ({ directoryPath, onConfigChange }: StoragePick
         onConfigChange({
           config: null,
           isValid: false,
-          validationMessage: 'Selected OPFS folder does not exist.',
+          validationMessage: t('storagePicker.opfs.validation.selectedFolderMissing'),
           debounceKey,
         });
       });
@@ -134,17 +136,22 @@ export const StoragePickerOpfs = ({ directoryPath, onConfigChange }: StoragePick
     opfsLoadErrorMessage,
     opfsRootHandle,
     opfsSupported,
+    t,
   ]);
 
   return (
     <div className="rounded-2xl border border-default-200 bg-surface/80 p-4 sm:p-5">
-      <p className="text-sm font-semibold text-default-800">Origin Private File System (OPFS)</p>
+      <p className="text-sm font-semibold text-default-800">
+        <_t>storagePicker.opfs.title</_t>
+      </p>
       <p className="mt-2 text-xs text-default-500">
-        Data is stored in browser-managed private storage for this origin and profile.
+        <_t>storagePicker.opfs.description</_t>
       </p>
 
       {isLoadingOpfsRoot && !opfsRootHandle && !opfsLoadErrorMessage && (
-        <p className="mt-3 text-xs text-default-500">Preparing OPFS root directory...</p>
+        <p className="mt-3 text-xs text-default-500">
+          <_t>storagePicker.opfs.loadingRoot</_t>
+        </p>
       )}
 
       {opfsLoadErrorMessage && (

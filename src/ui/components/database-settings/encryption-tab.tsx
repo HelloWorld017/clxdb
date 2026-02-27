@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { _t, useI18n } from '@/ui/i18n';
 import {
   PIN_LENGTH,
   PinInput,
@@ -23,6 +24,7 @@ export const EncryptionTab = ({
   onUpdateMasterPassword,
   onUpdateQuickUnlockPin,
 }: EncryptionTabProps) => {
+  const { t } = useI18n();
   const [currentMasterPassword, setCurrentMasterPassword] = useState('');
   const [newMasterPassword, setNewMasterPassword] = useState('');
   const [confirmMasterPassword, setConfirmMasterPassword] = useState('');
@@ -40,19 +42,19 @@ export const EncryptionTab = ({
 
   const validateMasterPasswordForm = () => {
     if (!currentMasterPassword) {
-      return 'Enter your current master password.';
+      return t('encryptionTab.validation.currentMasterRequired');
     }
 
     if (!newMasterPassword) {
-      return 'Enter a new master password.';
+      return t('encryptionTab.validation.newMasterRequired');
     }
 
     if (newMasterPassword !== confirmMasterPassword) {
-      return 'New master password and confirmation do not match.';
+      return t('encryptionTab.validation.confirmMismatch');
     }
 
     if (currentMasterPassword === newMasterPassword) {
-      return 'Use a different password from your current one.';
+      return t('encryptionTab.validation.mustDiffer');
     }
 
     return null;
@@ -60,11 +62,11 @@ export const EncryptionTab = ({
 
   const validatePinForm = () => {
     if (!pinMasterPassword) {
-      return 'Enter your master password to change quick unlock PIN.';
+      return t('encryptionTab.validation.pinMasterRequired');
     }
 
     if (!isCompletePin(newPinDigits)) {
-      return `Enter all ${PIN_LENGTH} digits for both PIN fields.`;
+      return t('encryptionTab.validation.pinIncomplete', { count: PIN_LENGTH });
     }
 
     return null;
@@ -93,11 +95,9 @@ export const EncryptionTab = ({
       setCurrentMasterPassword('');
       setNewMasterPassword('');
       setConfirmMasterPassword('');
-      setMasterPasswordSuccess('Master password updated successfully.');
+      setMasterPasswordSuccess(t('encryptionTab.success.masterUpdated'));
     } catch (error) {
-      setMasterPasswordError(
-        getErrorMessage(error, 'Unable to update master password. Please try again.')
-      );
+      setMasterPasswordError(getErrorMessage(error, t('encryptionTab.error.updateMasterFallback')));
     } finally {
       setIsUpdatingMasterPassword(false);
     }
@@ -125,9 +125,9 @@ export const EncryptionTab = ({
       await onUpdateQuickUnlockPin(pinMasterPassword, pinToString(newPinDigits));
       setPinMasterPassword('');
       setNewPinDigits(createEmptyPin());
-      setPinSuccess('Quick unlock PIN updated for this device.');
+      setPinSuccess(t('encryptionTab.success.pinUpdated'));
     } catch (error) {
-      setPinError(getErrorMessage(error, 'Unable to update quick unlock PIN. Please try again.'));
+      setPinError(getErrorMessage(error, t('encryptionTab.error.updatePinFallback')));
     } finally {
       setIsUpdatingPin(false);
     }
@@ -136,9 +136,11 @@ export const EncryptionTab = ({
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-lg font-semibold text-default-900">Encryption credentials</h3>
+        <h3 className="text-lg font-semibold text-default-900">
+          <_t>encryptionTab.title</_t>
+        </h3>
         <p className="mt-1 text-sm text-default-600">
-          Rotate your master password and refresh this device PIN without recreating the database.
+          <_t>encryptionTab.description</_t>
         </p>
       </div>
 
@@ -147,7 +149,7 @@ export const EncryptionTab = ({
           className="rounded-xl border border-default-300 bg-default-100 px-3 py-2 text-sm
             text-default-700"
         >
-          No database detected for this storage backend yet.
+          <_t>encryptionTab.noDatabase</_t>
         </p>
       ) : status.isEncrypted ? (
         <>
@@ -156,9 +158,11 @@ export const EncryptionTab = ({
             className="rounded-2xl border border-default-200 bg-default-50/70 p-4"
           >
             <div className="mb-3">
-              <p className="text-sm font-semibold text-default-900">Change master password</p>
+              <p className="text-sm font-semibold text-default-900">
+                <_t>encryptionTab.section.changeMaster.title</_t>
+              </p>
               <p className="mt-1 text-xs leading-relaxed text-default-500">
-                This updates the encryption key wrapping metadata for all devices.
+                <_t>encryptionTab.section.changeMaster.description</_t>
               </p>
             </div>
 
@@ -167,7 +171,7 @@ export const EncryptionTab = ({
                 className="text-xs font-semibold tracking-wide text-default-600"
                 htmlFor={`${baseId}-current-master-password`}
               >
-                Current master password
+                <_t>encryptionTab.field.currentMaster</_t>
                 <input
                   id={`${baseId}-current-master-password`}
                   type="password"
@@ -187,7 +191,7 @@ export const EncryptionTab = ({
                   className="text-xs font-semibold tracking-wide text-default-600"
                   htmlFor={`${baseId}-new-master-password`}
                 >
-                  New master password
+                  <_t>encryptionTab.field.newMaster</_t>
                   <input
                     id={`${baseId}-new-master-password`}
                     type="password"
@@ -206,7 +210,7 @@ export const EncryptionTab = ({
                   className="text-xs font-semibold tracking-wide text-default-600"
                   htmlFor={`${baseId}-confirm-master-password`}
                 >
-                  Confirm new password
+                  <_t>encryptionTab.field.confirmMaster</_t>
                   <input
                     id={`${baseId}-confirm-master-password`}
                     type="password"
@@ -248,7 +252,11 @@ export const EncryptionTab = ({
                 py-2.5 text-sm font-semibold text-primary-foreground transition-colors duration-200
                 hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-default-300"
             >
-              {isUpdatingMasterPassword ? 'Updating...' : 'Update master password'}
+              {isUpdatingMasterPassword ? (
+                <_t>common.updating</_t>
+              ) : (
+                <_t>encryptionTab.button.updateMaster</_t>
+              )}
             </button>
           </form>
 
@@ -257,9 +265,11 @@ export const EncryptionTab = ({
             className="rounded-2xl border border-default-200 bg-default-50/70 p-4"
           >
             <div className="mb-2">
-              <p className="text-sm font-semibold text-default-900">Update quick unlock PIN</p>
+              <p className="text-sm font-semibold text-default-900">
+                <_t>encryptionTab.section.updatePin.title</_t>
+              </p>
               <p className="mt-1 text-xs leading-relaxed text-default-500">
-                This updates local quick-unlock credentials for this device.
+                <_t>encryptionTab.section.updatePin.description</_t>
               </p>
             </div>
 
@@ -267,7 +277,7 @@ export const EncryptionTab = ({
               className="text-xs font-semibold tracking-wide text-default-600"
               htmlFor={`${baseId}-pin-master-password`}
             >
-              Master password
+              <_t>encryptionTab.field.pinMaster</_t>
               <input
                 id={`${baseId}-pin-master-password`}
                 type="password"
@@ -284,8 +294,8 @@ export const EncryptionTab = ({
 
             <PinInput
               idPrefix={`${baseId}-new-pin`}
-              label="New quick unlock PIN"
-              hint="Use a PIN you can remember. It only unlocks this device."
+              label={t('encryptionTab.pin.labelNew')}
+              hint={t('encryptionTab.pin.hintNew')}
               digits={newPinDigits}
               disabled={disabled || isUpdatingPin}
               className="my-5"
@@ -317,7 +327,7 @@ export const EncryptionTab = ({
                 py-2.5 text-sm font-semibold text-primary-foreground transition-colors duration-200
                 hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-default-300"
             >
-              {isUpdatingPin ? 'Updating...' : 'Update quick unlock PIN'}
+              {isUpdatingPin ? <_t>common.updating</_t> : <_t>encryptionTab.button.updatePin</_t>}
             </button>
           </form>
         </>
@@ -326,7 +336,7 @@ export const EncryptionTab = ({
           className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm
             text-amber-800"
         >
-          This database is not encrypted. Encryption credential controls are unavailable.
+          <_t>encryptionTab.unencryptedNotice</_t>
         </p>
       )}
     </div>

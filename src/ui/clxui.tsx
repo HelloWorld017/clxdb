@@ -5,6 +5,7 @@ import { DatabaseUnlock } from './components/database-unlock';
 import { StoragePicker } from './components/storage-picker';
 import { SyncIndicator } from './components/sync-indicator';
 import { ThemeProvider } from './components/theme-provider';
+import { I18nProvider } from './i18n';
 import uiStyles from './style.css?inline&shadow';
 import type { DatabaseUnlockOperation } from './components/database-unlock';
 import type { StoragePickerBackendType } from './components/storage-picker';
@@ -70,6 +71,9 @@ export interface ClxUI {
 export interface ClxUIOptions {
   position?: ['top' | 'bottom', 'left' | 'center' | 'right'];
   theme?: 'light' | 'dark' | 'system';
+  i18n?: {
+    locale?: string;
+  };
   style?: {
     fontFamily?: string | ThemeFontFamily;
     palette?: string | ThemePalette;
@@ -163,9 +167,11 @@ export const createClxUI = (options: ClxUIOptions = {}): ClxUI => {
   const children: Set<ReactElement> = new Set();
   const updateChildren = () =>
     ensurePortal().root.render(
-      <ThemeProvider mode={options.theme} palette={palette} fontFamily={fontFamily}>
-        {Array.from(children)}
-      </ThemeProvider>
+      <I18nProvider locale={options.i18n?.locale}>
+        <ThemeProvider mode={options.theme} palette={palette} fontFamily={fontFamily}>
+          {Array.from(children)}
+        </ThemeProvider>
+      </I18nProvider>
     );
 
   const addChild = (child: ReactElement) => {
