@@ -24,7 +24,7 @@ function CloseIcon() {
       aria-hidden
     >
       <title>
-        <_t>dialog.closeTitle</_t>
+        <_t>{['dialog.closeTitle']}</_t>
       </title>
       <path d="m6 6 12 12" />
       <path d="m18 6-12 12" />

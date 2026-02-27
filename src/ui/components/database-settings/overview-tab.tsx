@@ -21,17 +21,17 @@ export const OverviewTab = ({
     <div className="space-y-4">
       <div>
         <h3 className="text-lg font-semibold text-default-900">
-          <_t>overviewTab.title</_t>
+          <_t>{['overviewTab.title']}</_t>
         </h3>
         <p className="mt-1 text-sm text-default-600">
-          <_t>overviewTab.description</_t>
+          <_t>{['overviewTab.description']}</_t>
         </p>
       </div>
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <article className="rounded-2xl border border-default-200 bg-default-50/80 p-4">
           <p className="text-[11px] font-semibold tracking-[0.16em] text-default-500 uppercase">
-            <_t>overviewTab.storageBackend.title</_t>
+            <_t>{['overviewTab.storageBackend.title']}</_t>
           </p>
           <p className="mt-2 text-lg font-semibold text-default-900">
             {storageOverview.backendLabel}
@@ -50,7 +50,7 @@ export const OverviewTab = ({
 
         <article className="rounded-2xl border border-default-200 bg-default-50/80 p-4">
           <p className="text-[11px] font-semibold tracking-[0.16em] text-default-500 uppercase">
-            <_t>overviewTab.databaseState.title</_t>
+            <_t>{['overviewTab.databaseState.title']}</_t>
           </p>
 
           <div className="mt-3 space-y-2 text-sm">
@@ -59,7 +59,7 @@ export const OverviewTab = ({
                 py-2"
             >
               <span className="text-xs text-default-500">
-                <_t>overviewTab.uuid.label</_t>
+                <_t>{['overviewTab.uuid.label']}</_t>
               </span>
               <span
                 className="truncate font-monospace font-medium text-default-800"
@@ -73,7 +73,7 @@ export const OverviewTab = ({
                 border-default-200 bg-surface px-3 py-2"
             >
               <span className="text-xs text-default-500">
-                <_t>overviewTab.encryption.label</_t>
+                <_t>{['overviewTab.encryption.label']}</_t>
               </span>
               <span className="font-medium text-default-800">
                 {status?.isEncrypted
@@ -86,7 +86,7 @@ export const OverviewTab = ({
                 border-default-200 bg-surface px-3 py-2"
             >
               <span className="text-xs text-default-500">
-                <_t>overviewTab.deviceCurrent.label</_t>
+                <_t>{['overviewTab.deviceCurrent.label']}</_t>
               </span>
               <span className="font-medium text-default-800">
                 {registeredCurrentDevice
@@ -99,7 +99,7 @@ export const OverviewTab = ({
                 border-default-200 bg-surface px-3 py-2"
             >
               <span className="text-xs text-default-500">
-                <_t>overviewTab.registeredDevices.label</_t>
+                <_t>{['overviewTab.registeredDevices.label']}</_t>
               </span>
               <span className="font-medium text-default-800">{registeredDeviceCount}</span>
             </div>

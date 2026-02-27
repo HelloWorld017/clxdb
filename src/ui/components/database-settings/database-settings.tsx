@@ -129,7 +129,7 @@ export function DatabaseSettings({
           sm:mb-4"
       >
         <p className="text-xs font-semibold tracking-[0.2em] text-default-500 uppercase">
-          <_t>databaseSettings.title</_t>
+          <_t>{['databaseSettings.title']}</_t>
         </p>
       </header>
 
@@ -180,7 +180,7 @@ export function DatabaseSettings({
                   bg-default-100 px-3 py-2 text-sm text-default-600"
               >
                 <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-default-500" />
-                <_t>databaseSettings.status.refreshing</_t>
+                <_t>{['databaseSettings.status.refreshing']}</_t>
               </div>
             )}
 

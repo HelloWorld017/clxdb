@@ -50,10 +50,10 @@ export const DevicesTab = ({
     <div className="space-y-4">
       <div>
         <h3 className="text-lg font-semibold text-default-900">
-          <_t>devicesTab.title</_t>
+          <_t>{['devicesTab.title']}</_t>
         </h3>
         <p className="mt-1 text-sm text-default-600">
-          <_t>devicesTab.description</_t>
+          <_t>{['devicesTab.description']}</_t>
         </p>
       </div>
 
@@ -62,7 +62,7 @@ export const DevicesTab = ({
           className="rounded-xl border border-default-300 bg-default-100 px-3 py-2 text-sm
             text-default-700"
         >
-          <_t>devicesTab.noDatabase</_t>
+          <_t>{['devicesTab.noDatabase']}</_t>
         </p>
       ) : status.isEncrypted ? (
         <>
@@ -77,7 +77,7 @@ export const DevicesTab = ({
               className="rounded-xl border border-dashed border-default-300 bg-default-50 px-3 py-4
                 text-sm text-default-500"
             >
-              <_t>devicesTab.empty</_t>
+              <_t>{['devicesTab.empty']}</_t>
             </p>
           ) : (
             <div className="space-y-3">
@@ -114,7 +114,7 @@ export const DevicesTab = ({
                             className="rounded-full border border-emerald-300 bg-emerald-50 px-2.5
                               py-1 text-[11px] font-semibold text-emerald-700"
                           >
-                            <_t>devicesTab.badge.current</_t>
+                            <_t>{['devicesTab.badge.current']}</_t>
                           </span>
                         )}
 
@@ -130,9 +130,9 @@ export const DevicesTab = ({
                             disabled:text-default-400"
                         >
                           {isRemoving ? (
-                            <_t>devicesTab.button.removing</_t>
+                            <_t>{['devicesTab.button.removing']}</_t>
                           ) : (
-                            <_t>devicesTab.button.remove</_t>
+                            <_t>{['devicesTab.button.remove']}</_t>
                           )}
                         </button>
                       </div>
@@ -148,7 +148,7 @@ export const DevicesTab = ({
           className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm
             text-amber-800"
         >
-          <_t>devicesTab.unencryptedNotice</_t>
+          <_t>{['devicesTab.unencryptedNotice']}</_t>
         </p>
       )}
     </div>

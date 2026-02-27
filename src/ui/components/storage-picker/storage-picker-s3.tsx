@@ -183,7 +183,7 @@ export const StoragePickerS3 = ({
       <div className="grid gap-4">
         <div className="grid gap-4 sm:grid-cols-3">
           <label className="text-sm font-semibold text-default-800" htmlFor={s3ProviderId}>
-            <_t>storagePicker.s3.field.provider</_t>
+            <_t>{['storagePicker.s3.field.provider']}</_t>
             <select
               id={s3ProviderId}
               value={provider}
@@ -202,7 +202,7 @@ export const StoragePickerS3 = ({
           </label>
 
           <label className="text-sm font-semibold text-default-800" htmlFor={s3RegionId}>
-            <_t>storagePicker.s3.field.region</_t>
+            <_t>{['storagePicker.s3.field.region']}</_t>
             <input
               id={s3RegionId}
               type="text"
@@ -222,7 +222,7 @@ export const StoragePickerS3 = ({
           </label>
 
           <label className="text-sm font-semibold text-default-800" htmlFor={s3BucketId}>
-            <_t>storagePicker.s3.field.bucket</_t>
+            <_t>{['storagePicker.s3.field.bucket']}</_t>
             <input
               id={s3BucketId}
               type="text"
@@ -239,7 +239,7 @@ export const StoragePickerS3 = ({
         </div>
 
         <label className="text-sm font-semibold text-default-800" htmlFor={s3EndpointId}>
-          <_t>storagePicker.s3.field.endpoint</_t>
+          <_t>{['storagePicker.s3.field.endpoint']}</_t>
           <input
             id={s3EndpointId}
             type="url"
@@ -256,7 +256,7 @@ export const StoragePickerS3 = ({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="text-sm font-semibold text-default-800" htmlFor={s3AccessKeyIdId}>
-            <_t>storagePicker.s3.field.accessKeyId</_t>
+            <_t>{['storagePicker.s3.field.accessKeyId']}</_t>
             <input
               id={s3AccessKeyIdId}
               type="text"
@@ -273,7 +273,7 @@ export const StoragePickerS3 = ({
           </label>
 
           <label className="text-sm font-semibold text-default-800" htmlFor={s3SecretAccessKeyId}>
-            <_t>storagePicker.s3.field.secretAccessKey</_t>
+            <_t>{['storagePicker.s3.field.secretAccessKey']}</_t>
             <input
               id={s3SecretAccessKeyId}
               type="password"
@@ -281,7 +281,7 @@ export const StoragePickerS3 = ({
               onChange={event => setSecretAccessKey(event.target.value)}
               disabled={controlsLocked}
               autoComplete="current-password"
-              placeholder={t('storagePicker.s3.placeholder.secretAccessKey')}
+              placeholder={t('common.passwordPlaceholder')}
               className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3 py-2.5
                 text-sm font-normal text-default-800 transition-colors duration-200 outline-none
                 placeholder:text-default-400 focus:border-default-500 focus:bg-surface
@@ -291,7 +291,7 @@ export const StoragePickerS3 = ({
         </div>
 
         <label className="text-sm font-semibold text-default-800" htmlFor={s3SessionTokenId}>
-          <_t>storagePicker.s3.field.sessionTokenOptional</_t>
+          <_t>{['storagePicker.s3.field.sessionTokenOptional']}</_t>
           <input
             id={s3SessionTokenId}
             type="password"

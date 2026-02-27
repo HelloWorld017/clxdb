@@ -137,10 +137,10 @@ export const EncryptionTab = ({
     <div className="space-y-4">
       <div>
         <h3 className="text-lg font-semibold text-default-900">
-          <_t>encryptionTab.title</_t>
+          <_t>{['encryptionTab.title']}</_t>
         </h3>
         <p className="mt-1 text-sm text-default-600">
-          <_t>encryptionTab.description</_t>
+          <_t>{['encryptionTab.description']}</_t>
         </p>
       </div>
 
@@ -149,7 +149,7 @@ export const EncryptionTab = ({
           className="rounded-xl border border-default-300 bg-default-100 px-3 py-2 text-sm
             text-default-700"
         >
-          <_t>encryptionTab.noDatabase</_t>
+          <_t>{['encryptionTab.noDatabase']}</_t>
         </p>
       ) : status.isEncrypted ? (
         <>
@@ -159,10 +159,10 @@ export const EncryptionTab = ({
           >
             <div className="mb-3">
               <p className="text-sm font-semibold text-default-900">
-                <_t>encryptionTab.section.changeMaster.title</_t>
+                <_t>{['encryptionTab.section.changeMaster.title']}</_t>
               </p>
               <p className="mt-1 text-xs leading-relaxed text-default-500">
-                <_t>encryptionTab.section.changeMaster.description</_t>
+                <_t>{['encryptionTab.section.changeMaster.description']}</_t>
               </p>
             </div>
 
@@ -171,7 +171,7 @@ export const EncryptionTab = ({
                 className="text-xs font-semibold tracking-wide text-default-600"
                 htmlFor={`${baseId}-current-master-password`}
               >
-                <_t>encryptionTab.field.currentMaster</_t>
+                <_t>{['encryptionTab.field.currentMaster']}</_t>
                 <input
                   id={`${baseId}-current-master-password`}
                   type="password"
@@ -191,7 +191,7 @@ export const EncryptionTab = ({
                   className="text-xs font-semibold tracking-wide text-default-600"
                   htmlFor={`${baseId}-new-master-password`}
                 >
-                  <_t>encryptionTab.field.newMaster</_t>
+                  <_t>{['encryptionTab.field.newMaster']}</_t>
                   <input
                     id={`${baseId}-new-master-password`}
                     type="password"
@@ -210,7 +210,7 @@ export const EncryptionTab = ({
                   className="text-xs font-semibold tracking-wide text-default-600"
                   htmlFor={`${baseId}-confirm-master-password`}
                 >
-                  <_t>encryptionTab.field.confirmMaster</_t>
+                  <_t>{['encryptionTab.field.confirmMaster']}</_t>
                   <input
                     id={`${baseId}-confirm-master-password`}
                     type="password"
@@ -253,9 +253,9 @@ export const EncryptionTab = ({
                 hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-default-300"
             >
               {isUpdatingMasterPassword ? (
-                <_t>common.updating</_t>
+                <_t>{['common.updating']}</_t>
               ) : (
-                <_t>encryptionTab.button.updateMaster</_t>
+                <_t>{['encryptionTab.button.updateMaster']}</_t>
               )}
             </button>
           </form>
@@ -266,10 +266,10 @@ export const EncryptionTab = ({
           >
             <div className="mb-2">
               <p className="text-sm font-semibold text-default-900">
-                <_t>encryptionTab.section.updatePin.title</_t>
+                <_t>{['encryptionTab.section.updatePin.title']}</_t>
               </p>
               <p className="mt-1 text-xs leading-relaxed text-default-500">
-                <_t>encryptionTab.section.updatePin.description</_t>
+                <_t>{['encryptionTab.section.updatePin.description']}</_t>
               </p>
             </div>
 
@@ -277,7 +277,7 @@ export const EncryptionTab = ({
               className="text-xs font-semibold tracking-wide text-default-600"
               htmlFor={`${baseId}-pin-master-password`}
             >
-              <_t>encryptionTab.field.pinMaster</_t>
+              <_t>{['encryptionTab.field.pinMaster']}</_t>
               <input
                 id={`${baseId}-pin-master-password`}
                 type="password"
@@ -327,7 +327,11 @@ export const EncryptionTab = ({
                 py-2.5 text-sm font-semibold text-primary-foreground transition-colors duration-200
                 hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-default-300"
             >
-              {isUpdatingPin ? <_t>common.updating</_t> : <_t>encryptionTab.button.updatePin</_t>}
+              {isUpdatingPin ? (
+                <_t>{['common.updating']}</_t>
+              ) : (
+                <_t>{['encryptionTab.button.updatePin']}</_t>
+              )}
             </button>
           </form>
         </>
@@ -336,7 +340,7 @@ export const EncryptionTab = ({
           className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm
             text-amber-800"
         >
-          <_t>encryptionTab.unencryptedNotice</_t>
+          <_t>{['encryptionTab.unencryptedNotice']}</_t>
         </p>
       )}
     </div>

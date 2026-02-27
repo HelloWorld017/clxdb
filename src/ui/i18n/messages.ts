@@ -10,6 +10,7 @@ const en = {
   'common.unknown': 'Unknown',
   'common.updating': 'Updating...',
   'common.unsupported': 'Unsupported',
+  'common.passwordPlaceholder': '••••••••',
 
   'dialog.closeAria': 'Close dialog',
   'dialog.closeTitle': 'Close dialog',
@@ -113,7 +114,6 @@ const en = {
   'storagePicker.s3.placeholder.region.default': 'us-east-1',
   'storagePicker.s3.placeholder.bucket': 'my-bucket',
   'storagePicker.s3.placeholder.accessKeyId': 'AKIA...',
-  'storagePicker.s3.placeholder.secretAccessKey': '••••••••',
   'storagePicker.s3.placeholder.sessionToken': 'Temporary credentials only',
 
   'storagePicker.webdav.validation.enterEndpoint': 'Enter a WebDAV endpoint URL.',
@@ -129,7 +129,6 @@ const en = {
   'storagePicker.webdav.placeholder.endpoint':
     'https://cloud.example.com/remote.php/dav/files/user',
   'storagePicker.webdav.placeholder.user': 'my-user',
-  'storagePicker.webdav.placeholder.password': '••••••••',
 
   'directoryPicker.title': 'Select Directory',
   'directoryPicker.error.readFoldersFailed': 'Could not read folders for this location.',

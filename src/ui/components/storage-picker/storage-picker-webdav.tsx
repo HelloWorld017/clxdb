@@ -106,7 +106,7 @@ export const StoragePickerWebdav = ({
     <div className="rounded-2xl border border-default-200 bg-surface/80 p-4 sm:p-5">
       <div className="grid gap-4">
         <label className="text-sm font-semibold text-default-800" htmlFor={webDavUrlId}>
-          <_t>storagePicker.webdav.field.endpoint</_t>
+          <_t>{['storagePicker.webdav.field.endpoint']}</_t>
           <input
             id={webDavUrlId}
             type="url"
@@ -123,7 +123,7 @@ export const StoragePickerWebdav = ({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="text-sm font-semibold text-default-800" htmlFor={webDavUserId}>
-            <_t>storagePicker.webdav.field.user</_t>
+            <_t>{['storagePicker.webdav.field.user']}</_t>
             <input
               id={webDavUserId}
               type="text"
@@ -140,7 +140,7 @@ export const StoragePickerWebdav = ({
           </label>
 
           <label className="text-sm font-semibold text-default-800" htmlFor={webDavPassId}>
-            <_t>storagePicker.webdav.field.password</_t>
+            <_t>{['storagePicker.webdav.field.password']}</_t>
             <input
               id={webDavPassId}
               type="password"
@@ -148,7 +148,7 @@ export const StoragePickerWebdav = ({
               onChange={event => setPass(event.target.value)}
               disabled={controlsLocked}
               autoComplete="current-password"
-              placeholder={t('storagePicker.webdav.placeholder.password')}
+              placeholder={t('common.passwordPlaceholder')}
               className="mt-2 w-full rounded-xl border border-default-300 bg-default-50 px-3 py-2.5
                 text-sm font-normal text-default-800 transition-colors duration-200 outline-none
                 placeholder:text-default-400 focus:border-default-500 focus:bg-surface

@@ -199,13 +199,13 @@ export function StoragePicker({
       <div className="flex h-full flex-col overflow-auto p-3 pb-0 sm:p-5 sm:pb-0">
         <header className="mb-8 space-y-2">
           <p className="text-xs font-semibold tracking-[0.2em] text-default-500 uppercase">
-            <_t>storagePicker.eyebrow</_t>
+            <_t>{['storagePicker.eyebrow']}</_t>
           </p>
           <h2 className="text-2xl font-semibold tracking-tight text-default-900 sm:text-3xl">
-            <_t>storagePicker.title</_t>
+            <_t>{['storagePicker.title']}</_t>
           </h2>
           <p className="max-w-2xl text-sm leading-relaxed text-default-600">
-            <_t>storagePicker.description</_t>
+            <_t>{['storagePicker.description']}</_t>
           </p>
         </header>
 
@@ -253,7 +253,7 @@ export function StoragePicker({
                         className="rounded-full border border-default-300 px-2 py-0.5 text-[10px]
                           font-semibold tracking-wide text-default-500 uppercase"
                       >
-                        <_t>storagePicker.unsupportedBadge</_t>
+                        <_t>{['storagePicker.unsupportedBadge']}</_t>
                       </span>
                     )}
                   </div>
@@ -328,10 +328,10 @@ export function StoragePicker({
           ) : (
             <div className="rounded-2xl border border-default-200 bg-surface/80 p-4 sm:p-5">
               <p className="text-sm font-semibold text-default-800">
-                <_t>storagePicker.selectDirectory.title</_t>
+                <_t>{['storagePicker.selectDirectory.title']}</_t>
               </p>
               <p className="mt-1 text-xs text-default-500">
-                <_t>storagePicker.selectDirectory.chooseStorageFirst</_t>
+                <_t>{['storagePicker.selectDirectory.chooseStorageFirst']}</_t>
               </p>
             </div>
           )}
@@ -362,7 +362,7 @@ export function StoragePicker({
                   hover:bg-default-100 disabled:cursor-not-allowed disabled:border-default-200
                   disabled:bg-default-100 disabled:text-default-400"
               >
-                <_t>common.cancel</_t>
+                <_t>{['common.cancel']}</_t>
               </button>
             )}
 
@@ -375,7 +375,7 @@ export function StoragePicker({
                 duration-200 hover:bg-primary-hover disabled:cursor-not-allowed
                 disabled:bg-default-300"
             >
-              {isSubmitting ? <_t>common.applying</_t> : resolvedSubmitLabel}
+              {isSubmitting ? <_t>{['common.applying']}</_t> : resolvedSubmitLabel}
             </button>
           </div>
         </div>

@@ -417,7 +417,7 @@ export function DatabaseUnlock({
         <header className="mb-6 flex flex-wrap items-center gap-4 sm:mb-7">
           <div className="max-w-2xl space-y-2">
             <p className="text-xs font-semibold tracking-[0.2em] text-default-500 uppercase">
-              <_t>databaseUnlock.eyebrow</_t>
+              <_t>{['databaseUnlock.eyebrow']}</_t>
             </p>
             <h2 className="text-2xl font-semibold tracking-tight text-default-900 sm:text-3xl">
               {modeTitle}
@@ -435,7 +435,7 @@ export function DatabaseUnlock({
                   hover:bg-default-100 disabled:cursor-not-allowed disabled:border-default-200
                   disabled:bg-default-100 disabled:text-default-400"
               >
-                <_t>databaseUnlock.button.changeStorage</_t>
+                <_t>{['databaseUnlock.button.changeStorage']}</_t>
               </button>
             )}
           </div>
@@ -452,7 +452,7 @@ export function DatabaseUnlock({
             className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm
               text-amber-800"
           >
-            <_t>databaseUnlock.unsupportedMessage</_t>
+            <_t>{['databaseUnlock.unsupportedMessage']}</_t>
           </p>
         )}
 
@@ -469,7 +469,7 @@ export function DatabaseUnlock({
                   className="mt-2 mb-3 ml-1 text-xs font-semibold tracking-[0.14em] text-default-600
                     uppercase"
                 >
-                  <_t>databaseUnlock.recovery.modeLabel</_t>
+                  <_t>{['databaseUnlock.recovery.modeLabel']}</_t>
                 </p>
                 <div
                   className="grid grid-cols-2 gap-1 rounded-xl border border-default-200
@@ -488,7 +488,7 @@ export function DatabaseUnlock({
                           disabled:hover:bg-transparent disabled:hover:text-default-500`
                     )}
                   >
-                    <_t>databaseUnlock.recovery.unlockOnly</_t>
+                    <_t>{['databaseUnlock.recovery.unlockOnly']}</_t>
                   </button>
                   <button
                     type="button"
@@ -503,7 +503,7 @@ export function DatabaseUnlock({
                           disabled:hover:bg-transparent disabled:hover:text-default-500`
                     )}
                   >
-                    <_t>databaseUnlock.recovery.savePin</_t>
+                    <_t>{['databaseUnlock.recovery.savePin']}</_t>
                   </button>
                 </div>
                 <p className="mt-1 ml-1 text-xs leading-relaxed text-default-500">
@@ -572,7 +572,7 @@ export function DatabaseUnlock({
                 transition-colors duration-200 hover:bg-primary-hover disabled:cursor-not-allowed
                 disabled:bg-default-300"
             >
-              {isSubmitting ? <_t>common.applying</_t> : submitLabel}
+              {isSubmitting ? <_t>{['common.applying']}</_t> : submitLabel}
             </button>
 
             {mode === 'create' && (
@@ -583,7 +583,7 @@ export function DatabaseUnlock({
                     className="text-[11px] font-semibold tracking-[0.2em] text-default-500
                       uppercase"
                   >
-                    <_t>common.or</_t>
+                    <_t>{['common.or']}</_t>
                   </span>
                   <span className="h-px flex-1 bg-default-200" />
                 </div>
@@ -598,7 +598,7 @@ export function DatabaseUnlock({
                     disabled:cursor-not-allowed disabled:border-default-200 disabled:bg-default-100
                     disabled:text-default-400"
                 >
-                  <_t>databaseUnlock.button.createWithoutPassword</_t>
+                  <_t>{['databaseUnlock.button.createWithoutPassword']}</_t>
                 </button>
               </>
             )}

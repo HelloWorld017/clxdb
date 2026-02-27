@@ -142,15 +142,15 @@ export const StoragePickerOpfs = ({ directoryPath, onConfigChange }: StoragePick
   return (
     <div className="rounded-2xl border border-default-200 bg-surface/80 p-4 sm:p-5">
       <p className="text-sm font-semibold text-default-800">
-        <_t>storagePicker.opfs.title</_t>
+        <_t>{['storagePicker.opfs.title']}</_t>
       </p>
       <p className="mt-2 text-xs text-default-500">
-        <_t>storagePicker.opfs.description</_t>
+        <_t>{['storagePicker.opfs.description']}</_t>
       </p>
 
       {isLoadingOpfsRoot && !opfsRootHandle && !opfsLoadErrorMessage && (
         <p className="mt-3 text-xs text-default-500">
-          <_t>storagePicker.opfs.loadingRoot</_t>
+          <_t>{['storagePicker.opfs.loadingRoot']}</_t>
         </p>
       )}
 

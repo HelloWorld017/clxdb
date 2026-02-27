@@ -225,7 +225,7 @@ export function DirectoryPicker({
       )}
     >
       <p className="text-sm font-semibold text-default-800">
-        <_t>directoryPicker.title</_t>
+        <_t>{['directoryPicker.title']}</_t>
       </p>
 
       <div className="mt-4 flex items-center justify-between gap-2">
@@ -286,7 +286,7 @@ export function DirectoryPicker({
                 >
                   <form onSubmit={handleCreateDirectory} className="space-y-3">
                     <label className="block text-xs font-medium text-default-700">
-                      <_t>directoryPicker.popover.folderNameLabel</_t>
+                      <_t>{['directoryPicker.popover.folderNameLabel']}</_t>
                       <input
                         ref={newFolderInputRef}
                         type="text"
@@ -314,7 +314,7 @@ export function DirectoryPicker({
                           disabled:border-default-200 disabled:bg-default-100
                           disabled:text-default-400"
                       >
-                        <_t>common.cancel</_t>
+                        <_t>{['common.cancel']}</_t>
                       </button>
 
                       <button
@@ -326,9 +326,9 @@ export function DirectoryPicker({
                           disabled:bg-default-300"
                       >
                         {isCreatingDirectory ? (
-                          <_t>common.creating</_t>
+                          <_t>{['common.creating']}</_t>
                         ) : (
-                          <_t>directoryPicker.button.create</_t>
+                          <_t>{['directoryPicker.button.create']}</_t>
                         )}
                       </button>
                     </div>
@@ -344,7 +344,7 @@ export function DirectoryPicker({
         <div className="mt-3 h-50 overflow-auto rounded-lg border border-default-200 bg-surface p-2">
           {isLoadingDirectories ? (
             <p className="px-2 py-3 text-xs text-default-500">
-              <_t>directoryPicker.loadingFolders</_t>
+              <_t>{['directoryPicker.loadingFolders']}</_t>
             </p>
           ) : directories.length > 0 ? (
             <div className="grid gap-1">
@@ -368,7 +368,7 @@ export function DirectoryPicker({
             </div>
           ) : (
             <p className="px-2 py-3 text-xs text-default-500">
-              <_t>directoryPicker.emptyFolders</_t>
+              <_t>{['directoryPicker.emptyFolders']}</_t>
             </p>
           )}
         </div>
@@ -393,7 +393,7 @@ export function DirectoryPicker({
               duration-200 hover:border-default-400 hover:bg-default-100 disabled:cursor-not-allowed
               disabled:border-default-200 disabled:bg-default-100 disabled:text-default-400"
           >
-            <_t>directoryPicker.button.applyPath</_t>
+            <_t>{['directoryPicker.button.applyPath']}</_t>
           </button>
         </div>
       )}

@@ -111,10 +111,10 @@ export const StoragePickerFilesystemAccess = ({
       <div className="flex justify-between gap-2">
         <div className="flex flex-col gap-1">
           <p className="text-sm font-semibold text-default-800">
-            <_t>storagePicker.filesystem.title</_t>
+            <_t>{['storagePicker.filesystem.title']}</_t>
           </p>
           <p className="mt-1 text-xs text-default-500">
-            <_t>storagePicker.filesystem.description</_t>
+            <_t>{['storagePicker.filesystem.description']}</_t>
           </p>
         </div>
 
@@ -128,9 +128,9 @@ export const StoragePickerFilesystemAccess = ({
             disabled:bg-default-300"
         >
           {isPickingDirectory ? (
-            <_t>common.opening</_t>
+            <_t>{['common.opening']}</_t>
           ) : (
-            <_t>storagePicker.filesystem.button.selectFolder</_t>
+            <_t>{['storagePicker.filesystem.button.selectFolder']}</_t>
           )}
         </button>
       </div>

@@ -6,7 +6,7 @@ import type { PropsWithChildren } from 'react';
 type TranslationPrimitive = string | number | boolean | null | undefined | TranslationPrimitive[];
 
 export type TranslationValues = Record<string, TranslationPrimitive>;
-export type ClxUITranslate = (key: string, values?: TranslationValues) => string;
+export type ClxUITranslate = (key: ClxUIMessageKey, values?: TranslationValues) => string;
 
 export interface I18nProviderProps extends PropsWithChildren {
   locale?: string;
@@ -53,7 +53,7 @@ const interpolate = (template: string, values?: TranslationValues): string => {
 const createTranslate =
   (catalog: ClxUIMessageCatalog): ClxUITranslate =>
   (key, values) =>
-    interpolate(catalog[key as ClxUIMessageKey] ?? key, values);
+    interpolate(catalog[key] ?? key, values);
 
 const DEFAULT_CONTEXT_VALUE: I18nContextValue = {
   locale: DEFAULT_CLX_UI_LOCALE,
@@ -77,10 +77,12 @@ export const I18nProvider = ({ children, locale }: I18nProviderProps) => {
 
 export const useI18n = () => useContext(I18nContext);
 
-export const _t = ({
-  children,
-  ...values
-}: { children: [ClxUIMessageKey] } & TranslationValues) => {
+type TranslateComponentProps = {
+  children: readonly [ClxUIMessageKey];
+} & TranslationValues;
+
+export function _t({ children, ...values }: TranslateComponentProps) {
   const { t } = useI18n();
-  return t(children[0], values as TranslationValues) as never;
-};
+  const [key] = children;
+  return t(key, values);
+}
