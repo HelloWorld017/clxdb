@@ -8,9 +8,12 @@ export type {
   StorageBackend,
   ShardDocument,
   DatabaseDocument,
+  DocumentsMergeRule,
   ClxDBCrypto,
   ClxDBClientOptions,
   ClxDBOptions,
+  SyncState,
+  StoredBlob,
 } from '@/types';
 
 export type { StorageConfig } from '@/storages';

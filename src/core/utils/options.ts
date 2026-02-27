@@ -1,3 +1,4 @@
+import { mergeToLatestDocument } from './document-merge';
 import type { ClxDBClientOptions, ClxDBOptions } from '@/types';
 
 export const normalizeOptions = (options: ClxDBClientOptions = {}): ClxDBOptions => ({
@@ -12,4 +13,5 @@ export const normalizeOptions = (options: ClxDBClientOptions = {}): ClxDBOptions
   vacuumCount: options.vacuumCount ?? 3,
   cacheStorageKey: options.cacheStorageKey ?? 'clxdb_cache',
   databasePersistent: options.databasePersistent ?? true,
+  mergeRule: options.mergeRule ?? mergeToLatestDocument,
 });

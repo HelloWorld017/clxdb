@@ -1,3 +1,4 @@
+import type { PossiblyPromise } from './utils';
 import type { BlobMetadata } from '@/schemas';
 import type { S3Provider } from '@/storages/s3';
 
@@ -20,6 +21,10 @@ export type StorageBackendMetadata =
       directoryName: string;
     };
 
+export interface StorageBackendInternal extends StorageBackend {
+  getMetadata?(): StorageBackendMetadata | null;
+}
+
 export interface StorageBackend {
   read(path: string, range?: { start: number; end: number }): Promise<Uint8Array<ArrayBuffer>>;
   readDirectory?(path: string): Promise<string[]>;
@@ -33,7 +38,6 @@ export interface StorageBackend {
     previousEtag: string
   ): Promise<{ success: boolean; newEtag?: string }>;
   list(path: string): Promise<string[]>;
-  getMetadata?(): StorageBackendMetadata;
   serialize?(): unknown;
 }
 
@@ -95,7 +99,13 @@ export interface ClxDBClientOptions {
   vacuumThreshold?: number;
   cacheStorageKey?: string;
   databasePersistent?: boolean;
+  mergeRule?: DocumentsMergeRule;
 }
+
+export type DocumentsMergeRule = (
+  database: DatabaseBackend,
+  changes: ShardDocument[]
+) => PossiblyPromise<ShardDocument[]>;
 
 export type ClxDBOptions = Required<ClxDBClientOptions>;
 

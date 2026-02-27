@@ -302,6 +302,7 @@ export const ko: ClxUIMessageCatalog = {
   'storageOverview.s3.provider.r2': 'Cloudflare R2',
   'storageOverview.s3.provider.minio': 'MinIO',
   'storageOverview.s3.provider.s3': 'Amazon S3',
+  'storageOverview.s3.provider.unknown': '알 수 없음',
   'storageOverview.s3.detailLabel': '버킷 / 프리픽스',
   'storageOverview.s3.description':
     '데이터베이스가 S3 호환 엔드포인트({endpoint}, {region})를 통해 읽기/쓰기를 수행합니다.',

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { fetchCors, invalidateCache } from '@/utils/fetch-cors';
 import { StorageError } from '@/utils/storage-error';
-import type { StorageBackend, StorageBackendMetadata } from '../types';
+import type { StorageBackendInternal, StorageBackendMetadata } from '../types';
 
 const configSchema = z.object({
   kind: z.literal('webdav'),
@@ -11,7 +11,7 @@ const configSchema = z.object({
 
 export type WebDAVConfig = z.infer<typeof configSchema>;
 
-export class WebDAVBackend implements StorageBackend {
+export class WebDAVBackend implements StorageBackendInternal {
   private url: string;
   private auth: { user: string; pass: string };
 

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { fetchCors, invalidateCache } from '@/utils/fetch-cors';
 import { StorageError } from '@/utils/storage-error';
-import type { StorageBackend, StorageBackendMetadata } from '../types';
+import type { StorageBackendInternal, StorageBackendMetadata } from '../types';
 
 const EMPTY_SHA256_HEX = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 const S3_SERVICE = 's3';
@@ -97,7 +97,7 @@ const hmacSha256 = async (
   return new Uint8Array(signature);
 };
 
-export class S3Backend implements StorageBackend {
+export class S3Backend implements StorageBackendInternal {
   private endpoint: URL;
   private provider: S3Provider;
   private region: string;

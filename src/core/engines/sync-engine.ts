@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { CACHE_LAST_SEQUENCE_KEY } from '@/constants';
 import { EventEmitter } from '@/utils/event-emitter';
-import { createPromisePool } from '@/utils/promise-pool';
+import { createPromisePoolSettled } from '@/utils/promise-pool';
+import { isDocumentARecent } from '../utils/document-merge';
 import type { CacheManager } from '../managers/cache-manager';
 import type { ManifestManager } from '../managers/manifest-manager';
 import type { ShardManager } from '../managers/shard-manager';
@@ -104,63 +105,63 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
     const shardsToScan: ShardFileInfo[] = latest.manifest.shardFiles.filter(
       shard => shard.range.max > this.localSequence
     );
-    const newShards = shardsToScan.filter(shard => !this.shardManager.has(shard.filename));
 
+    const newShards = shardsToScan.filter(shard => !this.shardManager.has(shard.filename));
     await this.shardManager.fetchHeaders(newShards);
 
-    const pendingIdsSet = new Set(await this.database.readPendingIds());
-    await createPromisePool(
-      shardsToScan.values().map(shardInfo => this.fetchAndApplyShard(shardInfo, pendingIdsSet))
+    const shardChanges = await createPromisePoolSettled(
+      shardsToScan.values().map(shardInfo => this.fetchShardChanges(shardInfo))
     );
 
-    await this.updateLocalSequence();
-  }
+    const aggregatedChanges = Array.from(
+      shardChanges
+        .flatMap(result => (result.status === 'fulfilled' ? result.value : []))
+        .flatMap(result => (result.status === 'fulfilled' ? result.value : []))
+        .reduce((changes, doc) => {
+          const existingDoc = changes.get(doc.id);
+          if (!existingDoc || isDocumentARecent(doc, existingDoc)) {
+            changes.set(doc.id, doc);
+          }
 
-  private async fetchAndApplyShard(
-    shardInfo: ShardFileInfo,
-    pendingIdsSet: Set<string>
-  ): Promise<void> {
-    const header = await this.shardManager.fetchHeader(shardInfo);
-    const docsToFetch = header.docs.filter(doc => doc.seq > this.localSequence);
-    if (docsToFetch.length === 0) {
-      return;
-    }
-
-    let lastError: { error: unknown } | null = null;
-    const shardManager = this.shardManager;
-    const results = await createPromisePool(
-      docsToFetch.values().map(doc => shardManager.fetchDocument(shardInfo, doc)),
-      {
-        onError: error => {
-          lastError = { error };
-        },
-      }
+          return changes;
+        }, new Map<string, ShardDocument>())
+        .values()
     );
 
-    const timestampByPendingId = new Map(
-      (await this.database.read(Array.from(pendingIdsSet)))
-        .filter(x => !!x)
-        .map(doc => [doc.id, doc.at])
-    );
-
-    const changes: ShardDocument[] = results
-      .filter((change): change is ShardDocument => !!change)
-      .filter(change => {
-        const localTimestamp = timestampByPendingId.get(change.id);
-        return !localTimestamp || localTimestamp < change.at;
-      });
-
+    const changes = await this.options.mergeRule(this.database, aggregatedChanges);
     if (changes.length > 0) {
-      this.emit('documentsChanged', changes);
       await Promise.all([
         this.database.upsert(changes.filter(change => !change.del)),
         this.database.delete(changes.filter(change => change.del)),
       ]);
+
+      this.emit('documentsChanged', changes);
     }
 
-    if (lastError) {
-      throw (lastError as { error: Error }).error;
+    const syncError =
+      shardChanges.find(result => result.status === 'rejected') ||
+      shardChanges
+        .flatMap(result => (result.status === 'fulfilled' ? result.value : []))
+        .find(result => result.status === 'rejected');
+
+    if (syncError) {
+      throw syncError.reason as unknown;
     }
+
+    await this.updateLocalSequence();
+  }
+
+  private async fetchShardChanges(shardInfo: ShardFileInfo) {
+    const header = await this.shardManager.fetchHeader(shardInfo);
+    const docsToFetch = header.docs.filter(doc => doc.seq > this.localSequence);
+    if (docsToFetch.length === 0) {
+      return [];
+    }
+
+    const shardManager = this.shardManager;
+    return await createPromisePoolSettled(
+      docsToFetch.values().map(doc => shardManager.fetchDocument(shardInfo, doc))
+    );
   }
 
   private async updateLocalSequence(): Promise<void> {

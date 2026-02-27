@@ -293,6 +293,7 @@ export const en = {
   'storageOverview.s3.provider.r2': 'Cloudflare R2',
   'storageOverview.s3.provider.minio': 'MinIO',
   'storageOverview.s3.provider.s3': 'Amazon S3',
+  'storageOverview.s3.provider.unknown': 'Unknown',
   'storageOverview.s3.detailLabel': 'Bucket / Prefix',
   'storageOverview.s3.description':
     'Your database reads and writes through an S3-compatible endpoint ({endpoint}, {region}).',

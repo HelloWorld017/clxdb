@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { StorageError } from '@/utils/storage-error';
-import type { StorageBackend, StorageBackendMetadata } from '../types';
+import type { StorageBackendInternal, StorageBackendMetadata } from '../types';
 
 const configSchema = z.object({
   kind: z.literal('filesystem'),
@@ -28,7 +28,7 @@ const isHandleAlive = async (handle: FileSystemDirectoryHandle): Promise<boolean
   }
 };
 
-export class FileSystemBackend implements StorageBackend {
+export class FileSystemBackend implements StorageBackendInternal {
   private handle: FileSystemDirectoryHandle;
   private provider: 'filesystem-access' | 'opfs';
 

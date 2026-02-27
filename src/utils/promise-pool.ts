@@ -6,12 +6,11 @@ const wrapPromise = <T>(promise: Promise<T>): Promise<PromiseSettledResult<T>> =
 
 interface PromisePoolOptions {
   concurrency?: number;
-  onError?: (error: unknown) => void;
 }
 
-export const createPromisePool = async <T>(
+export const createPromisePoolSettled = async <T>(
   generator: Iterable<Promise<T>, void>,
-  { concurrency = 5, onError }: PromisePoolOptions = {}
+  { concurrency = 5 }: PromisePoolOptions = {}
 ) => {
   const output: PromiseSettledResult<T>[] = [];
   const worker = async () => {
@@ -21,13 +20,17 @@ export const createPromisePool = async <T>(
   };
 
   await Promise.all(Array.from({ length: concurrency }).map(worker));
+  return output;
+};
+
+export const createPromisePool = async <T>(
+  generator: Iterable<Promise<T>, void>,
+  opts?: PromisePoolOptions
+) => {
+  const output = await createPromisePoolSettled(generator, opts);
   const error = output.find(result => result.status === 'rejected');
   if (error) {
-    if (onError) {
-      onError(error.reason);
-    } else {
-      throw error.reason;
-    }
+    throw error.reason;
   }
 
   return output.map(result => (result as PromiseFulfilledResult<T>).value);

@@ -1,5 +1,5 @@
 import type { StorageOverview } from './types';
-import type { StorageBackend, StorageBackendMetadata } from '@/types';
+import type { StorageBackend, StorageBackendInternal, StorageBackendMetadata } from '@/types';
 import type { ClxUITranslate } from '@/ui/i18n';
 
 export const getErrorMessage = (error: unknown, fallback: string) =>
@@ -26,7 +26,7 @@ export const formatLastUsedAt = (
 
 export const resolveStorageMetadata = (storage: StorageBackend): StorageBackendMetadata | null => {
   try {
-    return storage.getMetadata?.() ?? null;
+    return (storage as StorageBackendInternal).getMetadata?.() ?? null;
   } catch {
     return null;
   }
@@ -56,11 +56,14 @@ export const getStorageOverview = (
 
   if (metadata.kind === 's3') {
     const providerLabel =
-      metadata.provider === 'r2'
-        ? t('storageOverview.s3.provider.r2')
-        : metadata.provider === 'minio'
-          ? t('storageOverview.s3.provider.minio')
-          : t('storageOverview.s3.provider.s3');
+      metadata.provider === 's3'
+        ? t('storageOverview.s3.provider.s3')
+        : metadata.provider === 'r2'
+          ? t('storageOverview.s3.provider.r2')
+          : metadata.provider === 'minio'
+            ? t('storageOverview.s3.provider.minio')
+            : t('storageOverview.s3.provider.unknown');
+
     const bucketPath = metadata.prefix ? `${metadata.bucket}/${metadata.prefix}` : metadata.bucket;
 
     return {
