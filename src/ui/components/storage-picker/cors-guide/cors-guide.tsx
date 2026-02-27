@@ -6,7 +6,6 @@ import uiStyles from '@/ui/style.css?inline';
 import { classes } from '@/utils/classes';
 
 import CorsAnywhereGuide from './guides/cors-anywhere.mdx';
-import CorsUnblockGuide from './guides/cors-unblock.mdx';
 import MinioGuide from './guides/minio.mdx';
 import NextCloudGuide from './guides/nextcloud.mdx';
 import NginxGuide from './guides/nginx.mdx';
@@ -22,7 +21,6 @@ export type CorsGuideGroupId = 'common' | 'webdav' | 's3';
 
 export type CorsGuideTabId =
   | 'userscript'
-  | 'cors-unblock'
   | 'cors-anywhere'
   | 'nginx'
   | 'nextcloud'
@@ -51,7 +49,6 @@ const CORS_GUIDE_TAB_OPTIONS: CorsGuideTabOption[] = [
     label: 'Userscript',
     children: <UserscriptGuide />,
   },
-  { id: 'cors-unblock', group: 'common', label: 'CORS Unblock', children: <CorsUnblockGuide /> },
   { id: 'cors-anywhere', group: 'common', label: 'CORS Anywhere', children: <CorsAnywhereGuide /> },
   { id: 'nginx', group: 'common', label: 'Nginx', children: <NginxGuide /> },
   { id: 'nextcloud', group: 'webdav', label: 'NextCloud', children: <NextCloudGuide /> },

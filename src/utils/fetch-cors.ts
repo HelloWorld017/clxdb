@@ -3,10 +3,6 @@ import {
   isInitialized as isCorsManagerInitialized,
   fetchCors as fetchViaCorsManager,
 } from 'cors-manager';
-import {
-  hasInstall as isCorsUnblockInitialized,
-  requestHosts as requestCorsUnblockHost,
-} from 'cors-unblock';
 
 type RequestKind = 'cors-manager' | 'fetch' | 'default';
 const state = {
@@ -30,7 +26,7 @@ export const fetchCors: typeof fetch = async (input, init) => {
     return fetch(input, init);
   }
 
-  const { origin: requestOrigin, hostname: requestHost } = requestURL;
+  const { origin: requestOrigin } = requestURL;
 
   // Use Native Fetch
   const requestMethod = (requestOrigin && state.originMap.get(requestOrigin)) || 'default';
@@ -47,18 +43,6 @@ export const fetchCors: typeof fetch = async (input, init) => {
     lastError = result.error;
     if (requestMethod === 'fetch') {
       throw lastError;
-    }
-  }
-
-  // Use CORS Unblock
-  if (isCorsUnblockInitialized()) {
-    const result = await requestCorsUnblockHost({
-      hosts: [requestHost],
-    });
-
-    if (result === 'accept') {
-      state.originMap.set(requestOrigin, 'fetch');
-      return fetch(input, init);
     }
   }
 
