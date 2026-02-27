@@ -8,10 +8,9 @@ import { ThemeProvider } from './components/theme-provider';
 import { I18nProvider } from './i18n';
 import uiStyles from './style.css?inline&shadow';
 import type { DatabaseUnlockOperation } from './components/database-unlock';
-import type { StoragePickerBackendType } from './components/storage-picker';
+import type { StoragePickerBackendType, StoragePickerSelection } from './components/storage-picker';
 import type { ThemeFontFamily, ThemePalette } from './components/theme-provider';
 import type { ClxUIDatabaseClient } from './types';
-import type { StorageConfig } from '@/storages';
 import type { ClxDBClientOptions, StorageBackend } from '@/types';
 import type { ReactElement, ReactNode } from 'react';
 import type { Root } from 'react-dom/client';
@@ -40,6 +39,7 @@ export interface ClxUIDialogCloseResult {
 export interface OpenStoragePickerOptions {
   initialType?: StoragePickerBackendType;
   submitLabel?: string;
+  showPersistOption?: boolean;
 }
 
 export interface OpenDatabaseUnlockOptions {
@@ -62,7 +62,7 @@ export interface ShowSyncIndicatorOptions {
 export interface ClxUI {
   mount(target?: HTMLElement): void;
   unmount(): void;
-  openStoragePicker(options?: OpenStoragePickerOptions): Promise<StorageConfig | null>;
+  openStoragePicker(options?: OpenStoragePickerOptions): Promise<StoragePickerSelection | null>;
   openDatabaseUnlock(options: OpenDatabaseUnlockOptions): Promise<DatabaseUnlockOperation | null>;
   openDatabaseSettings(options: OpenDatabaseSettingsOptions): Promise<ClxUIDialogCloseResult>;
   showSyncIndicator(options: ShowSyncIndicatorOptions): () => void;
@@ -218,12 +218,13 @@ export const createClxUI = (options: ClxUIOptions = {}): ClxUI => {
   };
 
   const openStoragePicker = (dialogOptions: OpenStoragePickerOptions = {}) =>
-    openDialog<StorageConfig | null>({
+    openDialog<StoragePickerSelection | null>({
       createCloseValue: () => null,
       render: (resolveSelection, closeDialog) => (
         <StoragePicker
           initialType={dialogOptions.initialType}
           submitLabel={dialogOptions.submitLabel}
+          showPersistOption={dialogOptions.showPersistOption}
           onCancel={closeDialog}
           onSelect={selection => resolveSelection(selection)}
         />

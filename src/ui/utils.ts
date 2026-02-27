@@ -126,14 +126,16 @@ export const startClxDBWithUI = async ({
 
   try {
     let storage = await readStoredStorageSelection(uiIndexedDB);
+    let shouldPersistStorageSelection: boolean | null = null;
 
     while (true) {
       if (!storage) {
-        const storageSelection = await clxui.openStoragePicker();
+        const storageSelection = await clxui.openStoragePicker({ showPersistOption: true });
         if (!storageSelection) {
           return null;
         }
 
+        shouldPersistStorageSelection = storageSelection.persist === true;
         storage = createStorageBackend(storageSelection);
       }
 
@@ -141,6 +143,7 @@ export const startClxDBWithUI = async ({
         storage,
         allowStorageChange: true,
       });
+
       if (!unlock) {
         return;
       }
@@ -167,7 +170,11 @@ export const startClxDBWithUI = async ({
         await unlock.update(client);
       }
 
-      await persistStorageSelection(uiIndexedDB, storage);
+      if (shouldPersistStorageSelection === true) {
+        await persistStorageSelection(uiIndexedDB, storage);
+      } else {
+        await clearStoredStorageSelection(uiIndexedDB);
+      }
 
       const clientWithUI = client as ClxDBWithUI;
       clientWithUI.ui = clxui;

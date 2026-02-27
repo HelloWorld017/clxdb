@@ -11,19 +11,20 @@ import { StoragePickerOpfs } from './storage-picker-opfs';
 import { StoragePickerS3 } from './storage-picker-s3';
 import { StoragePickerWebdav } from './storage-picker-webdav';
 import { supportsFileSystemAccess, supportsOpfs } from './utils';
-import type { OnStoragePickerConfigChange } from './types';
+import type { OnStoragePickerConfigChange, StoragePickerSelection } from './types';
 import type { StorageConfig } from '@/storages';
 import type { StorageBackend } from '@/types';
 
 export type StoragePickerBackendType = 'filesystem-access' | 'opfs' | 'webdav' | 's3';
 
 export interface StoragePickerProps {
-  onSelect: (selection: StorageConfig) => Promise<void> | void;
+  onSelect: (selection: StoragePickerSelection) => Promise<void> | void;
   onCancel?: () => void;
   className?: string;
   disabled?: boolean;
   initialType?: StoragePickerBackendType;
   submitLabel?: string;
+  showPersistOption?: boolean;
 }
 
 export function StoragePicker({
@@ -33,6 +34,7 @@ export function StoragePicker({
   disabled = false,
   initialType = 'filesystem-access',
   submitLabel,
+  showPersistOption = false,
 }: StoragePickerProps) {
   const { t } = useI18n();
   const [selectedType, setSelectedType] = useState<StoragePickerBackendType>(initialType);
@@ -45,6 +47,7 @@ export function StoragePicker({
   const [isSelectionValid, setIsSelectionValid] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [persistSelection, setPersistSelection] = useState(false);
   const pickerId = useId();
 
   const storageGroupName = `${pickerId}-storage`;
@@ -172,7 +175,10 @@ export function StoragePicker({
     setIsSubmitting(true);
 
     try {
-      await onSelect(selectedConfigUndebounced);
+      await onSelect({
+        ...selectedConfigUndebounced,
+        ...(showPersistOption ? { persist: persistSelection } : {}),
+      });
     } catch (error) {
       const fallback = t('storagePicker.error.saveFailed');
       setErrorMessage(error instanceof Error ? error.message : fallback);
@@ -342,7 +348,23 @@ export function StoragePicker({
             </p>
           )}
 
-          <div className="flex-1" />
+          {showPersistOption && (
+            <label className="flex items-start gap-2 px-3">
+              <input
+                type="checkbox"
+                checked={persistSelection}
+                onChange={event => setPersistSelection(event.target.checked)}
+                disabled={controlsLocked}
+                className="mt-0.5 h-4 w-4 rounded border-default-300 text-primary
+                  focus:ring-primary"
+              />
+              <span className="text-sm font-medium text-default-700">
+                <_t>{['storagePicker.persist.label']}</_t>
+              </span>
+            </label>
+          )}
+
+          <div className="m-0 flex-1" />
           <div
             className="sticky bottom-0 flex flex-col-reverse gap-2 pb-4 sm:flex-row sm:justify-end
               sm:pb-6"

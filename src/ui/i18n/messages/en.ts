@@ -38,6 +38,7 @@ export const en = {
   'storagePicker.error.invalidSelection': 'Please check the details and try again.',
   'storagePicker.error.saveFailed': 'Could not save storage settings. Please try again.',
   'storagePicker.unsupportedBadge': 'Unsupported',
+  'storagePicker.persist.label': 'Remember this storage on this device',
   'storagePicker.selectDirectory.title': 'Select Directory',
   'storagePicker.selectDirectory.chooseStorageFirst': 'Choose storage first.',
   'storagePicker.corsGuide.title': 'This storage requires CORS setup',

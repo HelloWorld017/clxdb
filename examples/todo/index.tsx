@@ -447,7 +447,7 @@ const TodoExampleApp = () => {
     let nextDatabase: TodoDatabaseBackend | null = null;
 
     try {
-      const storageSettings = await clxUI.openStoragePicker({});
+      const storageSettings = await clxUI.openStoragePicker({ showPersistOption: true });
       if (!storageSettings) {
         return;
       }

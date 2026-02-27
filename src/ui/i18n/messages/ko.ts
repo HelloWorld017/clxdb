@@ -40,6 +40,7 @@ export const ko: ClxUIMessageCatalog = {
   'storagePicker.error.invalidSelection': '입력한 내용을 확인한 뒤 다시 시도해 주세요.',
   'storagePicker.error.saveFailed': '저장소 설정을 저장하지 못했습니다. 다시 시도해 주세요.',
   'storagePicker.unsupportedBadge': '지원되지 않음',
+  'storagePicker.persist.label': '이 기기에 저장소 설정 기억하기',
   'storagePicker.selectDirectory.title': '디렉터리 선택',
   'storagePicker.selectDirectory.chooseStorageFirst': '먼저 저장소를 선택하세요.',
   'storagePicker.corsGuide.title': '이 저장소는 CORS 설정이 필요합니다',
