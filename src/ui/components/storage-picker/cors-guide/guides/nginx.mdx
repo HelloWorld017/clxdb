@@ -30,7 +30,7 @@ location /some-path-to-storage/ {
   if ($request_method = OPTIONS) {
     add_header Access-Control-Allow-Origin $allowed_cors_origin always;
     add_header Access-Control-Allow-Methods "GET, PUT, POST, DELETE, HEAD, OPTIONS, PROPFIND, MKCOL" always;
-    add_header Access-Control-Allow-Headers "Authorization, Content-Type, Depth, Destination, If, If-Match, If-None-Match, Overwrite, Range, x-amz-content-sha256, x-amz-date, x-amz-security-token, x-amz-user-agent" always;
+    add_header Access-Control-Allow-Headers "Authorization, Content-Type, Depth, Destination, If, If-Match, If-None-Match, If-Unmodified-Since, Overwrite, Range, x-amz-content-sha256, x-amz-date, x-amz-security-token, x-amz-user-agent" always;
     add_header Access-Control-Expose-Headers "ETag, Content-Length, Last-Modified, DAV, x-amz-request-id, x-amz-id-2, x-amz-version-id" always;
     add_header Access-Control-Allow-Credentials "true" always;
     add_header Access-Control-Max-Age "86400" always;

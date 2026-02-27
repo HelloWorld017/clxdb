@@ -4,6 +4,10 @@ import { LocationOrigin } from '../location-origin.tsx';
 
 OpenCloud can allow browser cross-origin access through the `OC_CORS_ALLOW_ORIGINS` environment variable.
 
+## Warning
+OpenCloud does not expose ETag, and does not accept If-Unmodified-Since.
+You might struggle to make it work.
+
 ## How-To
 
 1. Set `OC_CORS_ALLOW_ORIGINS` to include your cloud domain and app origin.

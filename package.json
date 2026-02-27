@@ -82,7 +82,7 @@
     "vite-plugin-dts": "^4.5.4"
   },
   "dependencies": {
-    "cors-manager": "^1.0.5",
+    "cors-manager": "^1.0.6",
     "tailwind-merge": "^3.4.0",
     "zod": "^4.3.6"
   },

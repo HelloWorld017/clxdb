@@ -20,6 +20,50 @@ export class WebDAVBackend implements StorageBackendInternal {
     this.auth = config.auth;
   }
 
+  private isWeakEtag(etag: string): boolean {
+    return /^W\//i.test(etag.trim());
+  }
+
+  private parseLastModified(value: string | null): Date | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return undefined;
+    }
+
+    return parsed;
+  }
+
+  private encodeEtagToken(etag: string, lastModified?: Date): string {
+    if (!this.isWeakEtag(etag) || !lastModified) {
+      return etag;
+    }
+
+    return `${etag}+${lastModified.getTime()}`;
+  }
+
+  private parseWeakEtagToken(etagToken: string): { etag: string; lastModified: Date } | null {
+    const match = etagToken.trim().match(/^(W\/"[^"]*")\+(\d+)$/i);
+    if (!match) {
+      return null;
+    }
+
+    const timestamp = Number.parseInt(match[2], 10);
+    if (!Number.isFinite(timestamp)) {
+      return null;
+    }
+
+    const lastModified = new Date(timestamp);
+    if (Number.isNaN(lastModified.getTime())) {
+      return null;
+    }
+
+    return { etag: match[1], lastModified };
+  }
+
   private getHeaders(): Record<string, string> {
     const auth = btoa(`${this.auth.user}:${this.auth.pass}`);
     return {
@@ -186,16 +230,17 @@ export class WebDAVBackend implements StorageBackendInternal {
       );
     }
 
-    const etag = response.headers.get('ETag') || response.headers.get('etag') || '';
+    const etag = response.headers.get('ETag') || response.headers.get('etag') || 'W/""';
     const contentLength =
       response.headers.get('Content-Length') || response.headers.get('content-length') || '0';
-    const lastModified =
+    const lastModifiedHeader =
       response.headers.get('Last-Modified') || response.headers.get('last-modified');
+    const resolvedLastModified = this.parseLastModified(lastModifiedHeader);
 
     return {
-      etag,
+      etag: this.encodeEtagToken(etag, resolvedLastModified),
       size: parseInt(contentLength, 10),
-      lastModified: lastModified ? new Date(lastModified) : undefined,
+      ...(resolvedLastModified ? { lastModified: resolvedLastModified } : {}),
     };
   }
 
@@ -205,11 +250,28 @@ export class WebDAVBackend implements StorageBackendInternal {
     previousEtag: string
   ): Promise<{ success: boolean; newEtag?: string }> {
     const url = this.getUrl(path);
+    const previousEtagToken = previousEtag.trim();
+
+    if (!previousEtagToken) {
+      return { success: false };
+    }
+
     const headers: HeadersInit = {
       ...this.getHeaders(),
-      'If-Match': previousEtag,
       'Content-Type': 'application/json',
     };
+
+    const weakEtagToken = this.parseWeakEtagToken(previousEtagToken);
+    if (weakEtagToken) {
+      headers['If-Unmodified-Since'] = weakEtagToken.lastModified.toUTCString();
+    } else if (this.isWeakEtag(previousEtagToken)) {
+      throw new StorageError(
+        'UNKNOWN',
+        `WebDAV atomic update failed: weak ETag for ${path} requires W/"etag"+timestamp token`
+      );
+    } else {
+      headers['If-Match'] = previousEtagToken;
+    }
 
     const response = await fetchCors(url, {
       method: 'PUT',
@@ -217,7 +279,7 @@ export class WebDAVBackend implements StorageBackendInternal {
       body: content,
     });
 
-    if (response.status === 412) {
+    if (response.status === 412 || response.status === 409) {
       return { success: false };
     }
 
@@ -228,8 +290,18 @@ export class WebDAVBackend implements StorageBackendInternal {
       );
     }
 
-    const newEtag = response.headers.get('ETag') || response.headers.get('etag') || '';
-    return { success: true, newEtag };
+    const newEtag = response.headers.get('ETag') || response.headers.get('etag');
+    if (newEtag) {
+      const newLastModifiedHeader =
+        response.headers.get('Last-Modified') || response.headers.get('last-modified');
+      return {
+        success: true,
+        newEtag: this.encodeEtagToken(newEtag, this.parseLastModified(newLastModifiedHeader)),
+      };
+    }
+
+    const stat = await this.stat(path);
+    return { success: true, newEtag: stat?.etag ?? previousEtagToken };
   }
 
   async readDirectory(path: string): Promise<string[]> {

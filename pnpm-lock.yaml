@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       cors-manager:
-        specifier: ^1.0.5
-        version: 1.0.5
+        specifier: ^1.0.6
+        version: 1.0.6
       tailwind-merge:
         specifier: ^3.4.0
         version: 3.4.0
@@ -1124,8 +1124,8 @@ packages:
   confbox@0.2.4:
     resolution: {integrity: sha512-ysOGlgTFbN2/Y6Cg3Iye8YKulHw+R2fNXHrgSmXISQdMnomY6eNDprVdW9R5xBguEqI954+S6709UyiO7B+6OQ==}
 
-  cors-manager@1.0.5:
-    resolution: {integrity: sha512-x3t9jJ/r4pXGwNd1pJMb+iJ7EajqLH+StB/etjolR7/BGRDNK2doLhps/7mCuxjmllOsJLmeB5mEM5d9exzF3w==}
+  cors-manager@1.0.6:
+    resolution: {integrity: sha512-fha67YIxjN0Omq2YEDMzw5IknrecsZNZ4ynOWYBCdhBb68h/QxPXK1Hts0aRYTKUXbzwZjK7UcxUQnlAsGvJjg==}
 
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
@@ -3199,7 +3199,7 @@ snapshots:
 
   confbox@0.2.4: {}
 
-  cors-manager@1.0.5: {}
+  cors-manager@1.0.6: {}
 
   cross-spawn@7.0.6:
     dependencies:
