@@ -82,8 +82,7 @@
     "vite-plugin-dts": "^4.5.4"
   },
   "dependencies": {
-    "cors-manager": "^1.0.4",
-    "cors-unblock": "^0.1.1",
+    "cors-manager": "^1.0.5",
     "tailwind-merge": "^3.4.0",
     "zod": "^4.3.6"
   },
