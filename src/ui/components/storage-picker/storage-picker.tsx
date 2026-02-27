@@ -355,7 +355,7 @@ export function StoragePicker({
                 checked={persistSelection}
                 onChange={event => setPersistSelection(event.target.checked)}
                 disabled={controlsLocked}
-                className="mt-0.5 h-4 w-4 rounded border-default-300 text-primary
+                className="mt-0.5 h-4 w-4 rounded border-default-300 text-primary accent-primary
                   focus:ring-primary"
               />
               <span className="text-sm font-medium text-default-700">

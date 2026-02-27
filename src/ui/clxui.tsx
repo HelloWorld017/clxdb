@@ -71,9 +71,7 @@ export interface ClxUI {
 export interface ClxUIOptions {
   position?: ['top' | 'bottom', 'left' | 'center' | 'right'];
   theme?: 'light' | 'dark' | 'system';
-  i18n?: {
-    locale?: string;
-  };
+  locale?: string;
   style?: {
     fontFamily?: string | ThemeFontFamily;
     palette?: string | ThemePalette;
@@ -167,7 +165,7 @@ export const createClxUI = (options: ClxUIOptions = {}): ClxUI => {
   const children: Set<ReactElement> = new Set();
   const updateChildren = () =>
     ensurePortal().root.render(
-      <I18nProvider locale={options.i18n?.locale}>
+      <I18nProvider locale={options.locale}>
         <ThemeProvider mode={options.theme} palette={palette} fontFamily={fontFamily}>
           {Array.from(children)}
         </ThemeProvider>
