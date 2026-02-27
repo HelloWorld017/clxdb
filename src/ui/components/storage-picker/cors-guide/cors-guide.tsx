@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ThemeProvider, useThemeContext } from '@/ui/components/theme-provider';
+import { _t } from '@/ui/i18n';
 import uiStyles from '@/ui/style.css?inline';
 import { classes } from '@/utils/classes';
 
@@ -192,7 +193,13 @@ export const CorsGuide = ({
   }, [onClose, popupWindow]);
 
   const mainRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => mainRef.current?.scrollTo({ top: 0 }), [activeTab]);
+  useEffect(() => {
+    if (!activeTabId) {
+      return;
+    }
+
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [activeTabId]);
 
   const theme = useThemeContext();
   if (!popupWindow || popupWindow.closed || !portalTarget) {
@@ -334,9 +341,11 @@ export const CorsGuideMessage = ({ className = '', disabled = false }) => {
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold text-amber-900">This storage requires CORS setup</p>
+          <p className="text-sm font-semibold text-amber-900">
+            <_t>{['storagePicker.corsGuide.title']}</_t>
+          </p>
           <p className="mt-0.5 text-xs text-amber-700">
-            Please allow this app origin in your CORS rules to use this storage.
+            <_t>{['storagePicker.corsGuide.description']}</_t>
           </p>
         </div>
 
@@ -349,13 +358,13 @@ export const CorsGuideMessage = ({ className = '', disabled = false }) => {
             duration-200 hover:bg-amber-200 disabled:cursor-not-allowed disabled:border-amber-200
             disabled:bg-amber-100 disabled:text-amber-600"
         >
-          Guide
+          <_t>{['storagePicker.corsGuide.button.open']}</_t>
         </button>
       </div>
 
       {isGuidePopupBlocked && (
         <p className="mt-2 text-xs text-amber-700">
-          Popup blocked by browser. Allow popups for this site and try again.
+          <_t>{['storagePicker.corsGuide.popupBlocked']}</_t>
         </p>
       )}
 

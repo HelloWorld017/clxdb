@@ -17,12 +17,14 @@ export interface I18nContextValue {
   t: ClxUITranslate;
 }
 
-const resolveLocale = (locale?: string): string => {
+const normalizeLocale = (locale: string): string => locale.trim().toLowerCase().replace(/_/g, '-');
+
+const resolveSupportedLocale = (locale?: string): string | null => {
   if (!locale) {
-    return DEFAULT_CLX_UI_LOCALE;
+    return null;
   }
 
-  const normalized = locale.trim().toLowerCase().replace(/_/g, '-');
+  const normalized = normalizeLocale(locale);
   if (CLX_UI_MESSAGES[normalized]) {
     return normalized;
   }
@@ -30,6 +32,22 @@ const resolveLocale = (locale?: string): string => {
   const [language] = normalized.split('-');
   if (language && CLX_UI_MESSAGES[language]) {
     return language;
+  }
+
+  return null;
+};
+
+const resolveLocale = (locale?: string): string => {
+  const preferredLocale = resolveSupportedLocale(locale);
+  if (preferredLocale) {
+    return preferredLocale;
+  }
+
+  for (const browserLocale of navigator.languages) {
+    const resolvedLocale = resolveSupportedLocale(browserLocale);
+    if (resolvedLocale) {
+      return resolvedLocale;
+    }
   }
 
   return DEFAULT_CLX_UI_LOCALE;
