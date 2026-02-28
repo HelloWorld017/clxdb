@@ -90,6 +90,7 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
     await this.cacheManager.initialize(uuid);
     await this.cryptoManager.initialize();
     await this.shardManager.initialize();
+    void this.shardManager.pruneHeaders(this.manifestManager.getLastManifest());
 
     await this.syncEngine.initialize();
     await this.sync();

@@ -25,6 +25,7 @@ import type {
   ShardDocInfo,
   ShardDocument,
   ClxDBOptions,
+  Manifest,
   ShardHeaderCache,
 } from '@/types';
 
@@ -94,6 +95,22 @@ export class ShardManager {
   removeHeader(filename: string) {
     if (this.headers.delete(filename)) {
       void this.saveToCache();
+    }
+  }
+
+  async pruneHeaders(manifest: Manifest): Promise<void> {
+    const active = new Set(manifest.shardFiles.map(shard => shard.filename));
+    let isUpdated = false;
+
+    for (const filename of Array.from(this.headers.keys())) {
+      if (!active.has(filename)) {
+        this.headers.delete(filename);
+        isUpdated = true;
+      }
+    }
+
+    if (isUpdated) {
+      await this.saveToCache();
     }
   }
 

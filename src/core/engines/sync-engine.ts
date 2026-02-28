@@ -102,6 +102,8 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
       throw new Error('Manifest not found');
     }
 
+    void this.shardManager.pruneHeaders(latest.manifest);
+
     const shardsToScan: ShardFileInfo[] = latest.manifest.shardFiles.filter(
       shard => shard.range.max > this.localSequence
     );
