@@ -11,7 +11,6 @@ import { createPromisePool } from '@/utils/promise-pool';
 import {
   getHeaderLength,
   parseShardHeader,
-  extractBodyOffset,
   buildShardBodyParts,
   buildShardHeaderFromLengths,
   calculateHash,
@@ -29,9 +28,14 @@ import type {
   ShardHeaderCache,
 } from '@/types';
 
+interface CachedShardEntry {
+  header: ShardHeader;
+  headerSize: number;
+}
+
 export class ShardManager {
   private storage: StorageBackend;
-  private headers: Map<string, ShardHeader> = new Map();
+  private headers: Map<string, CachedShardEntry> = new Map();
   private options: ClxDBOptions;
   private cacheManager: CacheManager;
   private cryptoManager: CryptoManager;
@@ -60,32 +64,29 @@ export class ShardManager {
   }
 
   getHeader(filename: string): ShardHeader | undefined {
-    return this.headers.get(filename);
+    return this.headers.get(filename)?.header;
   }
 
   getAllHeaders(): Map<string, ShardHeader> {
-    return new Map(this.headers);
+    return new Map(
+      Array.from(this.headers.entries()).map(
+        ([filename, { header }]) => [filename, header] as const
+      )
+    );
   }
 
   async fetchHeader(shardInfo: ShardFileInfo): Promise<ShardHeader> {
-    const cached = this.headers.get(shardInfo.filename);
-    if (cached) {
-      return cached;
-    }
-
-    const header = await this.fetchHeaderFromRemote(shardInfo);
-    this.headers.set(shardInfo.filename, header);
-    void this.saveToCache();
-    return header;
+    const cached = await this.fetchHeaderWithSize(shardInfo);
+    return cached.header;
   }
 
   async fetchHeaders(shardInfoList: ShardFileInfo[]): Promise<ShardHeader[]> {
     return createPromisePool(shardInfoList.values().map(shardInfo => this.fetchHeader(shardInfo)));
   }
 
-  addHeader(filename: string, header: ShardHeader) {
+  addHeader(filename: string, header: ShardHeader, headerSize: number) {
     if (!this.headers.has(filename)) {
-      this.headers.set(filename, header);
+      this.headers.set(filename, { header, headerSize });
       void this.saveToCache();
     }
   }
@@ -102,7 +103,7 @@ export class ShardManager {
   }
 
   getDocInfo(filename: string, docId: string): ShardDocInfo | undefined {
-    const header = this.headers.get(filename);
+    const header = this.headers.get(filename)?.header;
     if (!header) {
       return undefined;
     }
@@ -111,7 +112,7 @@ export class ShardManager {
 
   getAllDocIds(): Set<string> {
     const docIds = new Set<string>();
-    for (const header of this.headers.values()) {
+    for (const { header } of this.headers.values()) {
       for (const doc of header.docs) {
         docIds.add(doc.id);
       }
@@ -120,55 +121,102 @@ export class ShardManager {
   }
 
   getDocsForShard(filename: string): ShardDocInfo[] {
-    const header = this.headers.get(filename);
-    return header?.docs ?? [];
+    return this.headers.get(filename)?.header.docs ?? [];
   }
 
-  async fetchDocument(shardInfo: ShardFileInfo, docInfo: ShardDocInfo): Promise<ShardDocument> {
+  async fetchDocuments(
+    shardInfo: ShardFileInfo,
+    docs: ShardDocInfo[] | null
+  ): Promise<ShardDocument[]> {
+    const cached = await this.fetchHeaderWithSize(shardInfo);
+    if (!docs) {
+      docs = cached.header.docs;
+    }
+
+    if (docs.length === 0) {
+      return [];
+    }
+
+    const path = `${SHARDS_DIR}/${shardInfo.filename}`;
+    const shardHash = this.getShardHashFromFilename(shardInfo.filename);
+    const decryptPart = await this.cryptoManager.decryptShardPart(shardHash);
+    const bodyOffset = SHARD_HEADER_LENGTH_BYTES + cached.headerSize;
+
+    const ranges = docs.map(doc => ({
+      start: bodyOffset + doc.offset,
+      end: bodyOffset + doc.offset + doc.len - 1,
+    }));
+    const start = Math.min(...ranges.map(range => range.start));
+    const end = Math.max(...ranges.map(range => range.end));
+    const fetchedDocBytes = await this.storage.read(path, { start, end });
+
+    const result: ShardDocument[] = [];
+    for (const [index, doc] of docs.entries()) {
+      const range = ranges[index];
+      if (!range) {
+        throw new Error('Invalid shard format: missing document range');
+      }
+
+      const localStart = range.start - start;
+      const localEnd = range.end - start + 1;
+      const encryptedDocBytes = fetchedDocBytes.subarray(localStart, localEnd);
+      if (encryptedDocBytes.length !== doc.len) {
+        throw new Error('Invalid shard format: document length mismatch');
+      }
+
+      const decryptedDocBytes = await decryptPart(encryptedDocBytes);
+      const docJson = JSON.parse(new TextDecoder().decode(decryptedDocBytes)) as Record<
+        string,
+        unknown
+      >;
+
+      result.push({
+        id: doc.id,
+        at: doc.at,
+        seq: doc.seq,
+        del: doc.del,
+        data: doc.del ? undefined : docJson,
+      });
+    }
+
+    return result;
+  }
+
+  private async fetchHeaderWithSize(shardInfo: ShardFileInfo): Promise<CachedShardEntry> {
+    const cached = this.headers.get(shardInfo.filename);
+    if (cached) {
+      return cached;
+    }
+
+    const fetched = await this.fetchHeaderFromRemote(shardInfo);
+    this.headers.set(shardInfo.filename, fetched);
+    void this.saveToCache();
+    return fetched;
+  }
+
+  private async fetchHeaderFromRemote(shardInfo: ShardFileInfo): Promise<CachedShardEntry> {
     const path = `${SHARDS_DIR}/${shardInfo.filename}`;
     const shardHash = this.getShardHashFromFilename(shardInfo.filename);
     const decryptPart = await this.cryptoManager.decryptShardPart(shardHash);
     const headerLenBytes = await this.storage.read(path, { start: 0, end: 3 });
-    const headerLen = getHeaderLength(headerLenBytes);
-    const bodyOffset = extractBodyOffset(headerLen);
-
-    const docBytes = await this.storage.read(path, {
-      start: bodyOffset + docInfo.offset,
-      end: bodyOffset + docInfo.offset + docInfo.len - 1,
-    });
-    const decryptedDocBytes = await decryptPart(new Uint8Array(docBytes));
-
-    const docJson = JSON.parse(new TextDecoder().decode(decryptedDocBytes)) as Record<
-      string,
-      unknown
-    >;
-    return {
-      id: docInfo.id,
-      at: docInfo.at,
-      seq: docInfo.seq,
-      del: docInfo.del,
-      data: docInfo.del ? undefined : docJson,
-    };
-  }
-
-  private async fetchHeaderFromRemote(shardInfo: ShardFileInfo): Promise<ShardHeader> {
-    const path = `${SHARDS_DIR}/${shardInfo.filename}`;
-    const shardHash = this.getShardHashFromFilename(shardInfo.filename);
-    const decryptPart = await this.cryptoManager.decryptShardPart(shardHash);
-    const headerLenBytes = await this.storage.read(path, { start: 0, end: 3 });
-    const headerLen = getHeaderLength(headerLenBytes);
+    const headerSize = getHeaderLength(headerLenBytes);
 
     const headerBytes = await this.storage.read(path, {
-      start: 4,
-      end: 4 + headerLen - 1,
+      start: SHARD_HEADER_LENGTH_BYTES,
+      end: SHARD_HEADER_LENGTH_BYTES + headerSize - 1,
     });
 
     const decryptedHeaderBytes = await decryptPart(new Uint8Array(headerBytes));
 
-    return parseShardHeader(decryptedHeaderBytes);
+    return {
+      header: parseShardHeader(decryptedHeaderBytes),
+      headerSize,
+    };
   }
 
-  async writeShard(docs: ShardDocument[]): Promise<{ info: ShardFileInfo; header: ShardHeader }> {
+  async writeShard(
+    docs: ShardDocument[]
+  ): Promise<{ info: ShardFileInfo; header: ShardHeader; headerSize: number }> {
     if (docs.length === 0) {
       throw new Error('Cannot write empty shard');
     }
@@ -251,6 +299,7 @@ export class ShardManager {
 
     return {
       header,
+      headerSize: encryptedHeaderLength,
       info: {
         filename,
         level,
@@ -274,7 +323,10 @@ export class ShardManager {
     const cache = await this.cacheManager.readIndexedDB(CACHE_HEADERS_KEY, shardHeaderCacheSchema);
     if (cache && cache.version === CACHE_HEADERS_VERSION) {
       for (const [filename, cachedHeader] of Object.entries(cache.headers)) {
-        this.headers.set(filename, cachedHeader.header);
+        this.headers.set(filename, {
+          header: cachedHeader.header,
+          headerSize: cachedHeader.headerSize,
+        });
       }
     }
 
@@ -291,10 +343,11 @@ export class ShardManager {
       headers: {},
     };
 
-    for (const [filename, header] of this.headers) {
+    for (const [filename, { header, headerSize }] of this.headers) {
       cache.headers[filename] = {
         filename,
         header,
+        headerSize,
         cachedAt: Date.now(),
       };
     }

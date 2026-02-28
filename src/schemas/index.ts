@@ -52,6 +52,7 @@ export const manifestSchema = z.object({
 export const cachedShardHeaderSchema = z.object({
   filename: z.string(),
   header: shardHeaderSchema,
+  headerSize: z.number().int().nonnegative(),
   cachedAt: z.number(),
 });
 

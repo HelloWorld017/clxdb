@@ -116,7 +116,6 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
     const aggregatedChanges = Array.from(
       shardChanges
         .flatMap(result => (result.status === 'fulfilled' ? result.value : []))
-        .flatMap(result => (result.status === 'fulfilled' ? result.value : []))
         .reduce((changes, doc) => {
           const existingDoc = changes.get(doc.id);
           if (!existingDoc || isDocumentARecent(doc, existingDoc)) {
@@ -138,11 +137,7 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
       this.emit('documentsChanged', changes);
     }
 
-    const syncError =
-      shardChanges.find(result => result.status === 'rejected') ||
-      shardChanges
-        .flatMap(result => (result.status === 'fulfilled' ? result.value : []))
-        .find(result => result.status === 'rejected');
+    const syncError = shardChanges.find(result => result.status === 'rejected');
 
     if (syncError) {
       throw syncError.reason as unknown;
@@ -152,16 +147,17 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
   }
 
   private async fetchShardChanges(shardInfo: ShardFileInfo) {
+    if (this.localSequence < shardInfo.range.min) {
+      return this.shardManager.fetchDocuments(shardInfo, null);
+    }
+
     const header = await this.shardManager.fetchHeader(shardInfo);
     const docsToFetch = header.docs.filter(doc => doc.seq > this.localSequence);
     if (docsToFetch.length === 0) {
       return [];
     }
 
-    const shardManager = this.shardManager;
-    return await createPromisePoolSettled(
-      docsToFetch.values().map(doc => shardManager.fetchDocument(shardInfo, doc))
-    );
+    return this.shardManager.fetchDocuments(shardInfo, docsToFetch);
   }
 
   private async updateLocalSequence(): Promise<void> {

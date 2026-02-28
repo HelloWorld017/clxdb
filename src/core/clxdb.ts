@@ -187,7 +187,7 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
     );
 
     update.addedShardMetadataList.forEach(shard => {
-      this.shardManager.addHeader(shard.info.filename, shard.header);
+      this.shardManager.addHeader(shard.info.filename, shard.header, shard.headerSize);
     });
 
     update.removedShardFilenameList?.forEach(filename => {

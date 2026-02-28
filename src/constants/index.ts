@@ -23,7 +23,7 @@ export const BLOB_FOOTER_LENGTH_BYTES = 4;
 export const CACHE_DEVICE_KEY_STORE_KEY = 'device_key';
 export const CACHE_LAST_SEQUENCE_KEY = 'lastSequence';
 export const CACHE_HEADERS_KEY = 'headers';
-export const CACHE_HEADERS_VERSION = 1;
+export const CACHE_HEADERS_VERSION = 2;
 
 // Crypto
 export const CRYPTO_ENCRYPTION_ALGORITHM = 'AES-GCM';

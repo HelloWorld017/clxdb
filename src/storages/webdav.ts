@@ -145,7 +145,21 @@ export class WebDAVBackend implements StorageBackendInternal {
     }
 
     const buffer = await response.arrayBuffer();
-    return new Uint8Array(buffer);
+    const bytes = new Uint8Array(buffer);
+    if (!range) {
+      return bytes;
+    }
+
+    const expectedLength = Math.max(0, range.end - range.start + 1);
+    if (response.status === 200 && bytes.length > range.end) {
+      return bytes.subarray(range.start, range.end + 1);
+    }
+
+    if (bytes.length > expectedLength) {
+      return bytes.subarray(0, expectedLength);
+    }
+
+    return bytes;
   }
 
   async ensureDirectory(path: string): Promise<void> {
