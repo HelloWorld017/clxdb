@@ -23,12 +23,11 @@ MinIO supports S3-style CORS rules, and `mc cors set` is the standard way to app
 ]
 ```
 
-2. Apply it with `mc`:
+2. Replace `https://app.example.com` with this app origin: <LocationOrigin />.
+3. Apply it with `mc`:
 
 ```bash
 mc alias set local https://minio.example.com MINIO_ACCESS_KEY MINIO_SECRET_KEY
 mc cors set local/your-bucket /path/to/cors.json
 mc cors info local/your-bucket
 ```
-
-3. Replace `https://app.example.com` with this app origin: <LocationOrigin />.
