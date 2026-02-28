@@ -53,18 +53,19 @@ export class CompactionEngine extends EventEmitter<ClxDBEvents> {
       return;
     }
 
-    this.emit('compactionStart');
+    const compactionId = crypto.randomUUID();
+    this.emit('compactionStart', compactionId, null);
 
     try {
-      await this.performCompaction();
-      this.emit('compactionComplete');
+      await this.performCompaction(compactionId);
+      this.emit('compactionComplete', compactionId, null);
     } catch (error) {
-      this.emit('compactionError', error as Error);
+      this.emit('compactionError', compactionId, { error: error as Error });
       throw error;
     }
   }
 
-  private async performCompaction(): Promise<void> {
+  private async performCompaction(compactionId: string): Promise<void> {
     const { manifest } = (await this.manifestManager.read())!;
     const shardsSetToCompact = this.selectShardsSetForCompaction(manifest.shardFiles);
     if (shardsSetToCompact.length === 0) {
@@ -78,7 +79,13 @@ export class CompactionEngine extends EventEmitter<ClxDBEvents> {
           { database: this.database, shardManager: this.shardManager },
           shardsSet
         ),
-      }))
+      })),
+      {
+        total: shardsSetToCompact.length,
+        onProgress: (progress, total) => {
+          this.emit('compactionProgress', compactionId, { progress, total });
+        },
+      }
     );
 
     await this.update(manifest => {

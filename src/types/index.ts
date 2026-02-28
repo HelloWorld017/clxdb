@@ -123,14 +123,37 @@ export interface ClxDBParams {
 
 export type SyncState = 'idle' | 'pending' | 'syncing';
 
+export type SyncProgressStage = 'pull' | 'push';
+
+export interface SyncStartPayload {
+  isPending: boolean;
+}
+
+export interface SyncProgressPayload {
+  stage: SyncProgressStage;
+  progress: number;
+  total: number;
+}
+
+export interface CompactionProgressPayload {
+  progress: number;
+  total: number;
+}
+
+export interface OperationErrorPayload {
+  error: Error;
+}
+
 export type ClxDBEvents = {
   stateChange: (state: SyncState) => void;
-  syncStart: (isPending: boolean) => void;
-  syncComplete: () => void;
-  syncError: (error: Error) => void;
-  compactionStart: () => void;
-  compactionComplete: () => void;
-  compactionError: (error: Error) => void;
+  syncStart: (id: string, payload: SyncStartPayload) => void;
+  syncProgress: (id: string, payload: SyncProgressPayload) => void;
+  syncComplete: (id: string, payload: null) => void;
+  syncError: (id: string, payload: OperationErrorPayload) => void;
+  compactionStart: (id: string, payload: null) => void;
+  compactionProgress: (id: string, payload: CompactionProgressPayload) => void;
+  compactionComplete: (id: string, payload: null) => void;
+  compactionError: (id: string, payload: OperationErrorPayload) => void;
   vacuumStart: () => void;
   vacuumComplete: () => void;
   vacuumError: (error: Error) => void;

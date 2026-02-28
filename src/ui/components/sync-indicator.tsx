@@ -234,8 +234,8 @@ export function SyncIndicator({
       });
     });
 
-    const offSyncStart = client.on('syncStart', isPending => {
-      const shouldTrackSync = isPending || phaseRef.current === 'error';
+    const offSyncStart = client.on('syncStart', (_syncId, payload) => {
+      const shouldTrackSync = payload.isPending || phaseRef.current === 'error';
       trackedSyncRef.current = shouldTrackSync;
       if (!shouldTrackSync) {
         return;
@@ -256,14 +256,14 @@ export function SyncIndicator({
       setPhase('success');
     });
 
-    const offSyncError = client.on('syncError', error => {
+    const offSyncError = client.on('syncError', (_syncId, payload) => {
       if (!trackedSyncRef.current) {
         return;
       }
 
       trackedSyncRef.current = false;
       setIsErrorOpen(false);
-      setErrorMessage(error?.message || t('syncIndicator.defaultError'));
+      setErrorMessage(payload.error.message || t('syncIndicator.defaultError'));
       setPhase('error');
     });
 

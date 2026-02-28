@@ -6,16 +6,22 @@ const wrapPromise = <T>(promise: Promise<T>): Promise<PromiseSettledResult<T>> =
 
 interface PromisePoolOptions {
   concurrency?: number;
+  total?: number;
+  onProgress?: (progress: number, total: number) => void;
 }
 
 export const createPromisePoolSettled = async <T>(
   generator: Iterable<Promise<T>, void>,
-  { concurrency = 5 }: PromisePoolOptions = {}
+  { concurrency = 5, total = 0, onProgress }: PromisePoolOptions = {}
 ) => {
   const output: PromiseSettledResult<T>[] = [];
+  let progress = 0;
+
   const worker = async () => {
     for (const promise of generator) {
       output.push(await wrapPromise(promise));
+      progress += 1;
+      onProgress?.(progress, total);
     }
   };
 

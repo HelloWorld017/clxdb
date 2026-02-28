@@ -420,9 +420,9 @@ const TodoExampleApp = () => {
     });
     setErrorMessage(null);
 
-    const offSyncError = session.client.on('syncError', error => {
+    const offSyncError = session.client.on('syncError', (_syncId, payload) => {
       if (!cancelled) {
-        setErrorMessage(error.message);
+        setErrorMessage(payload.error.message);
       }
     });
 

@@ -137,16 +137,17 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
           return;
         }
 
+        const syncId = crypto.randomUUID();
         const isPending = this.state === 'pending';
         this.setState('syncing');
-        this.emit('syncStart', isPending);
+        this.emit('syncStart', syncId, { isPending });
 
         try {
-          await this.syncEngine.sync();
+          await this.syncEngine.sync(syncId);
           await this.compactionEngine.compact();
-          this.emit('syncComplete');
+          this.emit('syncComplete', syncId, null);
         } catch (error) {
-          this.emit('syncError', error as Error);
+          this.emit('syncError', syncId, { error: error as Error });
         } finally {
           this.setState('idle');
           void this.checkAndUpdateStatus();
@@ -159,7 +160,14 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
   }
 
   private async update<T extends UpdateDescriptor>(
-    onUpdate: (manifest: Manifest) => PossiblyPromise<T>
+    onUpdate: (manifest: Manifest) => PossiblyPromise<T>,
+    {
+      syncId,
+      onProgress,
+    }: {
+      syncId?: string;
+      onProgress?: (progress: number, total: number) => void;
+    } = {}
   ): Promise<T> {
     const update = await this.manifestManager.updateManifest(
       async manifest => {
@@ -174,7 +182,8 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
         }
 
         const addedShardMetadataList = await createPromisePool(
-          addedShardList.values().map(shard => this.shardManager.writeShard(shard))
+          addedShardList.values().map(shard => this.shardManager.writeShard(shard)),
+          { total: addedShardList.length, onProgress }
         );
 
         return {
@@ -184,7 +193,7 @@ export class ClxDB extends EventEmitter<ClxDBEvents> {
           ...descriptor,
         };
       },
-      () => this.syncEngine.pull()
+      () => this.syncEngine.pull(syncId)
     );
 
     update.addedShardMetadataList.forEach(shard => {

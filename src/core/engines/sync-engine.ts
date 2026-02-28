@@ -55,8 +55,8 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
     }
   }
 
-  async sync(): Promise<void> {
-    await this.pull();
+  async sync(syncId: string): Promise<void> {
+    await this.pull(syncId);
 
     const pendingIds = Array.from(new Set(await this.database.readPendingIds()));
     if (pendingIds.length === 0) {
@@ -77,26 +77,38 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
       return;
     }
 
-    const { addedShardList } = await this.update(manifest => ({
-      addedShardList: [
-        idsToSync.map(id => {
-          const docData = docDataById.get(id);
-          return {
-            id,
-            at: docData?.at ?? Date.now(),
-            seq: Math.max(manifest.lastSequence, this.localSequence) + 1,
-            del: docData?.del ?? true,
-            data: docData?.data,
-          };
-        }),
-      ],
-    }));
+    const { addedShardList } = await this.update(
+      manifest => ({
+        addedShardList: [
+          idsToSync.map(id => {
+            const docData = docDataById.get(id);
+            return {
+              id,
+              at: docData?.at ?? Date.now(),
+              seq: Math.max(manifest.lastSequence, this.localSequence) + 1,
+              del: docData?.del ?? true,
+              data: docData?.data,
+            };
+          }),
+        ],
+      }),
+      {
+        syncId,
+        onProgress: (progress, total) => {
+          this.emit('syncProgress', syncId, {
+            stage: 'push',
+            progress,
+            total,
+          });
+        },
+      }
+    );
 
     await this.database.upsert(addedShardList?.flat() ?? []);
     await this.updateLocalSequence();
   }
 
-  async pull(): Promise<void> {
+  async pull(syncId?: string): Promise<void> {
     const latest = await this.manifestManager.read();
     if (!latest) {
       throw new Error('Manifest not found');
@@ -112,7 +124,19 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
     await this.shardManager.fetchHeaders(newShards);
 
     const shardChanges = await createPromisePoolSettled(
-      shardsToScan.values().map(shardInfo => this.fetchShardChanges(shardInfo))
+      shardsToScan.values().map(shardInfo => this.fetchShardChanges(shardInfo)),
+      {
+        total: shardsToScan.length,
+        onProgress: syncId
+          ? (progress, total) => {
+              this.emit('syncProgress', syncId, {
+                stage: 'pull',
+                progress,
+                total,
+              });
+            }
+          : undefined,
+      }
     );
 
     const aggregatedChanges = Array.from(
