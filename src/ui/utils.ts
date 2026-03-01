@@ -10,8 +10,8 @@ import {
 import { createClxUI, type ClxUI, type ClxUIOptions } from './clxui';
 import type { ClxDBClientOptions, ClxDBOptions, DatabaseBackend, StorageBackend } from '@/types';
 
-type ClxDBWithUI = ClxDB & { ui: ClxUI };
-interface ClxDBWithUIOptions {
+export type ClxDBWithUI = ClxDB & { ui: ClxUI };
+export interface ClxDBWithUIOptions {
   database: DatabaseBackend;
   options?: ClxDBClientOptions;
   ui?: ClxUIOptions & {
