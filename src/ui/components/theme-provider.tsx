@@ -56,9 +56,9 @@ const getThemeVariables = (
     'colorScheme': mode,
     '--clxui-primary-source': palette.primaryColor,
     '--clxui-primary-foreground': `color(from var(--clxui-primary-source) xyz
-      clamp(0.05, (.36 / y - 1) * infinity, 1)
-      clamp(0.05, (.36 / y - 1) * infinity, 1)
-      clamp(0.05, (.36 / y - 1) * infinity, 1)
+      clamp(0.05, (.36 / y - 0.75) * infinity, 1)
+      clamp(0.05, (.36 / y - 0.75) * infinity, 1)
+      clamp(0.05, (.36 / y - 0.75) * infinity, 1)
       / 0.95
     )`,
     '--clxui-default-source': palette.defaultColor,
