@@ -1,7 +1,10 @@
 import { z } from 'zod';
-import { CACHE_LAST_SEQUENCE_KEY } from '@/constants';
+import {
+  CACHE_LAST_SEQUENCE_KEY,
+  SYNC_PULL_WRITE_BYTE_WATERMARK,
+  SYNC_PULL_WRITE_CHUNK_SIZE,
+} from '@/constants';
 import { EventEmitter } from '@/utils/event-emitter';
-import { createPromisePoolSettled } from '@/utils/promise-pool';
 import { isDocumentARecent } from '../utils/document-merge';
 import type { CacheManager } from '../managers/cache-manager';
 import type { ManifestManager } from '../managers/manifest-manager';
@@ -11,9 +14,20 @@ import type {
   ClxDBEvents,
   ClxDBOptions,
   DatabaseBackend,
+  ShardDocInfo,
   ShardDocument,
   ShardFileInfo,
 } from '@/types';
+
+interface PullDocumentReference {
+  shardInfo: ShardFileInfo;
+  docInfo: ShardDocInfo;
+}
+
+interface PullFetchGroup {
+  shardInfo: ShardFileInfo;
+  references: PullDocumentReference[];
+}
 
 export class SyncEngine extends EventEmitter<ClxDBEvents> {
   private database: DatabaseBackend;
@@ -114,8 +128,6 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
       throw new Error('Manifest not found');
     }
 
-    void this.shardManager.pruneHeaders(latest.manifest);
-
     const shardsToScan: ShardFileInfo[] = latest.manifest.shardFiles.filter(
       shard => shard.range.max > this.localSequence
     );
@@ -123,67 +135,157 @@ export class SyncEngine extends EventEmitter<ClxDBEvents> {
     const newShards = shardsToScan.filter(shard => !this.shardManager.has(shard.filename));
     await this.shardManager.fetchHeaders(newShards);
 
-    const shardChanges = await createPromisePoolSettled(
-      shardsToScan.values().map(shardInfo => this.fetchShardChanges(shardInfo)),
-      {
-        total: shardsToScan.length,
-        onProgress: syncId
-          ? (progress, total) => {
-              this.emit('syncProgress', syncId, {
-                stage: 'pull',
-                progress,
-                total,
-              });
-            }
-          : undefined,
-      }
-    );
+    const latestReferencesById = await this.collectLatestDocumentReferences(shardsToScan);
+    await this.applyPullChanges(latestReferencesById, syncId);
+    this.emit('documentsChanged', Array.from(latestReferencesById.keys()));
 
-    const aggregatedChanges = Array.from(
-      shardChanges
-        .flatMap(result => (result.status === 'fulfilled' ? result.value : []))
-        .reduce((changes, doc) => {
-          const existingDoc = changes.get(doc.id);
-          if (!existingDoc || isDocumentARecent(doc, existingDoc)) {
-            changes.set(doc.id, doc);
-          }
-
-          return changes;
-        }, new Map<string, ShardDocument>())
-        .values()
-    );
-
-    const changes = await this.options.mergeRule(this.database, aggregatedChanges);
-    if (changes.length > 0) {
-      await Promise.all([
-        this.database.upsert(changes.filter(change => !change.del)),
-        this.database.delete(changes.filter(change => change.del)),
-      ]);
-
-      this.emit('documentsChanged', changes);
-    }
-
-    const syncError = shardChanges.find(result => result.status === 'rejected');
-
-    if (syncError) {
-      throw syncError.reason as unknown;
-    }
-
+    void this.shardManager.pruneHeaders(latest.manifest);
     await this.updateLocalSequence();
   }
 
-  private async fetchShardChanges(shardInfo: ShardFileInfo) {
-    if (this.localSequence < shardInfo.range.min) {
-      return this.shardManager.fetchDocuments(shardInfo, null);
+  private async collectLatestDocumentReferences(
+    shardsToScan: ShardFileInfo[]
+  ): Promise<Map<string, PullDocumentReference>> {
+    const latestReferencesById = new Map<string, PullDocumentReference>();
+
+    for (const shardInfo of shardsToScan) {
+      const header = await this.shardManager.fetchHeader(shardInfo);
+      const docsToConsider =
+        this.localSequence < shardInfo.range.min
+          ? header.docs
+          : header.docs.filter(doc => doc.seq > this.localSequence);
+
+      for (const docInfo of docsToConsider) {
+        const existingReference = latestReferencesById.get(docInfo.id);
+        if (!existingReference || isDocumentARecent(docInfo, existingReference.docInfo)) {
+          latestReferencesById.set(docInfo.id, { shardInfo, docInfo });
+        }
+      }
     }
 
-    const header = await this.shardManager.fetchHeader(shardInfo);
-    const docsToFetch = header.docs.filter(doc => doc.seq > this.localSequence);
-    if (docsToFetch.length === 0) {
-      return [];
+    return latestReferencesById;
+  }
+
+  private async applyPullChanges(
+    latestReferencesById: Map<string, PullDocumentReference>,
+    syncId?: string
+  ): Promise<void> {
+    if (latestReferencesById.size === 0) {
+      return;
     }
 
-    return this.shardManager.fetchDocuments(shardInfo, docsToFetch);
+    const fetchGroupsByFilename = this.groupReferencesByShard(latestReferencesById);
+    const total = latestReferencesById.size;
+    let progress = 0;
+
+    for (const group of fetchGroupsByFilename.values()) {
+      await this.processPullFetchGroup(group, {
+        onProgress: fetchedCount => {
+          progress += fetchedCount;
+          if (!syncId) {
+            return;
+          }
+
+          this.emit('syncProgress', syncId, {
+            stage: 'pull',
+            progress,
+            total,
+          });
+        },
+      });
+    }
+  }
+
+  private groupReferencesByShard(
+    latestReferencesById: Map<string, PullDocumentReference>
+  ): Map<string, PullFetchGroup> {
+    const fetchGroupsByFilename = new Map<string, PullFetchGroup>();
+
+    for (const reference of latestReferencesById.values()) {
+      const group = fetchGroupsByFilename.get(reference.shardInfo.filename);
+      if (group) {
+        group.references.push(reference);
+      } else {
+        fetchGroupsByFilename.set(reference.shardInfo.filename, {
+          shardInfo: reference.shardInfo,
+          references: [reference],
+        });
+      }
+    }
+
+    return fetchGroupsByFilename;
+  }
+
+  private async processPullFetchGroup(
+    group: PullFetchGroup,
+    { onProgress }: { onProgress: (fetchedCount: number) => void }
+  ): Promise<void> {
+    let currentChunk: PullDocumentReference[] = [];
+    let currentChunkBytes = 0;
+
+    const flushCurrentChunk = async () => {
+      if (currentChunk.length === 0) {
+        return;
+      }
+
+      const docsToFetch = currentChunk.map(reference => reference.docInfo);
+      currentChunk = [];
+      currentChunkBytes = 0;
+
+      const fetchedDocuments = await this.shardManager.fetchDocuments(group.shardInfo, docsToFetch);
+      onProgress(fetchedDocuments.length);
+
+      const mergedChanges = await this.options.mergeRule(this.database, fetchedDocuments);
+      await this.writeMergedPullChanges(mergedChanges);
+    };
+
+    for (const reference of group.references) {
+      const overflowByCount = currentChunk.length >= SYNC_PULL_WRITE_CHUNK_SIZE;
+      const overflowByBytes =
+        currentChunk.length > 0 &&
+        currentChunkBytes + reference.docInfo.len > SYNC_PULL_WRITE_BYTE_WATERMARK;
+
+      if (overflowByCount || overflowByBytes) {
+        await flushCurrentChunk();
+      }
+
+      currentChunk.push(reference);
+      currentChunkBytes += reference.docInfo.len;
+
+      if (currentChunkBytes >= SYNC_PULL_WRITE_BYTE_WATERMARK) {
+        await flushCurrentChunk();
+      }
+    }
+
+    await flushCurrentChunk();
+  }
+
+  private async writeMergedPullChanges(changes: ShardDocument[]): Promise<void> {
+    const upserts = changes.filter(change => !change.del);
+    const deletes = changes
+      .filter(change => change.del)
+      .map(change => ({ ...change, data: undefined }));
+
+    await this.writeDatabaseChangesInChunks('upsert', upserts);
+    await this.writeDatabaseChangesInChunks('delete', deletes);
+  }
+
+  private async writeDatabaseChangesInChunks(
+    kind: 'upsert' | 'delete',
+    docs: ShardDocument[]
+  ): Promise<void> {
+    for (let offset = 0; offset < docs.length; offset += SYNC_PULL_WRITE_CHUNK_SIZE) {
+      const chunk = docs.slice(offset, offset + SYNC_PULL_WRITE_CHUNK_SIZE);
+      if (chunk.length === 0) {
+        continue;
+      }
+
+      if (kind === 'upsert') {
+        await this.database.upsert(chunk);
+      } else {
+        await this.database.delete(chunk);
+      }
+    }
   }
 
   private async updateLocalSequence(): Promise<void> {

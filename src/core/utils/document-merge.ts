@@ -1,6 +1,9 @@
-import type { DocumentsMergeRule, ShardDocument } from '@/types';
+import type { DocumentsMergeRule, ShardDocInfo, ShardDocument } from '@/types';
 
-export const isDocumentARecent = (documentA: ShardDocument, documentB: ShardDocument) => {
+export const isDocumentARecent = (
+  documentA: ShardDocument | ShardDocInfo,
+  documentB: ShardDocument | ShardDocInfo
+) => {
   if (documentA.seq > documentB.seq) {
     return true;
   }

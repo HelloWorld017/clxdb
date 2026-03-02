@@ -157,7 +157,7 @@ export type ClxDBEvents = {
   vacuumStart: () => void;
   vacuumComplete: () => void;
   vacuumError: (error: Error) => void;
-  documentsChanged: (documents: ShardDocument[]) => void;
+  documentsChanged: (documentIds: string[]) => void;
 };
 
 export interface StoredBlob {

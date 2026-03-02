@@ -25,6 +25,10 @@ export const CACHE_LAST_SEQUENCE_KEY = 'lastSequence';
 export const CACHE_HEADERS_KEY = 'headers';
 export const CACHE_HEADERS_VERSION = 2;
 
+// Sync
+export const SYNC_PULL_WRITE_CHUNK_SIZE = 2_000;
+export const SYNC_PULL_WRITE_BYTE_WATERMARK = 8 * 1024 * 1024;
+
 // Crypto
 export const CRYPTO_ENCRYPTION_ALGORITHM = 'AES-GCM';
 export const CRYPTO_HASH_ALGORITHM = 'SHA-256';
