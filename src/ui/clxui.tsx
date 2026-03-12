@@ -49,7 +49,6 @@ export interface OpenDatabaseUnlockOptions {
 }
 
 export interface OpenDatabaseSettingsOptions {
-  storage: StorageBackend;
   client: ClxUIDatabaseClient;
   options?: ClxDBClientOptions;
 }
