@@ -523,7 +523,6 @@ const TodoExampleApp = () => {
 
     try {
       await clxUI.openDatabaseSettings({
-        storage: session.client.storage,
         client: session.client,
       });
     } catch (error) {

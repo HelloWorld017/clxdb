@@ -11,7 +11,7 @@ interface PromisePoolOptions {
 }
 
 export const createPromisePoolSettled = async <T>(
-  generator: Iterable<Promise<T>, void>,
+  generator: IterableIterator<Promise<T>, void>,
   { concurrency = 5, total = 0, onProgress }: PromisePoolOptions = {}
 ) => {
   const output: PromiseSettledResult<T>[] = [];
@@ -30,7 +30,7 @@ export const createPromisePoolSettled = async <T>(
 };
 
 export const createPromisePool = async <T>(
-  generator: Iterable<Promise<T>, void>,
+  generator: IterableIterator<Promise<T>, void>,
   opts?: PromisePoolOptions
 ) => {
   const output = await createPromisePoolSettled(generator, opts);
