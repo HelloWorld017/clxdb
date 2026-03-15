@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { _t, useI18n } from '@/ui/i18n';
 import {
   getNavigatorStorageWithDirectory,
@@ -17,12 +17,15 @@ export const StoragePickerOpfs = ({ directoryPath, onConfigChange }: StoragePick
   const { t } = useI18n();
   const [opfsRootHandle, setOpfsRootHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [isLoadingOpfsRoot, setIsLoadingOpfsRoot] = useState(false);
+  const isLoadingOpfsRootRef = useRef(isLoadingOpfsRoot);
+  isLoadingOpfsRootRef.current = isLoadingOpfsRoot;
+
   const [opfsLoadErrorMessage, setOpfsLoadErrorMessage] = useState<string | null>(null);
 
   const opfsSupported = supportsOpfs();
 
   useEffect(() => {
-    if (!opfsSupported || opfsRootHandle || isLoadingOpfsRoot) {
+    if (!opfsSupported || opfsRootHandle || isLoadingOpfsRootRef.current) {
       return;
     }
 
@@ -57,8 +60,9 @@ export const StoragePickerOpfs = ({ directoryPath, onConfigChange }: StoragePick
 
     return () => {
       cancelled = true;
+      setIsLoadingOpfsRoot(true);
     };
-  }, [isLoadingOpfsRoot, opfsRootHandle, opfsSupported, t]);
+  }, [opfsRootHandle, opfsSupported, t]);
 
   useEffect(() => {
     const debounceKey = `opfs:${normalizeDirectoryPath(directoryPath)}`;
