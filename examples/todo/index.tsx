@@ -452,8 +452,15 @@ const TodoExampleApp = () => {
         return;
       }
 
+      const options = { cacheStorageKey: 'todo' };
+
       const storage = createStorageBackend(storageSettings);
-      const unlockSettings = await clxUI.openDatabaseUnlock({ storage, allowStorageChange: true });
+      const unlockSettings = await clxUI.openDatabaseUnlock({
+        storage,
+        allowStorageChange: true,
+        options,
+      });
+
       if (!unlockSettings || unlockSettings.mode === 'change-storage') {
         return;
       }
@@ -465,13 +472,13 @@ const TodoExampleApp = () => {
               database: nextDatabase,
               storage,
               crypto: unlockSettings.crypto,
-              options: {},
+              options,
             })
           : await generateNewClxDB({
               database: nextDatabase,
               storage,
               crypto: unlockSettings.crypto,
-              options: {},
+              options,
             });
 
       await nextClient.init();

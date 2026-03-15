@@ -142,6 +142,7 @@ export const startClxDBWithUI = async ({
       const unlock = await clxui.openDatabaseUnlock({
         storage,
         allowStorageChange: true,
+        options,
       });
 
       if (!unlock) {
