@@ -173,7 +173,7 @@ export const startClxDBWithUI = async ({
 
       if (shouldPersistStorageSelection === true) {
         await persistStorageSelection(uiIndexedDB, storage);
-      } else {
+      } else if (shouldPersistStorageSelection === false) {
         await clearStoredStorageSelection(uiIndexedDB);
       }
 
